@@ -1,0 +1,65 @@
+name: Bootstrap Nuvio Stable
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nuvio-stable-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  import-and-patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout Nuvio Stable
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Import exactly the audited Legacy revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f src/app.c ]]; then
+            echo "Existing source found: refusing to overwrite edits."
+            exit 1
+          fi
+          UPSTREAM_SHA=e3e21a590120ca283bcf7a96df1813ff5041eb66
+          git clone --filter=blob:none --single-branch --branch master \
+            https://github.com/iqui27/nuvio-native-legacy.git \
+            "$RUNNER_TEMP/nuvio-upstream"
+          git -C "$RUNNER_TEMP/nuvio-upstream" checkout --detach "$UPSTREAM_SHA"
+          actual="$(git -C "$RUNNER_TEMP/nuvio-upstream" rev-parse HEAD)"
+          test "$actual" = "$UPSTREAM_SHA"
+          echo "Verified upstream commit: $actual"
+          # Preserve our patch scripts and GitHub Actions; retain upstream LICENSE.
+          rsync -a \
+            --exclude='/.git/' \
+            --exclude='/.github/workflows/' \
+            --exclude='/.nuvio-stable/' \
+            "$RUNNER_TEMP/nuvio-upstream/" ./
+          test -f LICENSE && test -f src/app.c && test -f tools/arm.sh
+
+      - name: Apply Nuvio Stable patches
+        run: python3 .nuvio-stable/apply.py
+
+      - name: Verify source-level contracts
+        run: python3 .nuvio-stable/test_contract.py
+
+      - name: Commit imported code
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: import native Legacy with stable profile metadata and source selector fixes"
+          git push origin HEAD:main
