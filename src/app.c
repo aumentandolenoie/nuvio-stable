@@ -2137,6 +2137,7 @@ static void prepararAoAbrir(void) {
 // video/progresso; nunca resolve a mesma escolha outra vez no caminho frio.
 static struct { int tem, titulo, t, e, apontar; unsigned geracao; uint64_t sessaoPerfil; char atual[64], alvo[64]; } proximoIntento;
 static void abrirProximoEpisodio(int t, int e, int apontar) {
+  cwAutoRecente = 0; // il prossimo episodio non eredita la finestra del precedente
   uint64_t sessaoEntrada = nv_perfil_sessao_ler();
   int titulo = player_indice();
   char atual[64], alvo[64];
@@ -2691,6 +2692,7 @@ static void tentarProximaFonteVOD(void) {
 // vivo so atrapalharia o zapear.
 static void tocarCanal(const CatItem *it) {
   int ni;
+  cwAutoRecente = 0;
   if (!it || !it->imdb[0]) return;
   ni = cat_indice_por_imdb(it->imdb);
   if (ni < 0) ni = cat_acrescentar(it);
