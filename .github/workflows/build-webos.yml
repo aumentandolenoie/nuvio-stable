@@ -35,6 +35,7 @@ jobs:
           python3 .nuvio-stable/test_contract.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
+          python3 tools/idiomas.py
           # Upstream's ajustes_secoes legacy assertion flags seven deliberately
           # hidden card-depth options; this is unrelated to Stable's changes.
           # Stable's selector, metadata and per-profile contracts are checked above.
