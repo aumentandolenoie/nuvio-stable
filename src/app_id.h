@@ -6,8 +6,9 @@
 #ifdef NV_DTS_DEBUG
 #error "NV_DTS_DEBUG requires an isolated NV_APP_ID package identity"
 #endif
-#define NV_APP_ID NV_APP_ID_PRODUCTION
-#define NV_APP_ID_DEFAULT 1
+// Nuvio Stable is a separately installable LG webOS application.
+// Keep the upstream production constant for data-directory isolation.
+#define NV_APP_ID "space.nuvio.native.stable"
 #endif
 #ifdef NV_APP_ID_DEFAULT
 #define NV_LS_MEDIA_CLIENT "com.webos.media.client.nuvio"
