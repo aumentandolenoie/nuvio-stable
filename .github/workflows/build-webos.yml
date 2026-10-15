@@ -101,7 +101,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="$(python3 -c 'import json;print(json.load(open("deploy/app/appinfo.json"))["version"])')"
-          IPK="space.nuvio.native.stable_$VERSION_arm.ipk"
+          IPK="space.nuvio.native.stable_"$VERSION"_arm.ipk"
           test -s "$IPK"
           mkdir -p build/homebrew
           bash tools/hb-repo.sh "$IPK" build/homebrew
