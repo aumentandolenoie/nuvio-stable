@@ -134,3 +134,19 @@ replace_one(
     '    if (!tit[0] && !sin[0]) ok = textoDoAddon(tipo, id, tit, nt, sin, ns, NULL);\n'
     '  }',
 )
+
+# Il test upstream contiene una stringa che assomiglia a una chiave Stripe:
+# GitHub Push Protection la blocca. Non è necessaria al test di SEEKR;
+# usiamo invece una chiave certamente invalida, senza aggirare il controllo.
+import re
+
+fixture = Path("tests/seekr_vivo.c")
+source = fixture.read_text(encoding="utf-8")
+pattern = r'(?m)^  if \(!com\) k = "[^"\n]*";$'
+if len(re.findall(pattern, source)) != 1:
+    raise SystemExit("tests/seekr_vivo.c: fixture con chiave da sanitizzare non trovata")
+fixture.write_text(
+    re.sub(pattern, '  if (!com) k = "not-a-valid-seekr-key";', source, count=1),
+    encoding="utf-8",
+)
+print("[stable] sanitized tests/seekr_vivo.c (no sensitive-looking fixture)")
