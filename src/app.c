@@ -29,6 +29,7 @@
 #include "sessao.h"
 #include "perfis.h"
 #include "fontevolta.h"
+#include "cwfonte6h.h"
 #include "fonteescolha.h"
 #include "fontesonda.h"
 #include "fonteantecipa.h"
@@ -185,6 +186,13 @@ void app_abrir_titulo(const char *imdb) {
 }
 
 static int aguardandoFonte;
+// Eccezione CW di sei ore: esclusiva della ripresa di questo film/episodio.
+// Non cambia la selezione manuale degli altri titoli o dei canali TV.
+static int cwAutoRecente;
+static int escolhaManualAgora(void) {
+  return ajustes_fonte_manual() && !cwAutoRecente;
+}
+
 // ESCOLHA AUTOMATICA COM A LISTA AINDA ENCHENDO (#221). A busca publica cada
 // addon que responde (addons.c); a escolha de VOD nao espera mais o ultimo.
 // Ela sai quando a lista ja tem uma fonte boa o bastante pelos criterios de
@@ -223,7 +231,7 @@ static int autoParcialPronto(void) {
     prefPendente = lembrada < 0 && addons_pendente_nome(fp->provedor);
   }
   // Escolher a mao: a folha abre com o que ja chegou e continua enchendo.
-  if (ajustes_fonte_manual()) {
+  if (escolhaManualAgora()) {
     // Il selettore manuale non aspetta una fonte memorizzata: resta
     // aperto mentre gli altri addon terminano di rispondere.
     autoMotivo = "escolha manual: folha aberta com as fontes recebidas";
@@ -252,6 +260,11 @@ static int autoParcialPronto(void) {
 // instante ainda nao tem a lista de episodios nem o "proximo" que
 // continuar_desenhar calculou para desenhar o card.
 static int cwTocarT, cwTocarE;
+// Solo il pulsante Play di Continua a guardare e il suo card sulla Home.
+static int cwPedido;
+static int cwFolhaAntesPlayer;
+static int cwFolhaT, cwFolhaE;
+
 // O MESMO OK num card cujo episodio TERMINOU e cuja lista de episodios ainda
 // nao chegou: a pagina abre e o toque fica esperando a lista para achar o
 // proximo, em vez de recomecar o terminado. `cwEsperaItem` e uma copia: a
@@ -420,7 +433,17 @@ static int fonteProvouTocar(void) {
   p = video_pos();
   if (provaPos >= 0 && p > provaPos && p - provaPos <= 5.0) provaSeg += p - provaPos;
   provaPos = p;
-  if (provaSeg >= 2.0) provaTocou = 1;
+  if (provaSeg >= 2.0) {
+    const CatItem *ci = cat_item(player_indice());
+    int t = 0, e = 0;
+    provaTocou = 1;
+    // Solo una riproduzione effettiva apre la finestra di sei ore.
+    // La chiave resta quella del singolo episodio, non dell'intera serie.
+    if (ci && ci->imdb[0]) {
+      player_episodio_atual(&t, &e);
+      cwfonte6h_registrar(ci->imdb, t, e, (long long)time(NULL));
+    }
+  }
   return provaTocou;
 }
 static void marcarFonteMorta(int indice) {
@@ -2799,6 +2822,7 @@ static void perfilEncerrarSessao(void) {
   memset(&liveStall, 0, sizeof liveStall);
   abrirTeste[0] = 0;
   cwTocarT = cwTocarE = cwEspera = 0;
+  cwPedido = cwFolhaAntesPlayer = cwAutoRecente = 0;
   cwEsperaDesde = 0;
   memset(&cwEsperaItem, 0, sizeof cwEsperaItem);
   prefFolhaN = -1;
@@ -4200,7 +4224,7 @@ void app_atualizar(float dt, Uint32 agora) {
         cwTocarT = cwTocarE = 0; cwEspera = 0;
         if (o == ILHA_PEDIU_TOCAR && ic.serie && ic.t > 0 && ic.e > 0) { cwTocarT = ic.t; cwTocarE = ic.e; }
         abrirPorIndice(idx);
-        if (o == ILHA_PEDIU_TOCAR) detail_pedir_reproduzir();
+        if (o == ILHA_PEDIU_TOCAR) { cwPedido = 1; detail_pedir_reproduzir(); }
       } else desc_pedir_titulo(ic.imdb);
     } else if (o == ILHA_PEDIU_DISPENSAR) {
       if (qual == ILHA_VIVO) player_descartar_retido();
@@ -4510,7 +4534,7 @@ void app_atualizar(float dt, Uint32 agora) {
           }
         }
         abrirTitulo(&it, 1, 1);
-        if (tocar) detail_pedir_reproduzir();
+        if (tocar) { cwPedido = 1; detail_pedir_reproduzir(); }
       }
     } else if (tela == TELA_BUSCA && busca_pediu_pessoa(&pedPessoa)) {
       abrirPessoa(&pedPessoa);
@@ -4549,7 +4573,7 @@ void app_atualizar(float dt, Uint32 agora) {
                           ajustes_cw_concluido(),
                           (long long)time(NULL) * 1000LL, &prox)) {
           cwTocarT = prox.temporada; cwTocarE = prox.episodio;
-          detail_pedir_reproduzir();
+          cwPedido = 1; detail_pedir_reproduzir();
         } else
           printf("[cw] %s terminado e sem proximo: abrindo so a pagina\n", cwEsperaItem.imdb);
       }
@@ -4613,6 +4637,43 @@ void app_atualizar(float dt, Uint32 agora) {
     // player_definir_episodio.
     int doInicio = detail_pediu_do_inicio();
     if ((detail_pediu_reproduzir() || doInicio) && aguardandoFonte != 2) {
+      // Da Continua a guardare, mostrare le FONTI prima della schermata di
+      // caricamento. Saltare la scelta solo se QUESTO film/episodio ha
+      // iniziato davvero la riproduzione nelle ultime sei ore.
+      int pedidoCW = cwPedido;
+      int cwT = 0, cwE = 0;
+      const CatItem *cwItem = cat_item(detail_indice());
+      cwPedido = 0;
+      cwAutoRecente = 0;
+      if (cwTocarT > 0 && cwTocarE > 0) { cwT = cwTocarT; cwE = cwTocarE; }
+      else detail_ep_foco(&cwT, &cwE);
+      if (cwItem && strcmp(cwItem->tipo, "series")) cwT = cwE = 0;
+      if (pedidoCW && cwItem && cwItem->imdb[0] && ajustes_fonte_manual())
+        cwAutoRecente = cwfonte6h_recente(cwItem->imdb, cwT, cwE, (long long)time(NULL));
+      if (pedidoCW && cwItem && cwItem->imdb[0] &&
+          ajustes_fonte_manual() && !cwAutoRecente) {
+        char cwAlvo[64], base[24];
+        if (cwT > 0 && cwE > 0)
+          cat_id_stream(detail_indice(), cwT, cwE, cwAlvo, sizeof cwAlvo);
+        else snprintf(cwAlvo, sizeof cwAlvo, "%s", cwItem->imdb);
+        // La ricerca anticipata puo appartenere all'episodio in focus.
+        // La scelta della rail deve riferirsi a quello mostrato dal card.
+        if (!stream_lista_do_alvo(cwAlvo)) {
+          stream_definir_alvo(cwAlvo);
+          addons_buscar(cwAlvo, cwItem->tipo);
+          addons_buscar_legendas(cwAlvo, cwItem->tipo);
+        }
+        cwFolhaT = cwT; cwFolhaE = cwE;
+        cwFolhaAntesPlayer = 1;
+        cwTocarT = cwTocarE = 0;
+        idBaseDoTitulo(base, sizeof base);
+        stream_preferir(base[0] ? fontepref_escolher_manual(base) : -1);
+        folhaParaTocar = 1;
+        nomeParaFolha();
+        stream_folha_abrir(); // si riempie mentre gli addon rispondono
+        printf("[cw] lista fonti prima del player: %s T%dE%d\n",
+               cwItem->imdb, cwT, cwE);
+      } else {
       marco("abrir: reproduzir pedido");
       // A tela abre JA, no estado "abrindo fonte", e a escolha acontece depois.
       // Escolher antes deixaria o botao sem resposta por segundos, e escolher
@@ -4632,7 +4693,7 @@ void app_atualizar(float dt, Uint32 agora) {
         player_precarregar_cancelar(preparo.token); preparo.token = 0;
       }
 #endif
-      int usouPreparo = !ajustes_fonte_manual() &&
+      int usouPreparo = !escolhaManualAgora() &&
                        preparoUsar(alvoPreparo, lembradaPreparo, &idxPreparado);
       // Armado antes da abertura: o proximo quadro nao cancela o worker
       // quando a pagina do titulo cede lugar ao player.
@@ -4670,11 +4731,12 @@ void app_atualizar(float dt, Uint32 agora) {
       } else {
         if (usouPreparo) limparFonteVOD();
         renovarListaDoPlayer();
-        if (!ajustes_fonte_manual() && !preparoEspera && tocarFonteGuardada()) {
+        if (!escolhaManualAgora() && !preparoEspera && tocarFonteGuardada()) {
           /* Apenas no modo automatico: no manual sempre pedir uma escolha. */
         }
         else aguardandoFonte = 1;
       }
+      } // fine ramo Continua a guardare (ripresa recente)
     }
     if (detail_pediu_marcar()) {
       // Alterna no Trakt E no espelho local. O estado de partida vem de
@@ -4794,7 +4856,7 @@ void app_atualizar(float dt, Uint32 agora) {
       // Com "escolher a fonte ao reproduzir" ligado so vale a escolha da PESSOA:
       // a memoria do automatico (bingeGroup) nao pode tocar sozinha aqui nem
       // aparecer como "Sua escolha anterior" na folha que vai abrir.
-      lembrada = base[0] ? (ajustes_fonte_manual() ? fontepref_escolher_manual(base)
+      lembrada = base[0] ? (escolhaManualAgora() ? fontepref_escolher_manual(base)
                                                    : fontepref_escolher(base)) : -1;
       stream_preferir(lembrada);
       // QUEM ESCOLHE E A PESSOA, quando ela pediu isso em Ajustes.
@@ -4813,7 +4875,7 @@ void app_atualizar(float dt, Uint32 agora) {
       // A preferida fica apenas destacada: NAO inicia o video sozinha.
       // Isto cobre o botao Play e Continuar assistindo pelo mesmo caminho.
       // O ramo anterior de canais permanece automatico (Guia TV).
-      if (ajustes_fonte_manual() && stream_n() > 0) {
+      if (escolhaManualAgora() && stream_n() > 0) {
         aguardandoFonte = 0;
         folhaParaTocar = 1;
         nomeParaFolha(); stream_folha_abrir();
@@ -5263,7 +5325,10 @@ void app_atualizar(float dt, Uint32 agora) {
       limparFonteVOD();
       int titulo=player_aberto()?player_indice():detail_indice(), t=0,e=0;
       if (player_aberto()) { player_episodio_atual(&t,&e); player_encerrar(); }
+      else if (cwFolhaAntesPlayer) { t=cwFolhaT; e=cwFolhaE; }
       else detail_ep_foco(&t,&e);
+      cwFolhaAntesPlayer = 0;
+      cwAutoRecente = 0;
       diagnostico_cancelar_vazao();
       player_abrir(titulo,NULL);
       player_definir_episodio(t,e);
@@ -5394,6 +5459,7 @@ void app_atualizar(float dt, Uint32 agora) {
   { int t,e;
     if (aguardandoFonte != 2 && episodios_escolheu(&t,&e) && player_aberto()) {
       int titulo=player_indice();
+      cwAutoRecente = 0;  // nuovo episodio => scelta ordinaria
       diagnostico_cancelar_vazao();
       player_encerrar(); player_abrir(titulo,NULL);
       player_definir_episodio(t,e);
@@ -5416,6 +5482,7 @@ void app_atualizar(float dt, Uint32 agora) {
   // ja tem saida pela mesma tecla.
   if (folhaParaTocar && !stream_folha_aberta()) {
     folhaParaTocar = 0;
+    cwFolhaAntesPlayer = 0;
     if (player_aberto()) player_erro_fonte();
   }
 
