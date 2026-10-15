@@ -7,6 +7,7 @@ on:
       - .github/workflows/build-webos.yml
       - src/**
       - tests/cwfonte6h.*
+      - tests/audio_reserva.*
       - .nuvio-stable/test_contract.py
       - deploy/app/appinfo.json
       - tools/tizen-config.xml
@@ -33,6 +34,7 @@ jobs:
           set -euo pipefail
           python3 .nuvio-stable/test_contract.py
           bash tests/cwfonte6h.sh
+          bash tests/audio_reserva.sh
           # Upstream's ajustes_secoes legacy assertion flags seven deliberately
           # hidden card-depth options; this is unrelated to Stable's changes.
           # Stable's selector, metadata and per-profile contracts are checked above.
