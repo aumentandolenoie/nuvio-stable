@@ -1,3 +1,13 @@
+# Nuvio Stable — LG webOS
+
+Fork non ufficiale della Nuvio Native Legacy. Versione con identificativo separato `space.nuvio.native.stable`, preferenza per i metadati addon e selettore delle fonti a ogni avvio VOD quando attivato.
+
+**Installazione Homebrew Channel:** aggiungi l’indirizzo `https://github.com/aumentandolenoie/nuvio-stable/releases/latest/download/repo.json` quando una release verificata sarà pubblicata. I pacchetti `.ipk` sono nelle [release di Nuvio Stable](https://github.com/aumentandolenoie/nuvio-stable/releases).
+
+La build mantiene la sincronizzazione delle preferenze del profilo compatibili con l’app ufficiale; le opzioni proprie della fork restano locali. GPLv3 e crediti upstream conservati di seguito.
+
+---
+
 **Android TV and Mobile in one APK:** In Settings > Appearance, choose **Interface mode: TV / Mobile**. TV remains the default and keeps remote navigation. Mobile enables phone layouts, direct touch scrolling, portrait browsing, and the native keyboard; full-screen playback uses landscape. The choice is saved only on this device, and switching keeps the same app, account, and data. See [Android interface modes](docs/android/INTERFACE-MODES.md) for details.
 
 <picture>
