@@ -433,17 +433,7 @@ static int fonteProvouTocar(void) {
   p = video_pos();
   if (provaPos >= 0 && p > provaPos && p - provaPos <= 5.0) provaSeg += p - provaPos;
   provaPos = p;
-  if (provaSeg >= 2.0) {
-    const CatItem *ci = cat_item(player_indice());
-    int t = 0, e = 0;
-    provaTocou = 1;
-    // Solo una riproduzione effettiva apre la finestra di sei ore.
-    // La chiave resta quella del singolo episodio, non dell'intera serie.
-    if (ci && ci->imdb[0]) {
-      player_episodio_atual(&t, &e);
-      cwfonte6h_registrar(ci->imdb, t, e, (long long)time(NULL));
-    }
-  }
+  if (provaSeg >= 2.0) provaTocou = 1;
   return provaTocou;
 }
 static void marcarFonteMorta(int indice) {
@@ -2379,6 +2369,15 @@ static void registrarFonteVODTocando(void) {
       (d > 1.0 && d < 120.0)) return;
   provaLimpa = 1;
   stream_vod_tocou(stream_atual());
+  // Confermato video VOD reale, non clip breve del debrid, prova fallita
+  // o semplice richiesta di Play. Registra il primo avvio per 6h.
+  { const CatItem *ci = cat_item(player_indice());
+    int t = 0, e = 0;
+    if (ci && ci->imdb[0] && !player_id_canal()[0]) {
+      player_episodio_atual(&t, &e);
+      cwfonte6h_registrar(ci->imdb, t, e, (long long)time(NULL));
+    }
+  }
 }
 
 // SONDA DEPOIS DA RECUSA DO PLAYER (#364, fontesonda.h). O player nativo
