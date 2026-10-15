@@ -34,6 +34,7 @@
 #include "video_reconexao.h"
 #include "idioma.h"
 #include "linguas.h"
+#include "audiopref.h"
 #include "streamfitpassiva.h"
 #include "audsync.h"
 #include "cacheboost.h"
@@ -373,17 +374,16 @@ void video_escolher_audio(int i);
 // Mesma regra do video_tpk.c: sem preferencia ou sem faixa que case, fica a do
 // arquivo.
 static void escolherAudioPreferido(void) {
-  const char *pref = ling_audio();
-  int i;
-  if (!pref[0] || nAudio < 2) return;
-  if (audioAtual >= 0 && audioAtual < nAudio && faixaAudio[audioAtual].idioma[0] &&
-      ling_casa(faixaAudio[audioAtual].idioma, pref)) return;
-  for (i = 0; i < nAudio; i++) {
-    if (!faixaAudio[i].idioma[0] || !ling_casa(faixaAudio[i].idioma, pref)) continue;
-    printf("[video] audio preferido: %s (faixa %d de %d)\n", ling_nome(faixaAudio[i].idioma), i + 1, nAudio);
-    video_escolher_audio(i);
-    return;
-  }
+  const char *codigos[NV_FAIXA_MAX];
+  int i, reserva = 0;
+  if (nAudio < 2) return;
+  for (i = 0; i < nAudio; i++) codigos[i] = faixaAudio[i].idioma;
+  i = nv_audiopref_trova(codigos, nAudio, ling_audio(), ling_audio2(),
+                         ling_casa, &reserva);
+  if (i < 0 || i == audioAtual) return;
+  printf("[video] audio %s: %s (faixa %d de %d)\n",
+         reserva ? "reserva" : "principal", ling_nome(faixaAudio[i].idioma), i + 1, nAudio);
+  video_escolher_audio(i);
 }
 
 // --- natives (Kotlin -> C) ----------------------------------------------------
