@@ -48,6 +48,7 @@ jobs:
             "$RUNNER_TEMP/nuvio-upstream/" ./
           test -f LICENSE && test -f src/app.c && test -f tools/arm.sh
 
+      # The patch also replaces an upstream test token blocked by GitHub Push Protection.
       - name: Apply Nuvio Stable patches
         run: python3 .nuvio-stable/apply.py
 
