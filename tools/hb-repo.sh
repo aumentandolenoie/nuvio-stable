@@ -18,7 +18,7 @@ cd "$(dirname "$0")/.."
 
 IPK="${1:?uso: hb-repo.sh <pacote.ipk> <saida>}"
 SAIDA="${2:?uso: hb-repo.sh <pacote.ipk> <saida>}"
-REPO="iqui27/nuvio-native-legacy"
+REPO="aumentandolenoie/nuvio-stable"
 mkdir -p "$SAIDA"
 
 python3 - "$IPK" "$SAIDA" "$REPO" <<'EOF'
@@ -38,8 +38,8 @@ manifesto = {
     "id": app["id"],
     "version": versao,
     "type": "native",
-    "title": "Nuvio (native legacy)",
-    "appDescription": "Unofficial native Nuvio client for LG webOS",
+    "title": "Nuvio Stable",
+    "appDescription": "Nuvio Stable per LG webOS: preferenze del profilo, addon metadata e selettore fonti",
     "iconUri": icone,
     "sourceUrl": f"https://github.com/{repo}",
     # O app roda sem root (uid do jail); o que depende de root e so o video
