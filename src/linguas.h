@@ -70,6 +70,8 @@ int ling_afinidade(const char *cod, const char *pref);
 const char *ling_legenda(void);
 const char *ling_legenda2(void);
 const char *ling_audio(void);
+// Audio di riserva: vuoto = non impostato, non va nel blob ufficiale.
+const char *ling_audio2(void);
 
 // So a parte da CONTA, sem a escolha local por cima (para o log, #378).
 const char *ling_conta_legenda_valor(void);
@@ -86,6 +88,7 @@ void ling_local_legenda(const char *v);
 // Second subtitle language chosen on THIS TV (F04). "" = follow the account.
 void ling_local_legenda2(const char *v);
 void ling_local_audio(const char *v);
+void ling_local_audio2(const char *v);
 
 // Lista fixa oferecida em Ajustes. O indice 0 e "seguir a conta" e o 1 e "sem
 // filtro"; do 2 em diante sao codigos ISO.
