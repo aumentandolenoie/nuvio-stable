@@ -4661,6 +4661,9 @@ void app_atualizar(float dt, Uint32 agora) {
         // La ricerca anticipata puo appartenere all'episodio in focus.
         // La scelta della rail deve riferirsi a quello mostrato dal card.
         if (!stream_lista_do_alvo(cwAlvo)) {
+          // Evita che il pannello mostri anche per un istante le fonti
+          // dell'episodio precedente mentre arriva la nuova ricerca.
+          stream_invalidar("CW selecionou outro episodio");
           stream_definir_alvo(cwAlvo);
           addons_buscar(cwAlvo, cwItem->tipo);
           addons_buscar_legendas(cwAlvo, cwItem->tipo);
