@@ -554,6 +554,9 @@ typedef enum {
   AJ_FALHA_ADDONS, AJ_FALHA_ADDON_ORDEM, AJ_FALHA_ADDON_LIMITE,
   AJ_FONTE_PRECARREGAR, // local, append-only; video e proximo episodio, desligado
   AJ_PROVEDORES_ESCOPO, // local, append-only; 0 = shared, 1 = separate for this profile
+  // Nuvio Stable 2.0.7: seconda lingua audio, append-only per non alterare
+  // gli indici di tutte le vecchie preferenze. Solo su questa TV, per profilo.
+  AJ_AUD_LINGUA2,
   AJ_N
 } OpcaoId;
 _Static_assert(DEBRID_RD == 0 && DEBRID_TB == 1 && DEBRID_PM == 2 && DEBRID_AD == 3,
@@ -1430,6 +1433,7 @@ static const Opcao OPCOES[AJ_N] = {
   ESC("Pré-carregar vídeo", V_LIGA, 2),
 
   ESC("Configuração dos provedores", V_PROVEDORES_ESCOPO, 2),
+  ESC("Idioma do áudio de reserva", V_LINGUA, 2),
 
 };
 
@@ -1677,6 +1681,7 @@ static const char *CHAVE[] = {
   "fontePrecarregarLocal",
 
   "-provedoresEscopo",
+  "audioReservaIdiomaLocal", // preferenza per profilo su questa TV, non nel blob web
 
 };
 // QUATRO VETORES PARALELOS indexados pelo mesmo enum AJ_*: OPCOES, CHAVE,
@@ -3708,6 +3713,7 @@ void ajustes_dir(const char *dir) {
   aplicarIdioma(AJ_LEG_LINGUA);
   aplicarIdioma(AJ_LEG_LINGUA2);
   aplicarIdioma(AJ_AUD_LINGUA);
+  aplicarIdioma(AJ_AUD_LINGUA2);
   txt_definir_fonte_interface((TxtFamilia)valor[AJ_FONTE_UI]);
   gfx_escala_ui_definir(ajustes_tamanho_ui());
   interfaceAplicar();
@@ -4473,6 +4479,7 @@ int ajustes_aplicar_blob(const char *json) {
 // exigiria adivinhar a feature e o `type`, e um blob com forma errada e pior
 // que uma chave a menos.
 static int somenteDesteAparelho(int op) {
+  // La riserva audio non esiste nel blob ufficiale; resta per profilo locale.
   if (op >= AJ_FALHA_PROVEDORES && op < AJ_N) return 1;
   if (op == AJ_ICONE_APP || op == AJ_LOGO_APP || op == AJ_ABERTURA) return 1;
   switch (op) {
@@ -4604,7 +4611,8 @@ static int somenteDesteAparelho(int op) {
 // onde o historico vai e se o social existe. Entram na copia por perfil
 // (ajustes-p<N>.txt) e continuam FORA do blob (somenteDesteAparelho).
 static int perfilLocal(int i) {
-  return i == AJ_CW_FONTE || i == AJ_CW_PROXIMO || i == AJ_SALVOS_DEST || i == AJ_HIST_CONTA || i == AJ_SOCIAL;
+  return i == AJ_CW_FONTE || i == AJ_CW_PROXIMO || i == AJ_SALVOS_DEST || i == AJ_HIST_CONTA || i == AJ_SOCIAL ||
+         i == AJ_AUD_LINGUA2;
 }
 
 static int dePerfil(int i) {
@@ -4622,7 +4630,7 @@ static void nomePerfil(char *dst, size_t tam, int perfil) {
 void ajustes_perfil_padrao(void) {
   int i;
   for (i = 0; i < AJ_N; i++) if (dePerfil(i)) valor[i] = valorPadrao[i];
-  aplicarIdioma(AJ_LEG_LINGUA); aplicarIdioma(AJ_LEG_LINGUA2); aplicarIdioma(AJ_AUD_LINGUA);
+  aplicarIdioma(AJ_LEG_LINGUA); aplicarIdioma(AJ_LEG_LINGUA2); aplicarIdioma(AJ_AUD_LINGUA); aplicarIdioma(AJ_AUD_LINGUA2);
   ajSombraSync();
 }
 
@@ -4681,6 +4689,7 @@ int ajustes_perfil_restaurar(int perfil) {
     aplicarIdioma(AJ_LEG_LINGUA);
     aplicarIdioma(AJ_LEG_LINGUA2);
     aplicarIdioma(AJ_AUD_LINGUA);
+    aplicarIdioma(AJ_AUD_LINGUA2);
   }
   printf("[ajustes] ajustes do perfil %d restaurados desta TV (%d mudaram)\n",
          perfil, mudou);
@@ -5747,7 +5756,8 @@ static const char *ajudaOpcaoBase(int op) {
     case AJ_LEG2_TAMANHO: case AJ_LEG2_COR: case AJ_LEG2_FUNDO: case AJ_LEG2_BORDA:
       return "Aparência só da segunda legenda. \"Igual à principal\" segue o estilo da principal, definido no player.";
     case AJ_LEG_LINGUA: return "Idioma ligado sozinho quando o vídeo começa. Legendas dos addons aparecem em inglês e no idioma escolhido aqui. \"Da conta\" segue o que está no seu perfil.";
-    case AJ_AUD_LINGUA: return "Faixa de áudio escolhida quando o arquivo tem mais de uma. Se o idioma não existir no arquivo, o player usa a primeira.";
+    case AJ_AUD_LINGUA: return "Idioma principal para a faixa de áudio. Se não houver, tenta o idioma do áudio de reserva; se faltar também, mantém a faixa original do arquivo.";
+    case AJ_AUD_LINGUA2: return "Segunda preferência para o áudio. É usada somente se nenhuma faixa tiver o idioma principal. 'Nenhuma' desativa a reserva; se não houver correspondências, o vídeo mantém a faixa padrão. Vale para este perfil nesta TV.";
     case AJ_PAUSA_OVERLAY: return "Ao pausar, sobe uma ficha com a sinopse e os dados do que você está vendo.";
     case AJ_PULAR_ABERTURA: return "Pula a abertura sozinho quando o episódio tem o trecho marcado, e avisa na tela. Sem marcador, nada é pulado. O botão Pular abertura continua valendo.";
     case AJ_PULAR_RESUMO: return "Pula o resumo do episódio anterior sozinho quando o episódio tem o trecho marcado, e avisa na tela. Sem marcador, nada é pulado.";
@@ -7188,7 +7198,7 @@ static int definirValorDireto(int op, int novo) {
     valor[op] = fil_limite_gravado();
     fil_confirmar_limite();
   }
-  if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2 || op == AJ_AUD_LINGUA) aplicarIdioma(op);
+  if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2 || op == AJ_AUD_LINGUA || op == AJ_AUD_LINGUA2) aplicarIdioma(op);
   if (op == AJ_IDIOMA) { idiomaEscolhido(); desc_repetir(); }
   if (op == AJ_FONTE_UI) txt_definir_fonte_interface((TxtFamilia)novo);
   if (op == AJ_TAMANHO_UI) gfx_escala_ui_definir(ajustes_tamanho_ui());
@@ -7622,7 +7632,11 @@ void ajustes_atualizar(float dt, Uint32 agora) {
 // Leva a escolha da linha para linguas.c. "Da conta" (indice 0) manda string
 // vazia, que e como linguas.c representa "sem escolha local, siga a conta".
 static void aplicarIdioma(int op) {
-  const char *c = ling_opcao_codigo(valor[op]);
+  // La riserva ha 0 = Nessuna, e poi gli stessi idiomi della lista
+  // principale senza le due sentinelle Da conta/Tutte (indici 2..).
+  const char *c = op == AJ_AUD_LINGUA2
+      ? (valor[op] == 0 ? "*" : ling_opcao_codigo(valor[op] + 1))
+      : ling_opcao_codigo(valor[op]);
   if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2) {
     if (op == AJ_LEG_LINGUA) ling_local_legenda(c); else ling_local_legenda2(c);
     // A lista de legendas do titulo carregado foi montada com o idioma ANTERIOR
@@ -7632,6 +7646,8 @@ static void aplicarIdioma(int op) {
     // TV a seta repete sozinha — atravessar a lista dispararia dezenas de
     // buscas, cada uma consultando todos os addons de legenda.
     legendaEspera = 0.7f;
+  } else if (op == AJ_AUD_LINGUA2) {
+    ling_local_audio2(c);
   } else {
     // O audio nao precisa de nada equivalente: as faixas de audio vem do
     // arquivo que esta tocando e a preferencia so escolhe entre as que ja
@@ -7644,6 +7660,7 @@ static void aplicarIdioma(int op) {
 // unicas dinamicas: a lista vem de linguas.c e nao da tabela OPCOES, que e
 // const e foi escrita antes de linguas.c existir.
 static int nValores(int op) {
+  if (op == AJ_AUD_LINGUA2) return nLingua > 1 ? nLingua - 1 : 1;
   if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2 || op == AJ_AUD_LINGUA) return nLingua > 0 ? nLingua : 1;
   if (op == AJ_SELOS_PACOTE) return 1 + selospacote_n();
 #ifndef __EMSCRIPTEN__
@@ -7679,6 +7696,10 @@ static const char *textoValor(int op) {
   if (o->tipo == OP_NUMERO) {
     snprintf(buf, sizeof buf, "%d%s", valor[op], o->sufixo ? o->sufixo : "");
     return buf;
+  }
+  if (op == AJ_AUD_LINGUA2) {
+    int v = valor[op];
+    return v == 0 ? "Nenhuma" : (v > 0 && v + 1 < nLingua ? V_LINGUA[v + 1] : "Nenhuma");
   }
   if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2 || op == AJ_AUD_LINGUA) {
     int v = valor[op];
@@ -8102,7 +8123,7 @@ static AjPreview familiaPreviaOpcao(int op) {
     case AJ_QUALIDADE: case AJ_DV: case AJ_ATMOS: case AJ_LEG_LINGUA: case AJ_LEG_LINGUA2: case AJ_CACHE_SEEK: case AJ_BUFFER:
     case AJ_DV_MKV:
     case AJ_LEG_FORCADA:
-    case AJ_AUD_LINGUA: case AJ_PAUSA_OVERLAY: case AJ_PLR_CLASSIF: case AJ_TELA_ABERTURA: case AJ_FONTE_MANUAL:
+    case AJ_AUD_LINGUA: case AJ_AUD_LINGUA2: case AJ_PAUSA_OVERLAY: case AJ_PLR_CLASSIF: case AJ_TELA_ABERTURA: case AJ_FONTE_MANUAL:
     case AJ_FONTE_AUTO: case AJ_FONTE_REPOR: case AJ_FONTE_TEXTO: case AJ_FONTE_ORDEM_ADDON: case AJ_SELOS_CORES: case AJ_FONTE_TOCAR_CONFERINDO: case AJ_FONTE_AQUECER: case AJ_FONTE_CONFERIR_VARIAS: case AJ_FONTE_PREPARAR: case AJ_FONTE_PRECARREGAR:
     case AJ_FONTE_PRIORIDADE: case AJ_FONTE_HDR:
     case AJ_SELOS_PACOTE:
