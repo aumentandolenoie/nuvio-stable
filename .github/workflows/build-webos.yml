@@ -1,0 +1,174 @@
+name: Build and publish Nuvio Stable LG webOS
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/build-webos.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nuvio-stable-homebrew
+  cancel-in-progress: false
+
+jobs:
+  build-lg-webos:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - name: Checkout Stable source
+        uses: actions/checkout@v5
+
+      - name: Run source and application identity checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .nuvio-stable/test_contract.py
+          bash tests/ajustes_secoes.sh
+          bash tests/stable_identity.sh
+          bash -n tools/arm.sh
+          bash -n tools/p2p-motor/build-arm.sh
+
+      - name: Install webOS packaging tools
+        uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+
+      - name: Install LG webOS CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --global @webos-tools/cli@3.2.6
+          command -v ares-package
+
+      - name: Configure publicly available Nuvio cloud endpoints
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Public NuvioMedia client key. Never embed personal credentials.
+          printf '%s\n' \
+            'NUVIO_SUPABASE_URL=https://api.nuvio.tv' \
+            'TV_LOGIN_WEB_BASE_URL=https://nuvio.tv/tv-login' \
+            'SIMKL_APP_NAME=nuvio' > "$GITHUB_WORKSPACE/local.properties"
+          PUBLIC_KEY="$(curl -fsSL --retry 3 \
+            https://raw.githubusercontent.com/NuvioMedia/self-host/main/.env.example \
+            | sed -n 's/^NUVIO_CLOUD_PUBLISHABLE_KEY=//p' | head -1)"
+          test -n "$PUBLIC_KEY"
+          printf 'NUVIO_SUPABASE_ANON_KEY=%s\n' "$PUBLIC_KEY" >> "$GITHUB_WORKSPACE/local.properties"
+          chmod 600 "$GITHUB_WORKSPACE/local.properties"
+          NUVIO_PROPERTIES="$GITHUB_WORKSPACE/local.properties" \
+            bash tools/env.sh --require-core > /dev/null
+
+      - name: Build full ARMv7 webOS SDK with ASS and DTS
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/amd64 \
+            --build-arg SDK_URL=https://github.com/openlgtv/buildroot-nc4/releases/download/webos-a38c582/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz \
+            -t nuvio-webos-sdk tools/
+
+      - name: Build LG ARMv7 P2P engine
+        shell: bash
+        env:
+          NUVIO_BUILD_PLATFORM: linux/amd64
+          NV_JOBS: "2"
+        run: |
+          set -euo pipefail
+          export NUVIO_P2P_MOTOR="$GITHUB_WORKSPACE/build/p2p-motor"
+          mkdir -p "$NUVIO_P2P_MOTOR"
+          bash tools/p2p-motor/build-arm.sh "$NUVIO_P2P_MOTOR/arm"
+
+      - name: Cross-compile and package Nuvio Stable IPK
+        shell: bash
+        env:
+          NUVIO_CONTAINER_RUNTIME: docker
+          NUVIO_BUILD_PLATFORM: linux/amd64
+          NUVIO_DTS_FFMPEG: "1"
+          NUVIO_ASS_LIBASS: "1"
+        run: |
+          set -euo pipefail
+          export NUVIO_P2P_MOTOR="$GITHUB_WORKSPACE/build/p2p-motor"
+          export NUVIO_ARES_PACKAGE="$(command -v ares-package)"
+          export NUVIO_PROPERTIES="$GITHUB_WORKSPACE/local.properties"
+          mkdir -p build/logs
+          bash tools/arm.sh --ipk --build 2>&1 | tee build/logs/compile.log
+
+      - name: Generate and verify Homebrew manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="$(python3 -c 'import json;print(json.load(open("deploy/app/appinfo.json"))["version"])')"
+          IPK="space.nuvio.native.stable_$VERSION_arm.ipk"
+          test -s "$IPK"
+          mkdir -p build/homebrew
+          bash tools/hb-repo.sh "$IPK" build/homebrew
+          python3 tools/stable-verify.py "$IPK" build/homebrew
+          sha256sum "$IPK" | tee build/homebrew/ipk.sha256
+          echo "STABLE_IPK=$IPK" >> "$GITHUB_ENV"
+          echo "STABLE_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Upload installable IPK and Homebrew index
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nuvio-Stable-LG-webOS
+          path: |
+            space.nuvio.native.stable_*_arm.ipk
+            build/homebrew/repo.json
+            build/homebrew/webosbrew.manifest.json
+            build/homebrew/ipk.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Publish permanent public Homebrew Channel release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          TAG="v$STABLE_VERSION"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release tag already exists: refusing to replace installed binaries."
+            exit 1
+          fi
+          cat > build/homebrew/release-notes.md <<'EOF'
+          Nuvio Stable - versione indipendente per LG webOS, basata su Nuvio Native Legacy.
+
+          - Mantiene la sincronizzazione delle impostazioni compatibili con il profilo Nuvio.
+          - Priorità ai metadati esterni, anche in italiano, quando selezionata.
+          - Selettore fonti ad ogni avvio VOD se attivo, anche da Continua a guardare.
+          - Guida TV esclusa dalla selezione obbligatoria.
+          - ID dedicato space.nuvio.native.stable: non sovrascrive la Legacy.
+          - Compilazione ARMv7 con motore P2P, ASS e conversione DTS.
+
+          Build verificata automaticamente; funzionamento su TV reale ancora da confermare.
+          EOF
+          gh release create "$TAG" \
+            "$STABLE_IPK" \
+            build/homebrew/repo.json \
+            build/homebrew/webosbrew.manifest.json \
+            build/homebrew/ipk.sha256 \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Nuvio Stable $STABLE_VERSION - LG webOS" \
+            --notes-file build/homebrew/release-notes.md \
+            --latest
+
+      - name: Upload diagnostic build logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nuvio-Stable-build-log
+          path: |
+            build/logs/compile.log
+            build/p2p-motor/arm/cmake-arm.log
+          if-no-files-found: warn
+
+      - name: Installation link
+        shell: bash
+        run: |
+          echo "## Nuvio Stable - LG webOS" >> "$GITHUB_STEP_SUMMARY"
+          echo 'Homebrew Channel URL:' >> "$GITHUB_STEP_SUMMARY"
+          echo 'https://github.com/aumentandolenoie/nuvio-stable/releases/latest/download/repo.json' >> "$GITHUB_STEP_SUMMARY"
