@@ -83,6 +83,7 @@
 #include "video.h"
 #include "video_reconexao.h"
 #include "linguas.h"
+#include "audiopref.h"
 #include "idioma.h"
 #include "marco.h"
 #include "mkv.h"
@@ -944,22 +945,23 @@ void video_escolher_audio(int i);
 // melhor que uma trocada por chute, e quem quer outra abre a folha de faixas.
 // Mesma regra do video.c, palavra por palavra.
 static void escolherAudioPreferido(void) {
-  const char *pref = ling_audio();
-  int i;
-  if (!pref[0] || nAudio < 2) return;
-  if (audioAtual >= 0 && audioAtual < nAudio &&
-      faixaAudio[audioAtual].idioma[0] &&
-      ling_casa(faixaAudio[audioAtual].idioma, pref)) return;   // ja esta boa
-  for (i = 0; i < nAudio; i++) {
-    if (!faixaAudio[i].idioma[0] || !ling_casa(faixaAudio[i].idioma, pref)) continue;
-    printf("[video] audio preferido: %s (faixa %d de %d)\n",
+  const char *codigos[NV_FAIXA_MAX];
+  int i, reserva = 0;
+  if (nAudio < 2) return;
+  for (i = 0; i < nAudio; i++) codigos[i] = faixaAudio[i].idioma;
+  i = nv_audiopref_trova(codigos, nAudio, ling_audio(), ling_audio2(),
+                         ling_casa, &reserva);
+  if (i >= 0) {
+    if (i == audioAtual) return;
+    printf("[video] audio %s: %s (faixa %d de %d)\n",
+           reserva ? "reserva" : "principal",
            ling_nome(faixaAudio[i].idioma), i + 1, nAudio);
     fflush(stdout);
     video_escolher_audio(i);
     return;
   }
-  printf("[video] nenhuma faixa de audio em '%s' entre as %d: fica a do arquivo\n",
-         pref, nAudio);
+  // Nessuna delle due lingue presente: non forzare una traccia a caso.
+  printf("[video] nessuna lingua audio preferita nel file, lascia predefinita\n");
   fflush(stdout);
 }
 
