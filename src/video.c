@@ -10,6 +10,7 @@
 #include "video_dvaudio.h"
 #include "idioma.h"
 #include "linguas.h"
+#include "audiopref.h"
 #include <SDL2/SDL.h>
 #include "marco.h"
 #include "mkv.h"
@@ -1103,22 +1104,21 @@ static int eventoPayload(const char *p, unsigned minhaSessao) {
     // tiver. Sem preferencia, ou sem faixa correspondente, NAO se mexe: a
     // escolha do pipeline (faixa 0) e melhor que uma trocada por chute — quem
     // quer outra abre a folha de faixas, que continua listando todas.
-    { const char *pref = ling_audio();
-      if (pref[0] && nAudio > 1) {
-        int i;
-        for (i = 0; i < nAudio; i++) {
-          if (!faixaAudio[i].idioma[0] || !ling_casa(faixaAudio[i].idioma, pref)) continue;
-          printf("[video] audio preferido: %s (faixa %d de %d)\n",
-                 ling_nome(faixaAudio[i].idioma), i + 1, nAudio);
-          fflush(stdout);
-          // Direto, e nao por audioAoCarregar: aquele campo e da RECUPERACAO
-          // (pipeline morto) e sobrescreve-lo aqui apagaria a faixa que a
-          // pessoa tinha escolhido antes da queda. O sourceInfo chega com o
-          // pipeline ja carregado, entao o selectTrack vale agora.
-          if (audioAoCarregar < 0) video_escolher_audio(i);
-          break;
-        }
-      } }
+    { const char *codigos[NV_FAIXA_MAX];
+      int i, reserva = 0;
+      for (i = 0; i < nAudio; i++) codigos[i] = faixaAudio[i].idioma;
+      i = nAudio > 1 ? nv_audiopref_trova(codigos, nAudio, ling_audio(),
+                                          ling_audio2(), ling_casa, &reserva) : -1;
+      if (i >= 0) {
+        printf("[video] audio %s: %s (faixa %d de %d)\n",
+               reserva ? "reserva" : "principal", ling_nome(faixaAudio[i].idioma),
+               i + 1, nAudio);
+        fflush(stdout);
+        // Nao substituir faixa explicitamente restaurada apos queda de rede
+        // nem a escolha manual feita nesta sessao.
+        if (audioAoCarregar < 0) video_escolher_audio(i);
+      }
+    }
 
     // O PIPELINE NAO DA IDIOMA DE LEGENDA. Medido nesta TV, num arquivo com 43
     // legendas: o audioTrackInfo vem com "en"/"es"/"fr"/"it" e TODA entrada do
