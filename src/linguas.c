@@ -217,7 +217,7 @@ int ling_afinidade(const char *cod, const char *pref) {
 // ------------------------------------------------------------ preferencias
 
 static char contaLeg[16], contaLeg2[16], contaAud[16];
-static char localLeg[16], localAud[16], localLeg2[16];
+static char localLeg[16], localAud[16], localLeg2[16], localAud2[16];
 
 // As sentinelas do web viram vazio (= sem filtro) ou "none" (= nenhuma).
 // "DEVICE"/"DEFAULT"/"ORIGINAL" dizem "deixe o arquivo decidir", que deste lado
@@ -252,6 +252,7 @@ static void guardarLocal(char *dest, size_t n, const char *v) {
 }
 void ling_local_legenda(const char *v)  { guardarLocal(localLeg, sizeof localLeg, v); }
 void ling_local_audio(const char *v)    { guardarLocal(localAud, sizeof localAud, v); }
+void ling_local_audio2(const char *v)   { guardarLocal(localAud2, sizeof localAud2, v); }
 void ling_local_legenda2(const char *v) { guardarLocal(localLeg2, sizeof localLeg2, v); }
 
 // A escolha desta TV ganha da conta. Quem mexeu no aparelho quis mexer AQUI, e
@@ -290,6 +291,7 @@ const char *ling_legenda2(void) {
   return localLeg[0] ? "" : contaLeg2;
 }
 const char *ling_audio(void)    { return emVigor(localAud, contaAud); }
+const char *ling_audio2(void)   { return emVigor(localAud2, ""); }
 
 // ------------------------------------------------------------ lista da UI
 
