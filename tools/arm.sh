@@ -35,7 +35,7 @@ cd "$(dirname "$0")/.."
 
 TV_IP="${NUVIO_TV_IP:-192.168.1.32}"
 TV_PASS="${NUVIO_TV_PASS:-alpine}"
-APP_ID="space.nuvio.native.legacy"
+APP_ID="space.nuvio.native.stable"
 ARES="${NUVIO_ARES_PACKAGE:-../NuvioWeb-0.3.38-beta/node_modules/.bin/ares-package}"
 CONTAINER_RUNTIME="${NUVIO_CONTAINER_RUNTIME:-docker}"
 BUILD_PLATFORM="${NUVIO_BUILD_PLATFORM:-linux/arm64}"
