@@ -136,6 +136,9 @@ int ajustes_pular_creditos(void);
 int ajustes_medidor_desempenho(void);
 // 1 = a CADA pedido de reproducao VOD, inclusive Retomar/Continuar,
 // ABRIR A FOLHA DE FONTES, mesmo com uma fonte lembrada ou em cache.
+// Nuvio Stable: em Continua a guardare, se o MESMO filme/episodio provou
+// tocar neste perfil e aparelho ha MENOS de 6 horas, retoma automaticamente.
+// Depois de seis horas, a folha abre ANTES do player.
 // Padrao 0: conserva a escolha automatica de sempre.
 //
 // Pedido de um testador com o argumento certo: as fontes de um mesmo titulo
