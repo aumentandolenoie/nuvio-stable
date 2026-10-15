@@ -30,7 +30,7 @@ check("guida TV separata dal selettore VOD",
       "if (player_id_canal()[0])" in app
       and "if (ajustes_fonte_manual() && stream_n() > 0)" in play)
 check("opzione manuale documentata per ogni VOD",
-      "A CADA pedido de reproducao VOD" in header)
+      "a CADA pedido de reproducao VOD" in header)
 sec = ui.split('SEC("Página do título"',1)[1].split('SEC("Cartazes e trailers"',1)[0]
 check("preferenza metadata visibile senza altre opzioni",
       "OPC(AJ_DET_META_EXT)" in sec.split("MAIS()",1)[0]
