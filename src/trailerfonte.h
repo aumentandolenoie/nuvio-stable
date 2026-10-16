@@ -20,7 +20,7 @@
 
 // Valores do ajuste = indice gravado em ajustes.txt ("trailerFonteLocal N").
 // NAO reordenar: o arquivo guarda o numero.
-enum { TRF_AUTO = 0, TRF_APPLE = 1, TRF_IMDB = 2, TRF_YOUTUBE = 3 };
+enum { TRF_AUTO = 0, TRF_APPLE = 1, TRF_IMDB = 2, TRF_YOUTUBE = 3, TRF_TMDB = 4 };
 
 // O que cada fonte tem para o titulo agora. `*_respondeu` = a busca terminou
 // (com ou sem trailer); enquanto 0, a fonte ainda pode chegar. YouTube nao tem

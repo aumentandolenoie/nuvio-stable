@@ -144,6 +144,7 @@ const char *trailerfonte_nome(int qual) {
     case TRF_APPLE:   return "apple";
     case TRF_IMDB:    return "imdb";
     case TRF_YOUTUBE: return "youtube";
+    case TRF_TMDB:    return "tmdb-interno";
     default:          return "-";
   }
 }
