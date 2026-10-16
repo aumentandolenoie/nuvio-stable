@@ -1987,6 +1987,11 @@ int detail_play_aguarda_episodios(void) {
   if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
   indice = cat_indice_titulo(ci->imdb, idx);
   if (indice >= 0 && cat_n_episodios(indice) > 0) return 0;
+  // Un episodio gia iniziato ha T/E noti nel CatItem e puo riprendere
+  // IMMEDIATAMENTE anche senza lista episodica: non rallentare il player.
+  if (ci->temporada > 0 && ci->episodio > 0 &&
+      ci->progresso > 0 && ci->progresso < ajustes_cw_concluido() &&
+      !extras_ep_visto(ci->temporada, ci->episodio)) return 0;
   if (vistoep_contar(ci->imdb) > 0) return 1;
   if (ci->temporada < 1 || ci->episodio < 1 ||
       ci->progresso < ajustes_cw_concluido()) return 0;
