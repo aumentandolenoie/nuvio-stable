@@ -2013,9 +2013,10 @@ static void *lerMkv(void *arg) {
         for (i = 0; i < n; i++) {
           const MkvFaixa *m = &fx[i];
           int score, k, presente = 0;
+          int ehDts;
           if (m->tipo != 2) continue;
-          if (strncmp(m->codec, "A_DTS", 5)) { ord++; continue; }
-          for (k = 0; k < nAudio; k++)
+          ehDts = !strncmp(m->codec, "A_DTS", 5);
+          if (ehDts) for (k = 0; k < nAudio; k++)
             if (video_faixa_dts(&faixaAudio[k]) &&
                 (!m->idioma[0] || !faixaAudio[k].idioma[0] ||
                  ling_casa(m->idioma, faixaAudio[k].idioma))) presente = 1;
@@ -2024,9 +2025,12 @@ static void *lerMkv(void *arg) {
               ling_casa(m->idioma, preferito)) score += 8;
           else if (riserva && riserva[0] && m->idioma[0] &&
                    ling_casa(m->idioma, riserva)) score += 4;
-          if (!presente && score >= 2) {
-            if (score > bestScore) { bestScore = score; best = ord; ties = 1; }
-            else if (score == bestScore) ties++;
+          // Confronta TUTTI gli audio, non solo DTS: una preferenza inglese
+          // sulla traccia AAC visibile deve vincere sul default DTS italiano.
+          if (score >= 2) {
+            if (score > bestScore) {
+              bestScore = score; best = ehDts && !presente ? ord : -1; ties = 1;
+            } else if (score == bestScore) ties++;
           }
           ord++;
         }
