@@ -450,6 +450,13 @@ static void tmdbAvvisoIndisponivel(void) {
               "Trailer TMDB non riproducibile. Scegli Automatica per Apple TV/IMDb.",
               6500u, 0);
 }
+static void tmdbAvvisoLingua(int k) {
+  char msg[150];
+  const char *lg = extras_trailer_idioma(k);
+  snprintf(msg, sizeof msg, "Trailer TMDB: lingua dichiarata %s (audio non verificato)",
+           lg[0] ? lg : "non indicata");
+  ilha_avisar("tmdb-trailer-language", ILHA_INFO, NULL, msg, 5500u, 0);
+}
 #endif
 static const char *trailerFonte(int k, int *qual, int cheia) {
   const CatItem *ci = cat_item(idx);
@@ -2390,6 +2397,10 @@ static void tocarTrailerCheio(int k) {
   }
 #endif
   if (u) {
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+    if (trailerfonte_ajuste() == TRF_TMDB)
+      tmdbAvvisoLingua(k >= 0 ? k : 0);
+#endif
     GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
     trailerEtapa = 0; trailerPrazo = 0;   // tela cheia: so o teclado fecha
     trailer_abrir(u, tela, trailerfonte_com_som(trailerfonte_tizen()), 1);
@@ -3296,6 +3307,7 @@ void detail_atualizar(float dt, Uint32 agora) {
       const char *u = trailerFonte(tmdbCheioPendente, NULL, 1);
       if (u) {
         GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
+        tmdbAvvisoLingua(tmdbCheioPendente);
         tmdbCheioPendente = -1;
         trailerEtapa = 0; trailerPrazo = 0;
         trailer_abrir(u, tela, trailerfonte_com_som(trailerfonte_tizen()), 1);
