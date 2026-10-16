@@ -306,7 +306,7 @@ static void kbMontar(void) {
   int r, resto;
   kbTemLayout = idiomaCirilico();
   if (!kbTemLayout) layoutCir = 0;
-  kbCarregar(layoutCir ? LAYOUT_CIRILICO : teclado_alfabeto());
+  kbCarregar(layoutCir ? LAYOUT_CIRILICO : "qwertyuiopasdfghjklzxcvbnm1234567890");
   kbFil = (kbN + BU_KB_COLS - 1) / BU_KB_COLS;
   resto = kbN - (kbFil - 1) * BU_KB_COLS;
   for (r = 0; r < kbFil; r++) KB_COLUNAS[r] = (r == kbFil - 1) ? resto : BU_KB_COLS;
@@ -504,6 +504,8 @@ static void refiltrar(void) {
     for (passo = 0; passo < (nuvioDepois ? 2 : 1); passo++)
      for (alvoIdx = 0; alvoIdx < nAlvos && nFil < BU_MAX_FILEIRAS; alvoIdx++) {
       int nRem = desc_busca_alvo_n(alvoIdx, consulta), i, achou = 0;
+      // La ricerca Stable usa esclusivamente i cataloghi degli addon.
+      if (desc_busca_alvo_nuvio(alvoIdx)) continue;
       if (nRem <= 0) continue;
       if (nuvioDepois && (desc_busca_alvo_nuvio(alvoIdx) != 0) != (passo == 1)) continue;
       for (i = 0; i < nRem && achou < BU_MAX_POR_FIL; i++) {
@@ -598,19 +600,9 @@ static void refiltrar(void) {
     nFil++;
   }
 
-  // O MELHOR RESULTADO (mockup): o primeiro titulo da primeira fileira sai dela
-  // e vira uma entrada propria, de um item, desenhada como o tile grande. Foco,
-  // abertura e onda tratam essa entrada como qualquer fileira.
+  // Nuvio Stable: nessun riquadro separato Risultato migliore.
+  // Tutti i risultati rimangono nelle righe dei cataloghi degli addon.
   for (int i = 0; i < nFil; i++) { fil[i].melhor = 0; fil[i].pessoas = 0; }
-  if (nFil > 0 && nFil < BU_MAX_FILEIRAS && fil[0].n > 0) {
-    int melhorIdx = fil[0].itens[0];
-    memmove(&fil[1], &fil[0], (size_t)nFil * sizeof fil[0]);
-    nFil++;
-    fil[0].titulo = NULL; fil[0].origem = NULL;
-    fil[0].itens[0] = melhorIdx; fil[0].n = 1; fil[0].melhor = 1;
-    memmove(&fil[1].itens[0], &fil[1].itens[1], (size_t)(fil[1].n - 1) * sizeof(int));
-    if (--fil[1].n == 0) { memmove(&fil[1], &fil[2], (size_t)(nFil - 2) * sizeof fil[0]); nFil--; }
-  }
 
   // PESSOAS (mockup): a fileira entra logo depois da primeira de titulos.
   montarPessoas(alvo);
