@@ -220,6 +220,7 @@ static unsigned revistaVista;
 // cat_geracao_episodios() da ultima vez que se conferiu a lista. Zerada na
 // abertura (abrirInterno) para o primeiro quadro conferir sempre.
 static unsigned epGerVista; static int epGerConferido;
+static int epAutoPendente;  // solo all'apertura: non sovrascrive la scelta manuale
 // O tipo (serie ou nao) com que os extras foram pedidos nesta abertura. Item
 // de tipo incerto ("anime" de catalogo do AIOMetadata) abre como filme e o
 // /meta o resolve como serie depois (descoberta.c, buscarEps): ai os extras
@@ -706,6 +707,7 @@ static const NotasSecao *notasDados(void);
 static float alturaCabComentarios(void);
 static int temporadaEm(int c);
 static int epAbsoluto(int c);
+static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e);
 static int epVisiveis(void);
 static float baseDaAbaAtiva(void);
 // A TEMPORADA ESCOLHIDA NA PAGINA, traduzida para o indice de extras.h.
@@ -1539,6 +1541,7 @@ static void abrirInterno(const HomeItem *it) {
   // respondeu neste instante.
   temporada = 0;
   epAncora = 0;
+  epAutoPendente = 1;
   comEpT = comEpE = 0;
   comPicando = 0;
   { const CatItem *ci0 = cat_item(idx);
@@ -3634,6 +3637,36 @@ void detail_atualizar(float dt, Uint32 agora) {
       }
     } }
   sincronizarColunas();
+  // Seleziona la stagione e la puntata che Riproduci offrirebbe. La lista
+  // episodi arriva spesso DOPO l'apertura: farlo una sola volta quando pronta,
+  // senza spostare il focus dall'hero o interferire con l'esplorazione manuale.
+  if (epAutoPendente && ehSerie() && cat_n_episodios(idx) > 0) {
+    const CatItem *ciAuto = cat_item(idx);
+    int tt = 0, ee = 0, k, c = 0, n = cat_n_episodios(idx), trovata = -1;
+    if (ciAuto && ciAuto->progresso > 0 &&
+        ciAuto->progresso < ajustes_cw_concluido() &&
+        ciAuto->temporada > 0 && ciAuto->episodio > 0) {
+      tt = ciAuto->temporada; ee = ciAuto->episodio;
+    } else if (ciAuto) proximoNuvioNoDetalhe(ciAuto, &tt, &ee);
+    if (tt > 0 && ee > 0 && ciAuto) {
+      for (k = 0; k < ciAuto->nTemporadas; k++)
+        if (ciAuto->temporadas[k] == tt) { temporada = k; break; }
+      for (k = 0; k < n; k++) {
+        const CatEp *ep = cat_episodio(idx, k);
+        if (!ep || ep->temporada != tt) continue;
+        if (ep->episodio == ee) { trovata = c; break; }
+        c++;
+      }
+      if (trovata >= 0) {
+        epAncora = trovata;
+        foco.colunaLembrada[SEC_EPISODIOS] = trovata;
+        foco.colunaLembrada[SEC_TEMPORADAS] = temporada;
+        foco.nColunas[SEC_EPISODIOS] = epVisiveis();
+        comEpT = tt; comEpE = ee;
+      }
+    }
+    epAutoPendente = 0;
+  }
   // Solta o pedido de episodios que ficou guardado por ter chegado com outro
   // carregamento em voo.
   desc_episodios_pendente();
