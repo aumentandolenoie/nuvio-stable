@@ -4,6 +4,7 @@
 #include "layout.h"
 #include "ajustes.h"
 #include "trailerfonte.h"
+#include "traileryt.h"
 #include "video.h"      // trailer_osd_desenhar reads video_pos/duracao on every target
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,7 +20,7 @@ static int    aberto, cheia, comSom;
 static unsigned geracao;   // invalida a prova do player mesmo depois do trailer fechar
 static int    falhouUltima;
 static GfxRect rect;
-static char   fonteAtual[1024];
+static char   fonteAtual[4096];
 static Uint32 abertoEm;   // SDL_GetTicks da abertura da fonte atual, para o log
 static int    dono;       // TRAILER_DONO_* (trailer.h)
 static int    noCartao;   // trailer_no_cartao: sem recorte de fonte no .tpk
@@ -574,6 +575,7 @@ void trailer_atualizar(Uint32 agora) {
   // Acabou ou a fonte falhou: fecha e a pagina volta a arte.
   // conflito: outro app (YouTube) tomou o plano de video — fecha, fica a arte.
   if (video_terminou() || video_falhou() || video_conflito_recurso()) {
+    if (video_falhou()) traileryt_invalidar(fonteAtual);
     falhouUltima = video_falhou() || video_conflito_recurso() ? 1 : 0;
     trailer_fechar();
   }
