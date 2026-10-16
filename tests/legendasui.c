@@ -182,7 +182,7 @@ int main(void) {
   assert(!ver && !strcmp(linhas[foco].chave, "ling|en"));
   // Le verifiche legacy della selezione raccomandata restano utili come
   // regressione della priorita automatica, anche se la UI apre ora per lingua.
-  mais = 0; montarLinhas();
+  mais = 0; montarLinhas(); focarChave("rec|p");
   assert(nLinhasV == 4 && linhas[0].tipo == LR_NENHUMA);
   assert(linhas[1].cand >= 0 && cand[linhas[1].cand].indice == 0);
   assert(!strcmp(linhas[foco].chave, "rec|p"));
