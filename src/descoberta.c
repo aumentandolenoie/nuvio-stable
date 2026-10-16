@@ -2821,6 +2821,19 @@ static int candidatoVence(const CatItem *novo, const CatItem *velho) {
 // Um candidato da fileira, com o que se sabe sobre QUANDO ele aconteceu.
 typedef struct { CatItem *item; long long ms; int ord; } Cand;
 
+// 'A seguir' mostra un episodio ancora mai iniziato, ma l'attivita piu
+// recente appartiene alla stessa serie (l'episodio appena concluso). Usare il
+// timestamp di tutta l'opera solo nella classifica, non nella selezione dei
+// candidati: la protezione dei progressi parziali rimane in candidatoVence.
+static long long instanteVisualizacao(const CatItem *c) {
+  long long ms = instanteDaConta(c);
+  if (!emAndamento(c->progresso) && c->episodio > 0) {
+    long long recente = prog_ultimo_da_obra(c->imdb);
+    if (recente > ms) ms = recente;
+  }
+  return ms;
+}
+
 // A fileira tambem e refeita FORA do ciclo completo (issue #38), pelo fio de
 // desc_refazer_continuar. Os buffers estaticos abaixo — e os de
 // trakt_enfeitar_lote, chamado tambem por trakt_social — nao admitem dois
@@ -3199,7 +3212,7 @@ static int montarContinuar(CatItem *saida, int max) {
   for (i = 0; i < nL && nJ < (int)(sizeof juntos / sizeof *juntos); i++) {
     if (pularLocal[i]) continue;
     juntos[nJ].item = &daConta[i];
-    juntos[nJ].ms   = instanteDaConta(&daConta[i]);
+    juntos[nJ].ms   = instanteVisualizacao(&daConta[i]);
     juntos[nJ].ord  = i;
     nJ++;
   }
@@ -3209,7 +3222,7 @@ static int montarContinuar(CatItem *saida, int max) {
       if (!pularLocal[j] && mesmaObra(remotos[i], &daConta[j])) { repetido = 1; break; }
     if (repetido) { repetidos++; continue; }
     juntos[nJ].item = remotos[i];
-    juntos[nJ].ms   = instanteDaConta(remotos[i]);
+    juntos[nJ].ms   = instanteVisualizacao(remotos[i]);
     // Ordem BASE alta: SO decide quando os dois instantes sao desconhecidos ou
     // iguais. Com o paused_at lido em trakt.c e simkl.c isso ficou raro.
     // Nesse resto de casos a conta vem antes, cada fonte na ordem que deu.
@@ -3255,11 +3268,10 @@ static int montarContinuar(CatItem *saida, int max) {
     while (k > 0) {
       long long a = juntos[k].ms, b = juntos[k - 1].ms;
       int troca;
-      int pa = emAndamento(juntos[k].item->progresso);
-      int pb = emAndamento(juntos[k - 1].item->progresso);
-      if (pa != pb) troca = pa;
-      else if (a != b) troca = !b ? 0 : (!a ? 1 : a > b);
-      else        troca = juntos[k].ord < juntos[k - 1].ord;
+      // Un 'A seguire' con ultima visione recente precede anche le pause
+      // piu vecchie. Timestamp ignoto (0) e sempre meno recente di uno noto.
+      if (a != b) troca = a > b;
+      else troca = juntos[k].ord < juntos[k - 1].ord;
       if (!troca) break;
       { Cand t = juntos[k - 1]; juntos[k - 1] = juntos[k]; juntos[k] = t; }
       k--;
@@ -3267,7 +3279,7 @@ static int montarContinuar(CatItem *saida, int max) {
   }
 
   // A ORDENACAO ESCOLHIDA EM AJUSTES (issue #127) — ver cwordem.h. Ate aqui a
-  // lista esta por grupo e recencia. "Estilo streaming" e
+  // lista esta por recencia global, independente do progresso do proximo episodio. "Estilo streaming" e
   // "Separar futuros" levam os "a seguir" que ainda nao foram ao ar para o fim,
   // pela estreia; no segundo a home ainda os tira desta fileira e monta
   // "Proximos episodios" com eles. `showUnairedNextUp` desligado os tira de vez
@@ -3321,12 +3333,9 @@ static int montarContinuar(CatItem *saida, int max) {
     // 22 candidatos para 12 lugares na C9 do dono — os futuros eram sempre os
     // cortados, e "Separar futuros"/"Estilo streaming" nao mudavam nada.
     // Reserva para futuros apenas DEPOIS dos pausados, nunca contra eles.
-    { int pausados = 0;
-      while (pausados < principal && emAndamento(ordenados[pausados].item->progresso)) pausados++;
-      if (pausados > max) pausados = max;
-      cwo_corte(principal - pausados, nJ - principal, max - pausados, &mp, &mf);
-      mp += pausados;
-    }
+    // La riserva vale per i FUTURI, non per 'in corso' contro 'a seguire':
+    // quella distinzione non deve ribaltare l'ordine dell'ultima visione.
+    cwo_corte(principal, nJ - principal, max, &mp, &mf);
     for (i = 0; i < mp; i++) juntos[i] = ordenados[i];
     for (i = 0; i < mf; i++) {
       juntos[mp + i] = ordenados[principal + i];
