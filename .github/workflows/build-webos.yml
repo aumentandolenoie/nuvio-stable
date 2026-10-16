@@ -47,7 +47,7 @@ jobs:
           import json, re, pathlib
           app = json.loads(pathlib.Path('deploy/app/appinfo.json').read_text())
           xml = pathlib.Path('tools/tizen-config.xml').read_text()
-          version = re.search(r'<widget\\b[^>]*\\bversion="([^"]+)"', xml, re.S)
+          version = re.search(r'<widget[^>]*version="([^"]+)"', xml, re.S)
           assert version and version.group(1) == app['version'], 'Versioni appinfo/Tizen diverse'
           assert app['id'] == 'space.nuvio.native.stable', 'ID app inatteso'
           print('PASS: manifest e versioni allineati', app['version'])
