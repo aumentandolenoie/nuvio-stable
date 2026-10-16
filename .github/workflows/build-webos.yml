@@ -98,7 +98,32 @@ jobs:
           cache-from: type=gha,scope=nuvio-webos-sdk
           cache-to: type=gha,mode=max,scope=nuvio-webos-sdk
 
+      - name: Restore compiled ARMv7 P2P libraries
+        id: p2p-cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            build/p2p-motor/arm/build-arm/libnuvio_engine.a
+            build/p2p-motor/arm/build-arm/_deps/nuvio_libtorrent-build/libtorrent-rasterbar.a
+            build/p2p-motor/arm/nuvio-engine/include
+          key: p2p-armv7-sdk-a38c582-v1-${{ hashFiles('tools/p2p-motor/build-arm.sh', 'tools/p2p-motor/pasta.sh', 'tools/p2p-motor/janela-334.patch', 'tools/Dockerfile') }}
+
+      - name: Verify cached ARMv7 P2P libraries
+        id: p2p-check
+        shell: bash
+        run: |
+          set -euo pipefail
+          D=build/p2p-motor/arm
+          if [ -s "$D/build-arm/libnuvio_engine.a" ] &&
+             [ -s "$D/build-arm/_deps/nuvio_libtorrent-build/libtorrent-rasterbar.a" ] &&
+             [ -s "$D/nuvio-engine/include/nuvio_engine/nuvio_engine.h" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build LG ARMv7 P2P engine
+        if: steps.p2p-check.outputs.ready != 'true'
         shell: bash
         env:
           NUVIO_BUILD_PLATFORM: linux/amd64
