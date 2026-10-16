@@ -12,10 +12,10 @@ int cwo_futuro(const CwoItem *it, long long agoraMs) {
 int cwo_ordenar(const CwoItem *v, int n, int modo, long long agoraMs, int *perm) {
   int i, w = 0, principal;
   if (!v || !perm || n <= 0) return 0;
-  // Pausados primeiro; recencia recebida preservada dentro de cada grupo.
-  for (i = 0; i < n; i++) if (!v[i].aSeguir) perm[w++] = i;
+  // A ultima visione viene prima, anche quando il suo prossimo episodio e a 0%.
+  // Le modalita streaming/separar spostano solo le uscite ancora future.
   for (i = 0; i < n; i++)
-    if (v[i].aSeguir && (modo == CWO_PADRAO || !cwo_futuro(&v[i], agoraMs))) perm[w++] = i;
+    if (modo == CWO_PADRAO || !cwo_futuro(&v[i], agoraMs)) perm[w++] = i;
   principal = w;
   if (modo != CWO_PADRAO)
     for (i = 0; i < n; i++) if (cwo_futuro(&v[i], agoraMs)) perm[w++] = i;
