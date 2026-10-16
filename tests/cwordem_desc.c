@@ -298,16 +298,16 @@ int main(void) {
   prog_definir_relogio(relogioProg);
   agoraMs = (long long)time(NULL) * 1000LL;
 
-  { static const char *const e[] = { "tt1", "tt2", "ttA:1:3", "ttB:2:1", "ttC:1:8" };
+  { static const char *const e[] = { "ttA:1:3", "tt1", "ttB:2:1", "ttC:1:8", "tt2" };
     modoTeste = CWO_PADRAO;
     conferir("padrao", e, 5);
     assert(!cwo_e_futuro("ttA:1:3") && !cwo_e_futuro("ttB:2:1"));
     puts("ok  padrao: pelo instante, nenhum futuro publicado"); }
 
-  { static const char *const e[] = { "tt1", "tt2", "ttC:1:8", "ttA:1:3", "ttB:2:1" };
+  { static const char *const e[] = { "tt1", "ttC:1:8", "tt2", "ttA:1:3", "ttB:2:1" };
     modoTeste = CWO_STREAMING;
     conferir("streaming", e, 5);
-    puts("ok  streaming: pausados primeiro, futuros no fim por recencia");
+    puts("ok  streaming: recencia global dos ja exibidos; futuros no fim");
     modoTeste = CWO_SEPARAR;
     conferir("separar", e, 5);
     assert(cwo_e_futuro("ttA:1:3") && cwo_e_futuro("ttB:2:1"));
