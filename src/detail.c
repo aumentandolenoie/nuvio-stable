@@ -1433,6 +1433,7 @@ static void abrirInterno(const HomeItem *it) {
   trocaarte_fechar();
   audAberta = 0; audTempAberta = -1; audTempVista = -1; frasesAberta = 0;
   item = *it;
+  pedReproduzir = 0; // nessun Play posticipato puo passare al prossimo titolo
   aberto = 1; saindo = 0; nivel = 0; botao = 0; focoAmigos = 0;
   amtui_fechar();
   detmais_zerar();
@@ -1578,6 +1579,7 @@ static void abrirInterno(const HomeItem *it) {
 
 void detail_fechar(void) {
   if (!aberto || saindo) return;
+  pedReproduzir = 0;
   pessoaAberta = 0;
   nivel = 0;
   saindo = 1;
@@ -1587,6 +1589,7 @@ void detail_fechar(void) {
 // saida, com o logo restaurado), sem a pagina recolher por cima da home.
 void detail_fechar_seco(void) {
   if (!aberto) return;
+  pedReproduzir = 0;
   pessoaAberta = 0;
   nivel = 0;
   saindo = 1;
@@ -1970,6 +1973,32 @@ static void comentariosEscolher(void) {
   if (foco.coluna < 0 || foco.coluna >= n) foco.coluna = n - 1 < epAncora ? n - 1 : epAncora;
   ilha_avisar("det-com-ep", ILHA_INFO, NULL,
               i18n("Escolha a temporada e o episódio e aperte OK"), 6000u, 0);
+}
+
+// La meta/episodes puo arrivare DOPO l'apertura della scheda. Il Play
+// immediato di una serie gia vista non deve cadere in T1E1 mentre aspetta
+// l'elenco, altrimenti la ricerca fonti parte per l'episodio sbagliato.
+// Controllo SOLO al click (app.c), mai a ogni frame o durante il player.
+int detail_play_aguarda_episodios(void) {
+  const CatItem *ci;
+  int indice, estado;
+  if (!aberto || saindo) return 0;
+  ci = cat_item(idx);
+  if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
+  indice = cat_indice_titulo(ci->imdb, idx);
+  if (indice >= 0 && cat_n_episodios(indice) > 0) return 0;
+  if (vistoep_contar(ci->imdb) > 0) return 1;
+  if (ci->temporada < 1 || ci->episodio < 1 ||
+      ci->progresso < ajustes_cw_concluido()) return 0;
+  estado = vistoep_estado(ci->imdb, ci->temporada, ci->episodio);
+  if (estado == 0) return 0;
+  if (estado < 0) {
+    char chave[48];
+    ProgRegistro reg;
+    prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
+    if (prog_por_chave(chave, &reg) && reg.tocou == 0) return 0;
+  }
+  return 1;
 }
 
 int detail_ep_foco(int *temp, int *epis) {
