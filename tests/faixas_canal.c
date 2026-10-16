@@ -13,7 +13,11 @@ static const char *canal = "";
 int video_n_legenda(void) { return nEmb; }
 const VideoFaixa *video_legenda(int i) { return i >= 0 && i < nEmb ? &emb[i] : NULL; }
 int mkvass_estado(void) { return 0; }
+static int audioOmesseTeste;
 int video_n_audio(void) { return 1; }
+int video_n_audio_omesse(void) { return audioOmesseTeste; }
+const VideoFaixa *video_audio_omessa(int i) { (void)i; return NULL; }
+int video_audio_noncompatibile(int i) { return i >= 1; }
 int mkvass_varredura(void) { return 0; }
 int addons_n_legendas(void) { return 3; }
 const Legenda *addons_legenda(int i) { return i >= 0 && i < 3 ? &filme[i] : NULL; }
@@ -43,6 +47,13 @@ int main(void) {
   assert(nLegendas() == 3);
   nEmb = 1;
   assert(nLegendas() == 4 && nLinhas(1) == 5);
+  // Le tracce audio omesse dal decoder (DTS/TrueHD) compaiono nella UI ma
+  // i loro indici restano fuori dalla selezione nativa.
+  audioOmesseTeste = 2;
+  assert(nLinhas(0) == 3);
+  assert(video_audio_noncompatibile(1) && video_audio_noncompatibile(2));
+  assert(!video_audio_noncompatibile(0));
+  audioOmesseTeste = 0;
   // A live channel: the movie list left in memory must not show up.
   canal = "xtream:1:42";
   nEmb = 0;
