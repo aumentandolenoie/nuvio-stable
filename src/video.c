@@ -1974,7 +1974,7 @@ static void *lerMkv(void *arg) {
     for (i = 0; i < nAudio; i++) {
       const char *codec = faixaAudio[i].codec;
       if (video_faixa_dts(&faixaAudio[i])) dtsNativi++;
-      if (strcasestr(codec, "TRUEHD") || strcasestr(codec, "MLP")) hdNativi++;
+      if (strstr(codec, "TRUEHD") || strstr(codec, "truehd") || strstr(codec, "MLP") || strstr(codec, "mlp")) hdNativi++;
     }
     if (originali > nAudio) for (i = 0; i < n && quante < NV_FAIXA_MAX; i++) {
       const MkvFaixa *m = &fx[i];
