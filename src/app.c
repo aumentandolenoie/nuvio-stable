@@ -4587,6 +4587,11 @@ void app_atualizar(float dt, Uint32 agora) {
 
   legendasDaFonte();
 
+  // Il Play di una serie gia vista aspetta la lista episodi: non deve
+  // chiedere per errore le fonti T1E1 se la meta e ancora in volo.
+  static Uint32 aguardandoMetaDesde;
+  static char aguardandoMetaTitulo[64];
+  if (!detail_aberto()) { aguardandoMetaDesde = 0; aguardandoMetaTitulo[0] = 0; }
   // Botoes do detalhe: quem sabe que existe player e biblioteca e o roteador,
   // nao a tela de detalhe.
   if (detail_aberto()) {
@@ -4641,7 +4646,35 @@ void app_atualizar(float dt, Uint32 agora) {
     // definitivo — player_do_inicio sobrevive as re-chamadas tardias de
     // player_definir_episodio.
     int doInicio = detail_pediu_do_inicio();
-    if ((detail_pediu_reproduzir() || doInicio) && aguardandoFonte != 2) {
+    int pediuPlay = detail_pediu_reproduzir();
+    // Aspettare solo sul Play PRIMARIO di una serie con visioni gia registrate.
+    // Continua a guardare ha un episodio esplicito, e 'dal principio' deve
+    // poter partire subito: entrambi saltano questa attesa.
+    if (pediuPlay && !doInicio && !cwPedido &&
+        cwTocarT < 1 && cwTocarE < 1 && detail_play_aguarda_episodios()) {
+      const CatItem *ci = cat_item(detail_indice());
+      Uint32 agora = SDL_GetTicks();
+      if (!aguardandoMetaDesde || !ci ||
+          strcmp(aguardandoMetaTitulo, ci->imdb)) {
+        aguardandoMetaDesde = agora ? agora : 1;
+        snprintf(aguardandoMetaTitulo, sizeof aguardandoMetaTitulo, "%s",
+                 ci ? ci->imdb : "");
+        ilha_avisar("det-ep-meta", ILHA_INFO, NULL,
+                    i18n("Caricamento degli episodi in corso…"), 5000u, 0);
+      }
+      if (agora - aguardandoMetaDesde < 20000u) {
+        // Nessun player e nessuna fonte sbagliata. Il prossimo quadro
+        // riprova quando desc_episodios ha pubblicato la lista corretta.
+        detail_pedir_reproduzir();
+      } else {
+        aguardandoMetaDesde = 0;
+        aguardandoMetaTitulo[0] = 0;
+        ilha_avisar("det-ep-meta-falha", ILHA_ERRO, NULL,
+                    i18n("Episodi non disponibili. Riprova."), 5000u, 0);
+      }
+      pediuPlay = 0;
+    } else { aguardandoMetaDesde = 0; aguardandoMetaTitulo[0] = 0; }
+    if ((pediuPlay || doInicio) && aguardandoFonte != 2) {
       // Da Continua a guardare, mostrare le FONTI prima della schermata di
       // caricamento. Saltare la scelta solo se QUESTO film/episodio ha
       // iniziato davvero la riproduzione nelle ultime sei ore.
