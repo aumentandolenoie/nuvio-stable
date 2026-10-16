@@ -42,3 +42,23 @@ check("LR_IDIOMA" in legendas and "if (mais && !ver)" in legendas and
 check('linhaDe("ling|pt")' in test and 'linhaDe("ling|en")' in test and
       "assert(ver && !strcmp(verIdioma, \"en\")" in test,
       "language-first subtitle view has regression tests")
+
+mkv = content("src/mkv.c")
+engine = content("src/dts/dts_playback.c")
+check("ID_FLAGDEFAULT 0x88UL" in mkv and
+      "fid == ID_FLAGDEFAULT" in mkv and "f.padrao =" in mkv,
+      "MKV parses explicit default-audio flag (WALL-E Italian DTS-ES)")
+check("mkvDtsAlvo = best >= 0 && ties == 1 ? best : -1;" in video and
+      'strncmp(m->codec, "A_DTS", 5)' in video and
+      "ling_audio()" in video and "ling_audio2()" in video,
+      "unique hidden DTS selection prefers user language and explicit MKV default")
+check("dvSondado && mkvDtsAlvo >= 0" in video and
+      "ordinal = mkvDtsAlvo; count = dvAudios; trocada = 1;" in video,
+      "native LG AAC does not prevent DTS conversion by MKV ordinal")
+check('snprintf(selected.codec, sizeof selected.codec, "dts")' in video and
+      "selected.channels = 0;" in video and
+      "t->channels == p->selected.channels" in engine,
+      "DTS-ES 6/7-channel metadata is not used as an unsafe hard requirement")
+check("dvAudioMkvOrd = mkvDtsAlvo;" in video and
+      "mkvDtsAlvo < dvAudios && dtsHabilitado" in video,
+      "Dolby Vision 8.1 selection shares the hidden-DTS converter")
