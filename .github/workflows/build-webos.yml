@@ -38,6 +38,12 @@ jobs:
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           bash tests/traileryt.sh
+          # Guard the player path we touched and ensure subtitle confidence
+          # rules keep rejecting uncertain alignments.
+          bash tests/dts_retry.sh
+          bash tests/dts_playback.sh
+          bash tests/autosync.sh
+          bash tests/autosync_corpus.sh
           python3 tools/idiomas.py
           # Upstream's ajustes_secoes legacy assertion flags seven deliberately
           # hidden card-depth options; this is unrelated to Stable's changes.
