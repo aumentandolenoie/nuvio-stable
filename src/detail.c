@@ -46,6 +46,9 @@ static TituloTempo detalheTempo;
 #include "agenda.h"
 #include "agendaui.h"
 #include "vistoep.h"
+#include "contalib.h"
+#include "proximo.h"
+#include <time.h>
 #include "pessoa.h"
 #include "streams.h"
 #include "descoberta.h"
@@ -1750,6 +1753,90 @@ float detail_progresso(void) { return aberto && !carro ? suave(t) : 0.0f; }
 // e o botao seguiu apontando para T1E1 em serie ja comecada, que foi o que o
 // dono relatou.
 //
+static int vistoEpNoDetalhe(void *id, int t, int e) {
+  return vistoep_estado((const char *)id, t, e) == 1;
+}
+
+// Cache per evitare una scansione dello storico visto ad OGNI frame: questa
+// funzione e chiamata anche dal disegno del pulsante, non solo al click.
+static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
+  static struct {
+    char id[48];
+    unsigned revVistos, revEps, revConta;
+    int temp, ep, pct, limiar, furthest, indice, ok, alvoT, alvoE;
+    long long retomado;
+  } memo;
+  unsigned revV, revE, revC;
+  int indice, furthest, limiar, at = 0, ae = 0, nt = 0, ne = 0;
+  int temVisto = 0, n;
+  if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
+  indice = cat_indice_titulo(ci->imdb, idx);
+  if (indice < 0) return 0;
+  revV = vistoep_revisao();
+  revE = cat_versao_episodios();
+  revC = contalib_vistos_revisao();
+  furthest = ajustes_cw_do_episodio_mais_alto();
+  limiar = ajustes_cw_concluido();
+  if (!strcmp(memo.id, ci->imdb) && memo.revVistos == revV &&
+      memo.revEps == revE && memo.revConta == revC &&
+      memo.temp == ci->temporada && memo.ep == ci->episodio &&
+      memo.pct == ci->progresso && memo.retomado == ci->retomadoMs &&
+      memo.limiar == limiar && memo.furthest == furthest &&
+      memo.indice == indice) {
+    if (memo.ok) { if (t) *t = memo.alvoT; if (e) *e = memo.alvoE; }
+    return memo.ok;
+  }
+  memset(&memo, 0, sizeof memo);
+  snprintf(memo.id, sizeof memo.id, "%s", ci->imdb);
+  memo.revVistos = revV; memo.revEps = revE; memo.revConta = revC;
+  memo.temp = ci->temporada; memo.ep = ci->episodio;
+  memo.pct = ci->progresso; memo.retomado = ci->retomadoMs;
+  memo.limiar = limiar; memo.furthest = furthest; memo.indice = indice;
+  // Lo storico degli episodi visti arriva da Nuvio Sync nel medesimo mapa che
+  // aggiorna il player: senza Trakt, extras_proximo_episodio resta vuoto.
+  temVisto = vistoep_ultimo_visto(ci->imdb, &at, &ae);
+  // Se il progresso remoto e gia completo ma il pull dei visti non e arrivato,
+  // non tornare a T1E1. Uno 'non visto' esplicito (0) non viene promosso.
+  if (ci->temporada > 0 && ci->episodio > 0 && ci->progresso >= limiar &&
+      vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0 &&
+      (!temVisto || (furthest && (ci->temporada > at ||
+        (ci->temporada == at && ci->episodio > ae))))) {
+    at = ci->temporada; ae = ci->episodio; temVisto = 1;
+  }
+  if (!furthest) {
+    // Segui il VISTO PIU RECENTE di Nuvio Sync (non il piu avanzato).
+    // Una riproduzione completata in locale dopo quel visto ha la precedenza.
+    ContaSemente sementes[64];
+    int ns = contalib_sementes_a_seguir(sementes, 64, 0), k;
+    for (k = 0; k < ns; k++) {
+      if (strcmp(sementes[k].id, ci->imdb)) continue;
+      // La semente e gia il PROSSIMO dopo l'ancora vista nella conta.
+      // Usa la numerazione direttamente, senza indovinare l'ultimo di stagione.
+      if (!(ci->progresso >= limiar && ci->temporada > 0 &&
+            ci->episodio > 0 && ci->retomadoMs > sementes[k].vistoMs &&
+            vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0)) {
+        at = sementes[k].temporada; ae = sementes[k].episodio - 1;
+        temVisto = ae >= 0;
+      } else { at = ci->temporada; ae = ci->episodio; temVisto = 1; }
+      break;
+    }
+    // Nessuno storico della conta: il completamento locale piu recente vince.
+    if ((ns <= 0 || k == ns) && ci->progresso >= limiar &&
+        ci->temporada > 0 && ci->episodio > 0 &&
+        vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0) {
+      at = ci->temporada; ae = ci->episodio; temVisto = 1;
+    }
+  }
+  n = cat_n_episodios(indice);
+  if (temVisto && n > 0) {
+    memo.ok = prox_nao_visto_depois(cat_episodio(indice, 0), n, at, ae,
+                                    (long long)time(NULL) * 1000LL,
+                                    vistoEpNoDetalhe, (void *)ci->imdb, &nt, &ne);
+    memo.alvoT = nt; memo.alvoE = ne;
+  }
+  if (memo.ok) { if (t) *t = nt; if (e) *e = ne; }
+  return memo.ok;
+}
 // `origem` (opcional) devolve 1 = foco, 2 = retomar, 3 = proximo, 0 = primeiro.
 static int episodioAlvo(int *temp, int *epis, int *origem) {
   const CatItem *ci = cat_item(idx);
@@ -1774,8 +1861,19 @@ static int episodioAlvo(int *temp, int *epis, int *origem) {
     if (origem) *origem = 2;
     return 1;
   }
-  // Primeiro nao assistido. So vale quando o Trakt ja respondeu; sem dado
-  // nenhum extras_n_temporadas() e 0 e cai no primeiro episodio, como antes.
+  // Nuvio Sync: il check degli episodi visti (incluso l'ultimo chiuso
+  // dal player) e la fonte primaria quando non esiste uno scrobble Trakt.
+  // I progressi PARZIALI sono gia stati risolti sopra, senza cambiare la
+  // ripresa di un episodio interrotto.
+  { int t, e;
+    if (!extras_progresso_pronto() && proximoNuvioNoDetalhe(ci, &t, &e)) {
+      if (temp) *temp = t;
+      if (epis) *epis = e;
+      if (origem) *origem = 3;
+      return 1;
+    }
+  }
+  // Fallback del provider esterno, solo se ha un progresso valido.
   { int t, e;
     if (extras_proximo_episodio(&t, &e)) {
       if (temp) *temp = t;
