@@ -71,6 +71,11 @@ int  prog_continuar_de_perfil_min(int perfil, int pctMinimo, int pctConcluido, P
 // interno valeria so ate a proxima escrita do outro.
 int  prog_por_chave(const char *chave, ProgRegistro *saida);
 
+// Ultima attivita REAL di questa opera nel profilo attivo, qualunque episodio.
+// Serve a ordinare un episodio 'A seguire' a 0% in base a cio che e stato visto.
+// Lettura del cache locale sotto lock; 0 se l'opera non ha ancora registri.
+long long prog_ultimo_da_obra(const char *imdb);
+
 // Escrita LOCAL (player ao fechar, botao do olho, pos-play). `imdb` pode ser
 // composto; temporada/episodio explicitos ganham dos que vierem no id.
 // Marca pendente e lastWatched = agora. Recusa durSeg <= 1 (ruido do player),
