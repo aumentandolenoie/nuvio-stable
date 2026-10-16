@@ -193,7 +193,7 @@ static int  fichaDur;
 // runtime do filme antes da ficha tecnica existir.
 static char agStatus[32], agDataProx[16], agDataUlt[16], agNomeEp[120];
 static int  agTemp, agEp;
-static struct { char yt[16], nome[80], mini[80]; } trailer[EX_TRAILER_MAX];
+static struct { char yt[16], nome[80], mini[80], idioma[8]; } trailer[EX_TRAILER_MAX];
 static int  nTrailer;
 // O hero precisa de um trailer antes de a pessoa abrir a pagina de detalhe,
 // mas carregar `extras_pedir` inteiro nesse ponto faria creditos, ficha,
@@ -310,7 +310,7 @@ static int heroTrailerIdValido(const char *id) {
   return 1;
 }
 
-typedef struct { char yt[16], nome[80], pub[32]; int peso, ordem, serie; } VideoTmdb;
+typedef struct { char yt[16], nome[80], pub[32], idioma[8]; int peso, ordem, serie; } VideoTmdb;
 
 // IDIOMAS DE VIDEO. Com `language=pt-BR` sozinho o TMDB devolve em /videos
 // SO os videos marcados em portugues — e trailer de serie quase sempre esta
@@ -421,6 +421,7 @@ static int parsearVideos(const char *v, int serie, const char *idioma,
       memset(o, 0, sizeof *o);
       snprintf(o->yt, sizeof o->yt, "%s", key);
       snprintf(o->nome, sizeof o->nome, "%s", nm[0] ? nm : "Trailer");
+      snprintf(o->idioma, sizeof o->idioma, "%s", lg);
       js_texto(v, vf, "published_at", o->pub, sizeof o->pub);
       // peso: 2 idioma da interface, +1 Trailer (desempate da serie).
       o->peso = (iso[0] && !strcmp(lg, iso) ? 2 : 0) +
@@ -455,6 +456,7 @@ static void publicarTrailers(const VideoTmdb *vt, int nv) {
   for (k = 0; k < nv && k < EX_TRAILER_MAX; k++) {
     snprintf(trailer[k].yt,   sizeof trailer[k].yt,   "%s", vt[k].yt);
     snprintf(trailer[k].nome, sizeof trailer[k].nome, "%s", vt[k].nome);
+    snprintf(trailer[k].idioma, sizeof trailer[k].idioma, "%s", vt[k].idioma);
     snprintf(trailer[k].mini, sizeof trailer[k].mini,
              "https://img.youtube.com/vi/%s/hqdefault.jpg", vt[k].yt);
   }
@@ -1735,6 +1737,9 @@ const char *extras_trailer_yt(int i) {
 }
 const char *extras_trailer_nome(int i) {
   return (i >= 0 && i < nTrailer) ? trailer[i].nome : "";
+}
+const char *extras_trailer_idioma(int i) {
+  return (i >= 0 && i < nTrailer) ? trailer[i].idioma : "";
 }
 const char *extras_trailer_miniatura(int i) {
   return (i >= 0 && i < nTrailer) ? trailer[i].mini : "";
