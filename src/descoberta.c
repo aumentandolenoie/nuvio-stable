@@ -3333,9 +3333,19 @@ static int montarContinuar(CatItem *saida, int max) {
     // 22 candidatos para 12 lugares na C9 do dono — os futuros eram sempre os
     // cortados, e "Separar futuros"/"Estilo streaming" nao mudavam nada.
     // Reserva para futuros apenas DEPOIS dos pausados, nunca contra eles.
-    // La riserva vale per i FUTURI, non per 'in corso' contro 'a seguire':
-    // quella distinzione non deve ribaltare l'ordine dell'ultima visione.
-    cwo_corte(principal, nJ - principal, max, &mp, &mf);
+    // I titoli IN CORSO che sono davvero piu recenti occupano gia la testa:
+    // non sacrificarli per riservare dei futuri. Se invece l'ultimo visto
+    // e un 'A seguire' a 0%, resta in cima e non viene spostato: qui si
+    // proteggono solo le pause del PREFISSO ordinato per attivita reale.
+    { int pausadosRecenti = 0;
+      while (pausadosRecenti < principal &&
+             emAndamento(ordenados[pausadosRecenti].item->progresso))
+        pausadosRecenti++;
+      if (pausadosRecenti > max) pausadosRecenti = max;
+      cwo_corte(principal - pausadosRecenti, nJ - principal,
+                max - pausadosRecenti, &mp, &mf);
+      mp += pausadosRecenti;
+    }
     for (i = 0; i < mp; i++) juntos[i] = ordenados[i];
     for (i = 0; i < mf; i++) {
       juntos[mp + i] = ordenados[principal + i];
