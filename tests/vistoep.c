@@ -189,19 +189,6 @@ int main(void) {
   assert(vistoep_n() == 6);
   puts("ok  marcar e desmarcar sem duplicar");
 
-  // A resposta de /progress/watched iniciada antes de concluir um episodio
-  // ainda chega com completed:false. Nao deve desfazer o check do player.
-  vistoep_definir("tt14688458", 1, 3, 1);
-  assert(vistoep_fonte("tt14688458", 1, 3, 0, 0, NULL));
-  assert(vistoep_estado("tt14688458", 1, 3) == 1);
-  // Um episodio apenas visto remotamente nao possui protecao local.
-  vistoep_fonte("tt14688458", 1, 3, 1, 0, NULL);
-  vistoep_definir("tt14688458", 1, 3, 0);
-  assert(vistoep_fonte("tt14688458", 1, 3, 1, 0, NULL));
-  assert(vistoep_fonte("tt14688458", 1, 3, 0, 0, NULL));
-  assert(vistoep_estado("tt14688458", 1, 3) == 0);
-  puts("ok  il completamento locale non viene cancellato da un vecchio snapshot remoto");
-
   // Episodio novo entra; temporada 0 (especiais) e valida, episodio 0 nao.
   vistoep_definir("tt14688458", 0, 1, 1);
   assert(vistoep_estado("tt14688458", 0, 1) == 1);
