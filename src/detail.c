@@ -443,6 +443,14 @@ static TrailerCinema trailerCinema;
 static char trailerCheiaLogada[32];
 #endif
 static int trailerSemFonteLogado = 0;
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+static int tmdbSemFluxo = 0; // distinguere non disponibile da ricerca in corso
+static void tmdbAvvisoIndisponivel(void) {
+  ilha_avisar("tmdb-trailer-unavailable", ILHA_ERRO, NULL,
+              "Trailer TMDB non riproducibile. Scegli Automatica per Apple TV/IMDb.",
+              6500u, 0);
+}
+#endif
 static const char *trailerFonte(int k, int *qual, int cheia) {
   const CatItem *ci = cat_item(idx);
   TrailerCandidatos c;
@@ -452,18 +460,22 @@ static const char *trailerFonte(int k, int *qual, int cheia) {
 #if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
   static char tmdbDiretto[4096];
   if (aj == TRF_TMDB) {
+    tmdbSemFluxo = 0;
     if (ajustes_tmdb_trailers() && extras_n_trailers() > 0) {
       int pos = (k >= 0 && k < extras_n_trailers()) ? k : 0;
       int stato = traileryt_obter(extras_trailer_yt(pos), tmdbDiretto, sizeof tmdbDiretto);
       if (stato == 1) {
         if (qual) *qual = TRF_TMDB;
-        return tmdbDiretto; // URL HTTPS gia' compatibile con video_tocar
+        return tmdbDiretto;
       }
-      if (stato == 0) return NULL; // thread HTTP in corso: non bloccare SDL
+      if (stato == 0) return NULL; // risoluzione asincrona
     } else if (ajustes_tmdb_trailers() && extras_carregando()) return NULL;
-    // URL YouTube assente, 403, soltanto SABR o integrazione spenta:
-    // Apple TV / IMDb come riserva, sempre dentro Nuvio.
-    aj = TRF_AUTO;
+    // Fonte TMDB ESPLICITA: nessun fallback invisibile verso Apple/IMDb.
+    // Un video YouTube non riproducibile deve essere segnalato, non sostituito
+    // con un trailer in inglese che sembra provenire da TMDB.
+    tmdbSemFluxo = 1;
+    if (qual) *qual = 0;
+    return NULL;
   }
 #endif
   memset(&c, 0, sizeof c);
@@ -2369,8 +2381,9 @@ static void tocarTrailerCheio(int k) {
   const char *u = trailer_suportado() ? trailerFonte(k, NULL, 1) : NULL;
 #if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
   if (!u && trailerfonte_ajuste() == TRF_TMDB) {
-    // Non aprire mai il browser LG. Un OK mentre il video si risolve resta
-    // in attesa per il tempo del worker, poi ritorna al titolo.
+    // Se TMDB e' indisponibile, non fingere che la scelta funzioni ripiegando
+    // su Apple/IMDb. Durante la risoluzione attende nel dettaglio.
+    if (tmdbSemFluxo) { tmdbAvvisoIndisponivel(); return; }
     tmdbCheioPendente = k >= 0 ? k : 0;
     tmdbCheioDa = SDL_GetTicks();
     return;
@@ -3274,15 +3287,21 @@ static float blocoAnt[3] = { -1.0f, -1.0f, -1.0f };   // Notas / Numeros / Progr
 void detail_atualizar(float dt, Uint32 agora) {
 #if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
   if (tmdbCheioPendente >= 0) {
-    if (!aberto || saindo || trailerfonte_ajuste() != TRF_TMDB ||
-        agora - tmdbCheioDa > 23000u) tmdbCheioPendente = -1;
-    else if (trailer_suportado()) {
+    if (!aberto || saindo || trailerfonte_ajuste() != TRF_TMDB)
+      tmdbCheioPendente = -1;
+    else if (agora - tmdbCheioDa > 23000u) {
+      tmdbCheioPendente = -1;
+      tmdbAvvisoIndisponivel();
+    } else if (trailer_suportado()) {
       const char *u = trailerFonte(tmdbCheioPendente, NULL, 1);
       if (u) {
         GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
         tmdbCheioPendente = -1;
         trailerEtapa = 0; trailerPrazo = 0;
         trailer_abrir(u, tela, trailerfonte_com_som(trailerfonte_tizen()), 1);
+      } else if (tmdbSemFluxo) {
+        tmdbCheioPendente = -1;
+        tmdbAvvisoIndisponivel();
       }
     }
   }
@@ -5537,7 +5556,14 @@ static void desenhaTrailer(float x, float y, int c, float f, float a) {
   { TxtLinha ln = txt_linha_corta(TXT_ROW_TITULO, extras_trailer_nome(c),
                                   245, 248, 255, 255, NV_DETF_TR_W);
     txt_desenhar_alpha(ln, x, y + NV_DETF_TR_NOME_DY, a); }
-  { TxtLinha lt = txt_linha(TXT_CAPTION2, "YouTube", 179, 179, 179, 255);
+  { char indicata[96];
+    const char *lg = extras_trailer_idioma(c);
+    // Etichetta provenienza: TMDB certifica l'etichetta lingua del video,
+    // NON la lingua effettivamente parlata. Il titolo da solo non e' prova.
+    if (lg[0]) snprintf(indicata, sizeof indicata, "YouTube · TMDB: lingua %s", lg);
+    else snprintf(indicata, sizeof indicata, "YouTube · lingua non indicata");
+    TxtLinha lt = txt_linha_corta(TXT_CAPTION2, indicata, 179, 179, 179, 255,
+                                   NV_DETF_TR_W);
     txt_desenhar_alpha(lt, x, y + NV_DETF_TR_TIPO_DY, a * 0.9f); }
 }
 
