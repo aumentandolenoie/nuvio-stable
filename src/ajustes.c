@@ -2677,7 +2677,9 @@ int ajustes_meta_so_cinemeta(void)    { return lig(AJ_DET_SO_CINEMETA); }
 
 int   ajustes_expandir_poster(void)   { return lig(AJ_EXPANDIR); }
 float ajustes_expandir_poster_atraso(void) { return (float)valor[AJ_EXPANDIR_ATRASO]; }
-int   ajustes_navegacao_horizontal_rapida(void) { return lig(AJ_NAV_RAPIDA); }
+// Il telecomando deve avanzare di un elemento per pressione in tutte le schermate.
+// Non applicare il salto triplo ereditato dall'opzione legacy.
+int   ajustes_navegacao_horizontal_rapida(void) { return 0; }
 int   ajustes_borda_foco(void) { return lig(AJ_BORDA_FOCO); }
 
 int   ajustes_profundidade(void)      { return lig(AJ_PROF); }
