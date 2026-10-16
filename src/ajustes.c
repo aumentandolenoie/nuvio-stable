@@ -747,7 +747,13 @@ static const char *V_QUALTRAIL[] = { "Máxima", "1080p", "720p", "480p" };
 static const char *V_ASPTRAIL[]  = { "Zoom cinema", "Zoom leve", "Zoom ultra", "Original" };
 // Fonte do trailer (trailerfonte.h). O indice e o gravado e o TRF_* do
 // modulo: 0 Automatico, 1 Apple, 2 IMDb, 3 YouTube — nao reordenar.
+// La LG non dispone del player YouTube web: il quarto valore sceglie
+// il risolutore progressivo TMDB, con riproduzione nel player nativo.
+#ifdef __EMSCRIPTEN__
 static const char *V_TRAILFONTE[] = { "Automático", "Apple TV", "IMDb", "YouTube" };
+#else
+static const char *V_TRAILFONTE[] = { "Automático", "Apple TV", "IMDb", "TMDB (interno, experimental)" };
+#endif
 // Nomes NATIVOS, sem i18n: quem trocou para um idioma que nao le precisa achar o seu.
 // A ordem e a de IDIOMA_* (idiomacod.h) e a do valor gravado: so acrescentar no fim.
 // EXCECAO: o primeiro rotulo, "Automático", e o unico que passa por i18n (os
@@ -2589,7 +2595,16 @@ float ajustes_trailer_zoom(void)      { static const float z[] = { 1.34f, 1.15f,
 // Teto de definicao do trailer: 0 = a maior que houver.
 int   ajustes_trailer_qualidade(void) { static const int t[] = { 0, 1080, 720, 480 }; int v = valor[AJ_TRAILER_QUAL]; return (v >= 0 && v < 4) ? t[v] : 0; }
 // Fonte do trailer: o TRF_* de trailerfonte.h. Fora da lista le Automatico.
-int   ajustes_trailer_fonte(void)     { int v = valor[AJ_TRAILER_FONTE]; return (v >= 0 && v < nValores(AJ_TRAILER_FONTE)) ? v : 0; }
+int ajustes_trailer_fonte(void) {
+  int v = valor[AJ_TRAILER_FONTE];
+  if (v < 0 || v >= nValores(AJ_TRAILER_FONTE)) return 0;
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+  // Il valore salvato 3 non era disponibile su LG (YouTube iframe).
+  // In questa UI vale adesso la modalita' TMDB nativa sperimentale.
+  if (v == 3) return TRF_TMDB;
+#endif
+  return v;
+}
 int  ajustes_envio_auto(void)         { return lig(AJ_ENVIO_AUTO); }
 int  ajustes_menu_explorar(void)      { return lig(AJ_MENU_EXPLORAR); }
 int  ajustes_menu_guia(void)          { return lig(AJ_MENU_GUIA); }
@@ -5911,7 +5926,7 @@ static const char *ajudaOpcaoBase(int op) {
       return "De onde vem o trailer da tela do título e do destaque. Automático tenta a Apple TV e, sem ela, o IMDb; no botão de trailer, que toca com som, o IMDb vem primeiro, porque o da Apple toca sem som nesta TV. Uma fonte escolhida é a única tentada. O YouTube não toca nesta TV.";
 #endif
 #else
-      return "De onde vem o trailer da tela do título e do destaque. Automático tenta a Apple TV e, sem ela, o IMDb; uma fonte escolhida é a única tentada. O YouTube não toca nesta TV.";
+      return "Fonte dos trailers na página do título. TMDB (interno, experimental) prefere o vídeo no idioma escolhido no TMDB e tenta tocá-lo sem sair do Nuvio. Se YouTube não fornecer um fluxo direto compatível, usa Apple TV/IMDb. Automático mantém a ordem Apple TV/IMDb.";
 #endif
 
     // --- Posteres e cards
@@ -7671,7 +7686,13 @@ static int nValores(int op) {
   // destaque e sem botao Trailer na pagina (#204, log da 1.6.5: "detalhe: sem
   // trailer (ajuste 3, apple tem, imdb tem, youtube n/a)"). Fora da lista, o 3
   // ja gravado le como fora da faixa e fica o padrao, Automatico (limita).
-  if (op == AJ_TRAILER_FONTE) return 3;
+  if (op == AJ_TRAILER_FONTE) {
+#ifdef NV_TPK
+    return 3;
+#else
+    return 4; // LG: Automatico, Apple, IMDb, TMDB (interno)
+#endif
+  }
 #endif
   return OPCOES[op].n;
 }
