@@ -334,6 +334,13 @@ typedef struct {
 int  video_n_audio(void);
 int  video_n_legenda(void);
 const VideoFaixa *video_audio(int i);
+// Tracce MKV DTS/TrueHD omesse dalla lista del decoder LG: solo informative,
+// mai passate a video_escolher_audio (gli indici nativi restano immutati).
+int video_n_audio_omesse(void);
+const VideoFaixa *video_audio_omessa(int i);
+// Vero solo quando il dispositivo ha esplicitamente escluso una traccia
+// dall'elenco riproducibile (o ha riferito un decoder non supportato).
+int video_audio_noncompatibile(int i);
 const VideoFaixa *video_legenda(int i);
 int  video_legenda_ordinal_mkv(int i); // ordinal Tizen para casar com TrackEntry
 // Sonda do cabecalho do MKV (idioma, codec e ordinal das legendas): 0 = ainda

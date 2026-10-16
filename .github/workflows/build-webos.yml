@@ -36,6 +36,7 @@ jobs:
           set -euo pipefail
           python3 .nuvio-stable/test_contract.py
           python3 tools/stable-release-notes.py --check
+          python3 tests/ux_serie_tracce.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           # Regression checks for recent watch progress, stale episode checks and CW order.
