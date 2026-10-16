@@ -42,6 +42,16 @@ jobs:
           bash tests/stable_identity.sh
           bash -n tools/arm.sh
           bash -n tools/p2p-motor/build-arm.sh
+          NUVIO_PROPERTIES=/dev/null bash tools/env.sh --allow-unconfigured >/dev/null
+          python3 - <<'PY'
+          import json, re, pathlib
+          app = json.loads(pathlib.Path('deploy/app/appinfo.json').read_text())
+          xml = pathlib.Path('tools/tizen-config.xml').read_text()
+          version = re.search(r'<widget\\b[^>]*\\bversion="([^"]+)"', xml, re.S)
+          assert version and version.group(1) == app['version'], 'Versioni appinfo/Tizen diverse'
+          assert app['id'] == 'space.nuvio.native.stable', 'ID app inatteso'
+          print('PASS: manifest e versioni allineati', app['version'])
+          PY
 
       - name: Install webOS packaging tools
         uses: actions/setup-node@v5
@@ -73,13 +83,20 @@ jobs:
           NUVIO_PROPERTIES="$GITHUB_WORKSPACE/local.properties" \
             bash tools/env.sh --require-core > /dev/null
 
-      - name: Build full ARMv7 webOS SDK with ASS and DTS
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker build --platform linux/amd64 \
-            --build-arg SDK_URL=https://github.com/openlgtv/buildroot-nc4/releases/download/webos-a38c582/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz \
-            -t nuvio-webos-sdk tools/
+      - name: Set up reusable Docker build cache
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build cached ARMv7 webOS SDK
+        uses: docker/build-push-action@v6
+        with:
+          context: tools
+          platforms: linux/amd64
+          load: true
+          tags: nuvio-webos-sdk:latest
+          build-args: |
+            SDK_URL=https://github.com/openlgtv/buildroot-nc4/releases/download/webos-a38c582/arm-webos-linux-gnueabi_sdk-buildroot-x86_64.tar.gz
+          cache-from: type=gha,scope=nuvio-webos-sdk
+          cache-to: type=gha,mode=max,scope=nuvio-webos-sdk
 
       - name: Build LG ARMv7 P2P engine
         shell: bash
