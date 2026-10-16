@@ -748,7 +748,7 @@ void player_erro_fonte(void) {
     if (tecnico && *tecnico)
       snprintf(erroDica, sizeof erroDica, "Player: %.145s", tecnico);
     else
-      snprintf(erroDica, sizeof erroDica, "Diagnostica: backend sem codice; video_falhou=%d, video_pronto=%d",
+      snprintf(erroDica, sizeof erroDica, "Diagnostica: nessun codice dal backend; errore=%d, pronto=%d",
                video_falhou(), video_pronto());
   }
 }
