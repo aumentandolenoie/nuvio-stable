@@ -40,6 +40,8 @@ jobs:
           # Regression checks for recent watch progress, stale episode checks and CW order.
           bash tests/progresso.sh
           bash tests/vistoep.sh
+          bash tests/contalib.sh
+          bash tests/contapend.sh
           cc -O1 -g -Wall -Wextra -pthread -Isrc src/cwordem.c src/cwretido.c tests/cwordem.c -o /tmp/nuvio-cwordem-core-tests
           /tmp/nuvio-cwordem-core-tests
           bash tests/traileryt.sh
