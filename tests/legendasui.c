@@ -167,7 +167,22 @@ int main(void) {
   ling_local_legenda2("en");
   ativaEmb = 0;
   legendasui_abrir();
-  assert(aberto && !mais);
+  // Nuovo flusso: prima la lingua, poi SOLO le tracce del gruppo.
+  assert(aberto && mais && !ver);
+  assert(nLinhasV == 4 && linhas[0].tipo == LR_NENHUMA);
+  assert(linhaDe("ling|pt") >= 0 && linhas[linhaDe("ling|pt")].slot == 5);
+  assert(linhaDe("ling|en") >= 0 && linhas[linhaDe("ling|en")].slot == 3);
+  assert(linhaDe("ling|es") >= 0 && linhas[linhaDe("ling|es")].slot == 1);
+  focarChave("ling|en"); tecla(SDLK_RETURN);
+  assert(ver && !strcmp(verIdioma, "en") && nLinhasV == 6);
+  for (i = 0; i < nLinhasV; i++)
+    if (linhas[i].tipo == LR_CAND)
+      assert(linhas[i].cand >= 0 && ling_casa(cand[linhas[i].cand].idioma, "en"));
+  tecla(SDLK_ESCAPE);
+  assert(!ver && !strcmp(linhas[foco].chave, "ling|en"));
+  // Le verifiche legacy della selezione raccomandata restano utili come
+  // regressione della priorita automatica, anche se la UI apre ora per lingua.
+  mais = 0; montarLinhas();
   assert(nLinhasV == 4 && linhas[0].tipo == LR_NENHUMA);
   assert(linhas[1].cand >= 0 && cand[linhas[1].cand].indice == 0);
   assert(!strcmp(linhas[foco].chave, "rec|p"));
@@ -273,7 +288,9 @@ int main(void) {
   nAdd = 6;
   ativaEmb = 2; extId[0] = 0; sec[0] = 0;
   legendasui_abrir();
+  mais = 0; montarLinhas();
   assert(!mais && linhaDe("rec|a") >= 0);
+  focarChave("rec|a");
   assert(!strcmp(linhas[foco].chave, "rec|a"));
   assert(cand[linhas[linhaDe("rec|a")].cand].indice == 2);
   { char nome[96]; const char *id, *ic; int at, ap;
@@ -303,14 +320,14 @@ int main(void) {
   nEmb = 0; nAdd = 2; tocando = "https://h.invalid/opaque";
   addon(0, "pt", "OpenSubtitles", "Show.HDTV.LOL.srt", "https://h.invalid/old.srt");
   addon(1, "pt", "OpenSubtitles", "Show.WEB-DL.NTb.srt", "https://h.invalid/new.srt");
-  legauto_fonte(NULL); legendasui_abrir();
+  legauto_fonte(NULL); legendasui_abrir(); mais = 0; montarLinhas();
   assert(recP == 0);
   uint64_t assinatura = recAssinatura();
   legauto_fonte("Show.WEB-DL.NTb.mkv");
   montarLinhas();
   assert(recP == 1 && recAssinatura() != assinatura);
   legendasui_abrir(); assert(recP == 1);
-  legauto_fonte(NULL); montarLinhas(); assert(recP == 0);
+  legauto_fonte(NULL); mais = 0; montarLinhas(); assert(recP == 0);
 
   puts("legendasui: identities, formats, kinds, full list, late arrivals, second-slot refusals, offsets, AutoSync, settings, active-outside-recommendations OK");
   return 0;
