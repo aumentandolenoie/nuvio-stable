@@ -182,7 +182,7 @@ void legendasui_definir_sync(const LegendasSyncProvider *p) {
 }
 
 // --- rows --------------------------------------------------------------------------
-typedef enum { LR_CAND, LR_NENHUMA, LR_MAIS, LR_SYNC, LR_ALVO, LR_ATRASO, LR_PAR } LuiTipo;
+typedef enum { LR_CAND, LR_NENHUMA, LR_MAIS, LR_SYNC, LR_ALVO, LR_ATRASO, LR_PAR, LR_IDIOMA } LuiTipo;
 typedef struct {
   LuiTipo tipo;
   int slot, cand;
@@ -314,7 +314,29 @@ static void montarLinhas(void) {
   capturar();
   idPrimario(prim);
   nLinhasV = 0;
-  if (!mais && !ver) {
+  if (mais && !ver) {
+    // Primo livello: una riga per lingua (tutte le tracce MKV + addon).
+    // Nessuna lista interminabile: dopo OK si vedono le versioni di quella
+    // lingua, mantenendo l'identita di ogni traccia e il menu AutoSync.
+    linhaFixa(LR_NENHUMA, 0, "ling|off");
+    for (i = 0; i < nCand && nLinhasV < LUI_MAX_LINHAS; i++) {
+      int j, count = 0, duplicate = 0;
+      char key[96];
+      for (j = 0; j < i; j++)
+        if ((!cand[i].idioma[0] && !cand[j].idioma[0]) ||
+            (cand[i].idioma[0] && cand[j].idioma[0] &&
+             ling_casa(cand[i].idioma, cand[j].idioma))) { duplicate = 1; break; }
+      if (duplicate) continue;
+      for (j = 0; j < nCand; j++)
+        if ((!cand[i].idioma[0] && !cand[j].idioma[0]) ||
+            (cand[i].idioma[0] && cand[j].idioma[0] &&
+             ling_casa(cand[i].idioma, cand[j].idioma))) count++;
+      snprintf(key, sizeof key, "ling|%s", cand[i].idioma[0] ? cand[i].idioma : "?");
+      linhaFixa(LR_IDIOMA, 0, key);
+      linhas[nLinhasV - 1].cand = i;
+      linhas[nLinhasV - 1].slot = count; // numero opzioni del gruppo
+    }
+  } else if (!mais && !ver) {
     uint64_t assin = recAssinatura();
     int p, q, ativa = -1;
     if (assin != recAssin) {
@@ -394,7 +416,7 @@ static void avisar(const char *s) {
 void legendasui_abrir(void) {
   char prim[24];
   int i;
-  aberto = 1; mais = ajustes_legendas_todas() || !temPreferencia(); ver = 0; menu = okPendente = okLongo = 0; alvo = 0; rolagemZerar(); aviso[0] = 0;
+  aberto = 1; mais = 1; ver = 0; menu = okPendente = okLongo = 0; alvo = 0; rolagemZerar(); aviso[0] = 0;
   focoChave[0] = 0; foco = 0;
   montarLinhas();
   // Open on the row of the active primary, else on the first row.
@@ -618,6 +640,14 @@ int legendasui_evento(const SDL_Event *e) {
   if (ok) {
     if (!l) return LEGUI_TRATADO;
     switch (l->tipo) {
+      case LR_IDIOMA:
+        if (l->cand >= 0) {
+          snprintf(verGrupo, sizeof verGrupo, "%s", l->chave);
+          snprintf(verIdioma, sizeof verIdioma, "%s", cand[l->cand].idioma);
+          ver = 1; alvo = 0; rolagemZerar(); focoChave[0] = 0; foco = 0;
+          montarLinhas(); focar(nLinhasV > 3 ? 3 : 0);
+        }
+        break;
       case LR_MAIS:
         mais = 1; alvo = 0; rolagemZerar(); focoChave[0] = 0; foco = 0;
         montarLinhas(); focar(nLinhasV > 3 ? 3 : 0);
@@ -765,6 +795,14 @@ static void textoLinha(const LuiLinha *l, char *nome, size_t tn, char *sub, size
       snprintf(sub, ts, "%s", i18n("Sem legenda"));
       *icone = "pl_eye-off";
       *ativo = l->slot ? !legenda2_identidade()[0] : !legendasui_slot_identidade(0)[0];
+      break;
+    case LR_IDIOMA:
+      if (c) {
+        *idioma = c->idioma;
+        snprintf(nome, tn, "%s", c->idioma[0] ? nomeIdioma(c->idioma) : i18n("Lingua sconosciuta"));
+        snprintf(sub, ts, "%d %s", l->slot, i18n(l->slot == 1 ? "sottotitolo" : "sottotitoli"));
+        *icone = "pl_captions";
+      }
       break;
     case LR_MAIS:
       snprintf(nome, tn, "%s", i18n("Todas as legendas"));
@@ -995,7 +1033,7 @@ void legendasui_corpo(GfxRect c, float a) {
   montarLinhas();
   pont = !menu && a > 0.99f && ponteiro_ativo();
   plrui_kicker(tituloSessao(), x0 + 10.0f, y, 115, 115, 113, a);
-  { TxtLinha t = txt_linha(TXT_ILHA_PERGUNTA, ver ? nomeIdioma(verIdioma) : mais ? "Todas as legendas" : "Recomendadas", 243, 242, 239, 255);
+  { TxtLinha t = txt_linha(TXT_ILHA_PERGUNTA, ver ? (verIdioma[0] ? nomeIdioma(verIdioma) : i18n("Lingua sconosciuta")) : mais ? i18n("Lingua dei sottotitoli") : "Recomendadas", 243, 242, 239, 255);
     float ty = y + 22.0f;
     const char *rot[2] = { "Faixas", "Estilo" };
     int cont[2] = { nCand, -1 };
