@@ -546,7 +546,7 @@ static int linhaDaLeg(int i) {
 
 static int nLinhas(int col) {
   if (col == FX_COL_ESTILO) return FX_N_ESTILO;
-  if (col == 0) { int n = video_n_audio(); return n; }
+  if (col == 0) return video_n_audio() + video_n_audio_omesse();
   return nLegendas() + 1;   // +1 pela linha "Desativada"
 }
 
@@ -881,6 +881,9 @@ static void lembrarManual(int i) {
 
 static void aplicar(void) {
   if (coluna == 0) {
+    // Gli elementi audio esclusi dal decoder sono visibili solo a scopo
+    // informativo. Non cambiarne lo stato, il flusso o il target AutoSync.
+    if (foco[0] >= video_n_audio()) return;
     // F06: outra faixa de audio = outras falas; a escuta em curso nao vale mais.
     if (video_audio_atual() != foco[0]) legsync_audio_trocou();
     video_escolher_audio(foco[0]);
@@ -1158,6 +1161,7 @@ void faixas_evento(const SDL_Event *e) {
   if (k == SDLK_DOWN)  { if (foco[coluna] < nLinhas(coluna) - 1) foco[coluna]++;
                          ajustarRolagem(); return; }
   if (k == SDLK_RETURN || k == SDLK_KP_ENTER) {
+    if (!modo && foco[0] >= video_n_audio()) return; // disabilitata
     aplicar(); aberta = 0; return;
   }
 }
@@ -1416,9 +1420,11 @@ static void linhaLista(int col, int i, float x, float y, float w, float a) {
   GfxRect lr = { x, y, w, IL_LN_H };
   nome[0] = sub[0] = 0;
   if (!col) {
-    const VideoFaixa *f = video_audio(i);
+    int nativo = video_n_audio(), bloccata = i >= nativo;
+    const VideoFaixa *f = bloccata ? video_audio_omessa(i - nativo) : video_audio(i);
     partirRotulo(f ? f->rotulo : "", nome, sizeof nome, sub, sizeof sub);
     idioma = f ? f->idioma : NULL;
+    if (bloccata) snprintf(sub, sizeof sub, "%s", i18n("Fonte audio non compatibile"));
   } else if (i == 0) {
     snprintf(nome, sizeof nome, "%s", i18n("Nenhuma"));
     snprintf(sub, sizeof sub, "%s", i18n(player_id_canal()[0] && !nLegendas()
@@ -1434,9 +1440,10 @@ static void linhaLista(int col, int i, float x, float y, float w, float a) {
   }
   if (sel) plrui_linha_foco(lr, 22.0f, a);
   rostoIdioma((GfxRect){ x + 22.0f, y + (IL_LN_H - 52.0f) * 0.5f, 52.0f, 52.0f }, idioma, icone, sel, a);
-  ativo = col == 0 ? i == video_audio_atual() : legDaLinha(i - 1) == legendaAtiva();
+  ativo = col == 0 ? i < video_n_audio() && i == video_audio_atual() : legDaLinha(i - 1) == legendaAtiva();
   { float tx = x + 22.0f + 52.0f + 18.0f, tw = w - (tx - x) - 22.0f - (ativo ? 46.0f : 0.0f);
-    int c = sel ? 255 : 219, cs = 122;
+    int indisponivel = col == 0 && i >= video_n_audio();
+    int c = indisponivel ? 135 : sel ? 255 : 219, cs = indisponivel ? 110 : 122;
     TxtLinha ln = txt_linha_corta(TXT_ILHA_FORTE, nome, c, c, c - 2, 255, tw);
     TxtLinha ls = txt_linha_corta(TXT_ILHA_GENERO, sub, cs, cs, cs - 2, 255, tw);
     float th = (float)ln.h + (sub[0] ? 5.0f + (float)ls.h : 0.0f), ty = y + (IL_LN_H - th) * 0.5f;
