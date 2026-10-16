@@ -445,6 +445,9 @@ static const char *trailerFonte(int k, int *qual, int cheia) {
   const char *u = NULL;
   int q = 0, aj = trailerfonte_ajuste(), tz = trailerfonte_tizen();
   TrailerDecisao d;
+  // TMDB restituisce ID YouTube, non flussi video per il player webOS.
+  // Non tentare di passarli al riproduttore integrato.
+  if (aj == 4) return NULL;
   memset(&c, 0, sizeof c);
   if (qual) *qual = 0;
   if (ci && ci->imdb[0]) {
@@ -2345,6 +2348,15 @@ static int acaoEm(int n) {
 // "Assistir trailer" da linha de acoes passam por aqui). Voltar fecha o trailer
 // (trailer_evento) e a pagina continua com o mesmo foco.
 static void tocarTrailerCheio(int k) {
+#ifndef __EMSCRIPTEN__
+  if (trailerfonte_ajuste() == 4) {
+    // Fonte TMDB esplicita: apri nel browser il trailer localizzato scelto.
+    // Senza risultato disponibile non aprire un URL inesistente.
+    int escolhido = (k >= 0 && k < extras_n_trailers()) ? k : 0;
+    if (escolhido < extras_n_trailers()) extras_trailer_abrir(escolhido);
+    return;
+  }
+#endif
   const char *u = trailer_suportado() ? trailerFonte(k, NULL, 1) : NULL;
   if (u) {
     GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
