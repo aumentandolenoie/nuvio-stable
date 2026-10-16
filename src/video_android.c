@@ -955,6 +955,7 @@ int  video_n_legenda(void) { return nLeg; }
 const VideoFaixa *video_audio(int i) { return (i >= 0 && i < nAudio) ? &faixaAudio[i] : 0; }
 int video_n_audio_omesse(void) { return 0; }
 const VideoFaixa *video_audio_omessa(int i) { (void)i; return NULL; }
+int video_audio_noncompatibile(int i) { (void)i; return 0; }
 const VideoFaixa *video_legenda(int i) { return (i >= 0 && i < nLeg) ? &faixaLeg[i] : 0; }
 int  video_legenda_ordinal_mkv(int i) { return (i >= 0 && i < nLeg) ? faixaLeg[i].ordinalMkv : -1; }
 // "Nao ha sonda": sem libass (NV_ASS_LIBASS) a sonda de MKV nao serve a nada.
