@@ -576,6 +576,32 @@ int main(void) {
     contaBaseMs = 0;
     contaSementesTeste = 0;
     fonteTeste = 0; }
+  // NUVIO SYNC, senza Trakt o Simkl: appena chiuso l'episodio 10, il pull
+  // account e ancora fermo alla semente T4E10. Il check locale verificato
+  // deve fare avanzare il prossimo a T4E11 senza aspettare il server.
+  {
+    static CatItem locale[CONT_MAX];
+    int n;
+    traktAtivoTeste = 0;
+    contaSementesTeste = 1;
+    contaBaseMs = 0;
+    vistoEmOutraTeste = "ttT:4:10";
+    assert(prog_gravar_local("ttT", 4, 10, 1600, 1600, 1));
+    n = contaASeguir(locale, 0, CONT_MAX, 0);
+    assert(n >= 1 && cwo_conta_a_seguir("ttT:4:11"));
+    assert(!cwo_conta_a_seguir("ttT:4:10"));
+    // Seek al 100% senza la prova di riproduzione NON e un episodio visto.
+    vistoEmOutraTeste = "ttT:4:11";
+    assert(prog_gravar_local("ttT", 4, 11, 1600, 1600, 0));
+    contaASeguir(locale, 0, CONT_MAX, 0);
+    assert(!cwo_conta_a_seguir("ttT:4:12"));
+    prog_remover("ttT_s4e10"); prog_remover("ttT_s4e11");
+    vistoEmOutraTeste = NULL;
+    traktAtivoTeste = 1;
+    contaSementesTeste = 0;
+    puts("ok Nuvio Sync: avanza il prossimo episodio subito, mai solo con seek");
+  }
+
   puts("cwordem_desc: tudo ok");
   return 0;
 }
