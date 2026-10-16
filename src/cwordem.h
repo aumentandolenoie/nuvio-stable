@@ -12,9 +12,10 @@
 // ao ar (hasAired === false, que resolveNextUpReleaseState tira da data de
 // estreia: `released <= Date.now()`; sem data, conta como exibido).
 //
-//   default          -> pausados primeiro, depois sugestoes; recencia por grupo.
-//   streaming_style  -> pausados, sugestoes exibidas e futuros, nessa ordem;
-//                       recencia dentro de cada grupo.
+//   default          -> recencia global: o ultimo titulo visto vem primeiro,
+//                       ainda que seu proximo episodio nao tenha sido iniciado.
+//   streaming_style  -> a mesma recencia entre episodios ja disponiveis; so
+//                       os ainda nao lancados vao para o fim.
 //   split_upcoming   -> a mesma lista, mas os futuros saem da fileira e viram
 //                       uma fileira propria logo abaixo ("Proximos", a
 //                       `upcoming_section` do web, titulo upcoming_section_title).
@@ -43,8 +44,8 @@ enum { CWO_PADRAO = 0, CWO_STREAMING = 1, CWO_SEPARAR = 2 };
 // uma data legitima (1/1/1970).
 #define CWO_SEM_DATA LLONG_MIN
 
-// Um candidato da fileira, ja na ordem por instante (o mais recente primeiro)
-// que montarContinuar deu. So o que a regra precisa.
+// Um candidato da fileira, ja na ordem GLOBAL por instante (o mais recente
+// primeiro) que montarContinuar deu. So o que a regra precisa.
 typedef struct {
   int aSeguir;          // 1 = "a seguir" (progresso 0, proximo episodio)
   long long estreiaMs;  // estreia do episodio, CWO_SEM_DATA se nao se sabe
@@ -55,7 +56,7 @@ typedef struct {
 int cwo_futuro(const CwoItem *it, long long agoraMs);
 
 // Reordena `perm` (indices em `v`, que chegam na ordem por instante) segundo o
-// modo. Pausados primeiro; dentro de cada grupo a recencia recebida se mantem.
+// modo. Todos os ja exibidos mantem a recencia, com ou sem progresso iniciado.
 // Nos modos streaming/separar os futuros ficam no fim. Devolve quantos itens
 // ficaram na parte principal — o resto, de perm[principal] em diante, sao os
 // futuros. No modo padrao o retorno e `n`.

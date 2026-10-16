@@ -261,6 +261,24 @@ int prog_por_chave(const char *chave, ProgRegistro *saida) {
   return i >= 0;
 }
 
+long long prog_ultimo_da_obra(const char *imdb) {
+  char id[48];
+  int i, perfil;
+  long long ultimo = 0;
+  if (!imdb || !*imdb) return 0;
+  prog_content_id(id, sizeof id, imdb, NULL, NULL);
+  if (!id[0]) return 0;
+  perfil = perfis_ativo();
+  TRANCAR();
+  carregar();
+  for (i = 0; i < nRegs; i++)
+    if (regs[i].perfil == perfil && !strcmp(regs[i].contentId, id) &&
+        regs[i].lastWatchedMs > ultimo)
+      ultimo = regs[i].lastWatchedMs;
+  DESTRANCAR();
+  return ultimo;
+}
+
 int prog_pendentes(ProgRegistro *saida, int max) {
   int i, k = 0, perfil = perfis_ativo();
   if (!saida || max < 1) return 0;

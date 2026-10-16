@@ -32,19 +32,31 @@ int main(void) {
 
   p = cwo_ordenar(v, 6, CWO_PADRAO, AGORA, perm);
   assert(p == 6);
-  { static const int esperado[] = {0, 5, 1, 2, 3, 4};
+  { static const int esperado[] = {0, 1, 2, 3, 4, 5};
     for (i = 0; i < 6; i++) assert(perm[i] == esperado[i]); }
-  puts("ok  padrao: pausados primeiro, recencia dentro de cada grupo");
+  puts("ok  padrao: a mesma recencia global, inclusive proximos nao iniciados");
 
-  { static const int esperado[6] = { 0, 5, 2, 4, 1, 3 };
+  { static const int esperado[6] = { 0, 2, 4, 5, 1, 3 };
     p = cwo_ordenar(v, 6, CWO_STREAMING, AGORA, perm);
     assert(p == 4);
     for (i = 0; i < 6; i++) assert(perm[i] == esperado[i]);
-    puts("ok  streaming: exibidos pelo instante, depois futuros pela estreia");
+    puts("ok  streaming: vistos recentes e a seguir exibidos, depois futuros");
     p = cwo_ordenar(v, 6, CWO_SEPARAR, AGORA, perm);
     assert(p == 4);
     for (i = 0; i < 6; i++) assert(perm[i] == esperado[i]);
     puts("ok  separar: mesma ordem, os 2 futuros depois da parte principal"); }
+
+  // Ultimo episodio visto: il prossimo non iniziato viene prima del
+  // film ancora in pausa, in tutte le modalita.
+  { CwoItem recente[3] = {
+      { 1, AGORA - DIA }, { 0, CWO_SEM_DATA }, { 1, AGORA - 2 * DIA }
+    };
+    for (i = CWO_PADRAO; i <= CWO_SEPARAR; i++) {
+      p = cwo_ordenar(recente, 3, i, AGORA, perm);
+      assert(p == 3 && perm[0] == 0 && perm[1] == 1 && perm[2] == 2);
+    }
+  }
+  puts("ok  episodio seguente al 0% resta davanti ai titoli in pausa piu vecchi");
 
   // Estreia exatamente agora ja foi ao ar (`released <= Date.now()`).
   { CwoItem x = { 1, AGORA };

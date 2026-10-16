@@ -44,6 +44,8 @@ int  detail_assentado(void);
 int  detail_indice(void);
 // Temporada e episodio em foco (1 = ha episodio; 0 = titulo sem episodios).
 int  detail_ep_foco(int *temporada, int *episodio);
+// 1 se Play deve aspettare la lista episodi della serie gia vista; evita T1E1.
+int  detail_play_aguarda_episodios(void);
 int  detail_pediu_reproduzir(void);   // consome o pedido
 void detail_pedir_reproduzir(void);   // arma o pedido (OK no card de retomada)
 

@@ -2821,6 +2821,19 @@ static int candidatoVence(const CatItem *novo, const CatItem *velho) {
 // Um candidato da fileira, com o que se sabe sobre QUANDO ele aconteceu.
 typedef struct { CatItem *item; long long ms; int ord; } Cand;
 
+// 'A seguir' mostra un episodio ancora mai iniziato, ma l'attivita piu
+// recente appartiene alla stessa serie (l'episodio appena concluso). Usare il
+// timestamp di tutta l'opera solo nella classifica, non nella selezione dei
+// candidati: la protezione dei progressi parziali rimane in candidatoVence.
+static long long instanteVisualizacao(const CatItem *c) {
+  long long ms = instanteDaConta(c);
+  if (!emAndamento(c->progresso) && c->episodio > 0) {
+    long long recente = prog_ultimo_da_obra(c->imdb);
+    if (recente > ms) ms = recente;
+  }
+  return ms;
+}
+
 // A fileira tambem e refeita FORA do ciclo completo (issue #38), pelo fio de
 // desc_refazer_continuar. Os buffers estaticos abaixo — e os de
 // trakt_enfeitar_lote, chamado tambem por trakt_social — nao admitem dois
@@ -2999,6 +3012,72 @@ static void localizarContinuarPublicado(void);
 // (shouldUseSupabaseWatchProgressSync) e quando sync.c os aplica. Com um deles
 // vinculado, o "a seguir" ja vem dele.
 #define CONTA_JANELA_MS (60LL * 24 * 3600 * 1000)
+// La conta Nuvio scarica i 'visti' su un ciclo diverso dal progresso. Dopo la
+// chiusura del player il check locale esiste gia, ma sync_pull_watched_items puo
+// ancora indicare l'episodio PRECEDENTE. Ricavare la semente dal progresso
+// locale SOLO quando quel preciso episodio e anche marcato come VISTO, con
+// riproduzione provata (tocou=1): mai considerare un seek al 100% un visto.
+// La regola e solo per Nuvio Sync; non modifica i provider alternativi.
+static int contaSementiVisteQui(ContaSemente *sem, int n, int max, int altraFonte) {
+  ProgRegistro *reg;
+  int nr, i, k, aggiunte = 0, aggiornate = 0;
+  long long ora = (long long)time(NULL) * 1000LL;
+  if (altraFonte || !ajustes_hist_conta() || !sem || max < 1) return n;
+  reg = (ProgRegistro *)malloc(sizeof(*reg) * PROG_MAX);
+  if (!reg) return n;
+  nr = prog_ler(reg, PROG_MAX);
+  for (i = 0; i < nr; i++) {
+    const ProgRegistro *r = &reg[i];
+    int t = r->temporada, ep = r->episodio + 1, j;
+    if (r->temporada < 1 || r->episodio < 1 || ep > 32767 ||
+        r->tocou != 1 || r->durSeg < 120.0 ||
+        100.0 * r->posSeg / r->durSeg < ajustes_cw_concluido() ||
+        r->lastWatchedMs <= 0 || !r->contentId[0] ||
+        strlen(r->contentId) >= sizeof sem[0].id ||
+        (!r->pendente && (ora < r->lastWatchedMs ||
+                          ora - r->lastWatchedMs > CONTALIB_VISTOS_VALIDADE_S * 1000LL)) ||
+        vistoep_estado(r->contentId, t, r->episodio) != 1) continue;
+    for (j = 0; j < n; j++)
+      if (!strcmp(sem[j].id, r->contentId)) break;
+    if (j < n) {
+      // Con l'opzione 'episodio piu avanzato' non tornare indietro.
+      if (ajustes_cw_do_episodio_mais_alto() &&
+          (t < sem[j].temporada ||
+           (t == sem[j].temporada && ep < sem[j].episodio))) continue;
+      if (r->lastWatchedMs <= sem[j].vistoMs) continue;
+      sem[j].temporada = t; sem[j].episodio = ep;
+      sem[j].vistoMs = r->lastWatchedMs;
+      aggiornate++;
+    } else {
+      if (n >= max) {
+        int vecchio = 0;
+        for (k = 1; k < n; k++)
+          if (sem[k].vistoMs < sem[vecchio].vistoMs) vecchio = k;
+        if (r->lastWatchedMs <= sem[vecchio].vistoMs) continue;
+        j = vecchio;
+      } else j = n++;
+      snprintf(sem[j].id, sizeof sem[j].id, "%s", r->contentId);
+      sem[j].temporada = t; sem[j].episodio = ep;
+      sem[j].vistoMs = r->lastWatchedMs;
+      aggiunte++;
+    }
+  }
+  free(reg);
+  // La fase di montaggio usa l'ordine come spareggio e per la quota limitata.
+  for (i = 1; i < n; i++) {
+    ContaSemente x = sem[i];
+    for (k = i - 1; k >= 0 && sem[k].vistoMs < x.vistoMs; k--)
+      sem[k + 1] = sem[k];
+    sem[k + 1] = x;
+  }
+  if (aggiunte || aggiornate) {
+    printf("[desc] Nuvio Sync: prossimo episodio aggiornato dal visto locale "
+           "(%d nuove serie, %d avanzamenti), senza attendere il pull\n",
+           aggiunte, aggiornate);
+    fflush(stdout);
+  }
+  return n;
+}
 static int contaASeguir(CatItem *lista, int n, int max, int comOutraFonte) {
   static ContaSemente sem[PROX_MAX_BUSCAS];
   static const char *ids[PROX_MAX_BUSCAS];
@@ -3009,12 +3088,8 @@ static int contaASeguir(CatItem *lista, int n, int max, int comOutraFonte) {
   if (!ajustes_cw_proximo()) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
   nSem = contalib_sementes_a_seguir(sem, PROX_MAX_BUSCAS,
                                     ajustes_cw_do_episodio_mais_alto());
-  if (nSem < 0) {
-    printf("[desc] continuar assistindo: a seguir da conta: vistos da conta nao puxados "
-           "ou velhos; nenhuma semente\n");
-    descCwoDefinir(cwo_conta_definir, NULL, 0);
-    return n;
-  }
+  if (nSem < 0) nSem = 0; // offline: il visto locale verificato resta valido
+  nSem = contaSementiVisteQui(sem, nSem, PROX_MAX_BUSCAS, comOutraFonte);
   if (nSem < 1) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
   lote = (CatItem *)malloc(sizeof(CatItem) * PROX_MAX_BUSCAS);
   if (!lote) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
@@ -3199,7 +3274,7 @@ static int montarContinuar(CatItem *saida, int max) {
   for (i = 0; i < nL && nJ < (int)(sizeof juntos / sizeof *juntos); i++) {
     if (pularLocal[i]) continue;
     juntos[nJ].item = &daConta[i];
-    juntos[nJ].ms   = instanteDaConta(&daConta[i]);
+    juntos[nJ].ms   = instanteVisualizacao(&daConta[i]);
     juntos[nJ].ord  = i;
     nJ++;
   }
@@ -3209,7 +3284,7 @@ static int montarContinuar(CatItem *saida, int max) {
       if (!pularLocal[j] && mesmaObra(remotos[i], &daConta[j])) { repetido = 1; break; }
     if (repetido) { repetidos++; continue; }
     juntos[nJ].item = remotos[i];
-    juntos[nJ].ms   = instanteDaConta(remotos[i]);
+    juntos[nJ].ms   = instanteVisualizacao(remotos[i]);
     // Ordem BASE alta: SO decide quando os dois instantes sao desconhecidos ou
     // iguais. Com o paused_at lido em trakt.c e simkl.c isso ficou raro.
     // Nesse resto de casos a conta vem antes, cada fonte na ordem que deu.
@@ -3255,11 +3330,10 @@ static int montarContinuar(CatItem *saida, int max) {
     while (k > 0) {
       long long a = juntos[k].ms, b = juntos[k - 1].ms;
       int troca;
-      int pa = emAndamento(juntos[k].item->progresso);
-      int pb = emAndamento(juntos[k - 1].item->progresso);
-      if (pa != pb) troca = pa;
-      else if (a != b) troca = !b ? 0 : (!a ? 1 : a > b);
-      else        troca = juntos[k].ord < juntos[k - 1].ord;
+      // Un 'A seguire' con ultima visione recente precede anche le pause
+      // piu vecchie. Timestamp ignoto (0) e sempre meno recente di uno noto.
+      if (a != b) troca = a > b;
+      else troca = juntos[k].ord < juntos[k - 1].ord;
       if (!troca) break;
       { Cand t = juntos[k - 1]; juntos[k - 1] = juntos[k]; juntos[k] = t; }
       k--;
@@ -3267,7 +3341,7 @@ static int montarContinuar(CatItem *saida, int max) {
   }
 
   // A ORDENACAO ESCOLHIDA EM AJUSTES (issue #127) — ver cwordem.h. Ate aqui a
-  // lista esta por grupo e recencia. "Estilo streaming" e
+  // lista esta por recencia global, independente do progresso do proximo episodio. "Estilo streaming" e
   // "Separar futuros" levam os "a seguir" que ainda nao foram ao ar para o fim,
   // pela estreia; no segundo a home ainda os tira desta fileira e monta
   // "Proximos episodios" com eles. `showUnairedNextUp` desligado os tira de vez
@@ -3321,11 +3395,18 @@ static int montarContinuar(CatItem *saida, int max) {
     // 22 candidatos para 12 lugares na C9 do dono — os futuros eram sempre os
     // cortados, e "Separar futuros"/"Estilo streaming" nao mudavam nada.
     // Reserva para futuros apenas DEPOIS dos pausados, nunca contra eles.
-    { int pausados = 0;
-      while (pausados < principal && emAndamento(ordenados[pausados].item->progresso)) pausados++;
-      if (pausados > max) pausados = max;
-      cwo_corte(principal - pausados, nJ - principal, max - pausados, &mp, &mf);
-      mp += pausados;
+    // I titoli IN CORSO che sono davvero piu recenti occupano gia la testa:
+    // non sacrificarli per riservare dei futuri. Se invece l'ultimo visto
+    // e un 'A seguire' a 0%, resta in cima e non viene spostato: qui si
+    // proteggono solo le pause del PREFISSO ordinato per attivita reale.
+    { int pausadosRecenti = 0;
+      while (pausadosRecenti < principal &&
+             emAndamento(ordenados[pausadosRecenti].item->progresso))
+        pausadosRecenti++;
+      if (pausadosRecenti > max) pausadosRecenti = max;
+      cwo_corte(principal - pausadosRecenti, nJ - principal,
+                max - pausadosRecenti, &mp, &mf);
+      mp += pausadosRecenti;
     }
     for (i = 0; i < mp; i++) juntos[i] = ordenados[i];
     for (i = 0; i < mf; i++) {

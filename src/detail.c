@@ -46,6 +46,10 @@ static TituloTempo detalheTempo;
 #include "agenda.h"
 #include "agendaui.h"
 #include "vistoep.h"
+#include "contalib.h"
+#include "progresso.h"
+#include "proximo.h"
+#include <time.h>
 #include "pessoa.h"
 #include "streams.h"
 #include "descoberta.h"
@@ -1429,6 +1433,7 @@ static void abrirInterno(const HomeItem *it) {
   trocaarte_fechar();
   audAberta = 0; audTempAberta = -1; audTempVista = -1; frasesAberta = 0;
   item = *it;
+  pedReproduzir = 0; // nessun Play posticipato puo passare al prossimo titolo
   aberto = 1; saindo = 0; nivel = 0; botao = 0; focoAmigos = 0;
   amtui_fechar();
   detmais_zerar();
@@ -1574,6 +1579,7 @@ static void abrirInterno(const HomeItem *it) {
 
 void detail_fechar(void) {
   if (!aberto || saindo) return;
+  pedReproduzir = 0;
   pessoaAberta = 0;
   nivel = 0;
   saindo = 1;
@@ -1583,6 +1589,7 @@ void detail_fechar(void) {
 // saida, com o logo restaurado), sem a pagina recolher por cima da home.
 void detail_fechar_seco(void) {
   if (!aberto) return;
+  pedReproduzir = 0;
   pessoaAberta = 0;
   nivel = 0;
   saindo = 1;
@@ -1750,6 +1757,102 @@ float detail_progresso(void) { return aberto && !carro ? suave(t) : 0.0f; }
 // e o botao seguiu apontando para T1E1 em serie ja comecada, que foi o que o
 // dono relatou.
 //
+static int vistoEpNoDetalhe(void *id, int t, int e) {
+  return vistoep_estado((const char *)id, t, e) == 1;
+}
+
+// Cache per evitare una scansione dello storico visto ad OGNI frame: questa
+// funzione e chiamata anche dal disegno del pulsante, non solo al click.
+static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
+  static struct {
+    char id[48];
+    unsigned revVistos, revEps, revConta;
+    int temp, ep, pct, limiar, furthest, indice, ok, alvoT, alvoE;
+    long long retomado;
+  } memo;
+  unsigned revV, revE, revC;
+  int indice, furthest, limiar, at = 0, ae = 0, nt = 0, ne = 0;
+  int temVisto = 0, n, completo = 0;
+  long long recente = ci ? ci->retomadoMs : 0;
+  if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
+  indice = cat_indice_titulo(ci->imdb, idx);
+  if (indice < 0) return 0;
+  revV = vistoep_revisao();
+  revE = cat_versao_episodios();
+  revC = contalib_vistos_revisao();
+  furthest = ajustes_cw_do_episodio_mais_alto();
+  limiar = ajustes_cw_concluido();
+  if (!strcmp(memo.id, ci->imdb) && memo.revVistos == revV &&
+      memo.revEps == revE && memo.revConta == revC &&
+      memo.temp == ci->temporada && memo.ep == ci->episodio &&
+      memo.pct == ci->progresso && memo.retomado == ci->retomadoMs &&
+      memo.limiar == limiar && memo.furthest == furthest &&
+      memo.indice == indice) {
+    if (memo.ok) { if (t) *t = memo.alvoT; if (e) *e = memo.alvoE; }
+    return memo.ok;
+  }
+  memset(&memo, 0, sizeof memo);
+  snprintf(memo.id, sizeof memo.id, "%s", ci->imdb);
+  memo.revVistos = revV; memo.revEps = revE; memo.revConta = revC;
+  memo.temp = ci->temporada; memo.ep = ci->episodio;
+  memo.pct = ci->progresso; memo.retomado = ci->retomadoMs;
+  memo.limiar = limiar; memo.furthest = furthest; memo.indice = indice;
+  // Lo storico degli episodi visti arriva da Nuvio Sync nel medesimo mapa che
+  // aggiorna il player: senza Trakt, extras_proximo_episodio resta vuoto.
+  temVisto = vistoep_ultimo_visto(ci->imdb, &at, &ae);
+  // Se il pull del watched non e ancora arrivato, un progresso completo
+  // e un'ancora provvisoria. Mai pero quando questo apparecchio ha registrato
+  // esplicitamente solo un seek: tocou=0 non dimostra una visione.
+  if (ci->temporada > 0 && ci->episodio > 0 && ci->progresso >= limiar) {
+    int estado = vistoep_estado(ci->imdb, ci->temporada, ci->episodio);
+    char chave[48];
+    ProgRegistro reg;
+    int temReg;
+    prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
+    temReg = prog_por_chave(chave, &reg);
+    completo = estado != 0 && !(estado < 0 && temReg && reg.tocou == 0);
+    if (completo && temReg && reg.lastWatchedMs > recente &&
+        reg.durSeg >= 60.0 && reg.posSeg * 100 >= reg.durSeg * limiar &&
+        reg.tocou != 0) recente = reg.lastWatchedMs;
+  }
+  if (completo && (!temVisto || (furthest && (ci->temporada > at ||
+        (ci->temporada == at && ci->episodio > ae))))) {
+    at = ci->temporada; ae = ci->episodio; temVisto = 1;
+  }
+  if (!furthest) {
+    // Segui il VISTO PIU RECENTE di Nuvio Sync (non il piu avanzato).
+    // Una riproduzione completata in locale dopo quel visto ha la precedenza.
+    ContaSemente sementes[64];
+    int ns = contalib_sementes_a_seguir(sementes, 64, 0), k;
+    // Il tempo di visione piu recente viene dal progress_key locale:
+    // cat_aplicar_progresso non aggiorna subito retomadoMs nel CatItem.
+    for (k = 0; k < ns; k++) {
+      size_t idLen = strlen(sementes[k].id);
+      if (strncmp(sementes[k].id, ci->imdb, idLen) ||
+          (ci->imdb[idLen] && ci->imdb[idLen] != ':')) continue;
+      // La semente e gia il PROSSIMO dopo l'ancora vista nella conta.
+      // Usa la numerazione direttamente, senza indovinare l'ultimo di stagione.
+      if (!(completo && recente > sementes[k].vistoMs)) {
+        at = sementes[k].temporada; ae = sementes[k].episodio - 1;
+        temVisto = ae >= 0;
+      } else { at = ci->temporada; ae = ci->episodio; temVisto = 1; }
+      break;
+    }
+    // Nessuno storico della conta: il completamento locale piu recente vince.
+    if ((ns <= 0 || k == ns) && completo) {
+      at = ci->temporada; ae = ci->episodio; temVisto = 1;
+    }
+  }
+  n = cat_n_episodios(indice);
+  if (temVisto && n > 0) {
+    memo.ok = prox_nao_visto_depois(cat_episodio(indice, 0), n, at, ae,
+                                    (long long)time(NULL) * 1000LL,
+                                    vistoEpNoDetalhe, (void *)ci->imdb, &nt, &ne);
+    memo.alvoT = nt; memo.alvoE = ne;
+  }
+  if (memo.ok) { if (t) *t = nt; if (e) *e = ne; }
+  return memo.ok;
+}
 // `origem` (opcional) devolve 1 = foco, 2 = retomar, 3 = proximo, 0 = primeiro.
 static int episodioAlvo(int *temp, int *epis, int *origem) {
   const CatItem *ci = cat_item(idx);
@@ -1774,8 +1877,19 @@ static int episodioAlvo(int *temp, int *epis, int *origem) {
     if (origem) *origem = 2;
     return 1;
   }
-  // Primeiro nao assistido. So vale quando o Trakt ja respondeu; sem dado
-  // nenhum extras_n_temporadas() e 0 e cai no primeiro episodio, como antes.
+  // Nuvio Sync: il check degli episodi visti (incluso l'ultimo chiuso
+  // dal player) e la fonte primaria quando non esiste uno scrobble Trakt.
+  // I progressi PARZIALI sono gia stati risolti sopra, senza cambiare la
+  // ripresa di un episodio interrotto.
+  { int t, e;
+    if (!extras_progresso_pronto() && proximoNuvioNoDetalhe(ci, &t, &e)) {
+      if (temp) *temp = t;
+      if (epis) *epis = e;
+      if (origem) *origem = 3;
+      return 1;
+    }
+  }
+  // Fallback del provider esterno, solo se ha un progresso valido.
   { int t, e;
     if (extras_proximo_episodio(&t, &e)) {
       if (temp) *temp = t;
@@ -1859,6 +1973,37 @@ static void comentariosEscolher(void) {
   if (foco.coluna < 0 || foco.coluna >= n) foco.coluna = n - 1 < epAncora ? n - 1 : epAncora;
   ilha_avisar("det-com-ep", ILHA_INFO, NULL,
               i18n("Escolha a temporada e o episódio e aperte OK"), 6000u, 0);
+}
+
+// La meta/episodes puo arrivare DOPO l'apertura della scheda. Il Play
+// immediato di una serie gia vista non deve cadere in T1E1 mentre aspetta
+// l'elenco, altrimenti la ricerca fonti parte per l'episodio sbagliato.
+// Controllo SOLO al click (app.c), mai a ogni frame o durante il player.
+int detail_play_aguarda_episodios(void) {
+  const CatItem *ci;
+  int indice, estado;
+  if (!aberto || saindo) return 0;
+  ci = cat_item(idx);
+  if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
+  indice = cat_indice_titulo(ci->imdb, idx);
+  if (indice >= 0 && cat_n_episodios(indice) > 0) return 0;
+  // Un episodio gia iniziato ha T/E noti nel CatItem e puo riprendere
+  // IMMEDIATAMENTE anche senza lista episodica: non rallentare il player.
+  if (ci->temporada > 0 && ci->episodio > 0 &&
+      ci->progresso > 0 && ci->progresso < ajustes_cw_concluido() &&
+      !extras_ep_visto(ci->temporada, ci->episodio)) return 0;
+  if (vistoep_contar(ci->imdb) > 0) return 1;
+  if (ci->temporada < 1 || ci->episodio < 1 ||
+      ci->progresso < ajustes_cw_concluido()) return 0;
+  estado = vistoep_estado(ci->imdb, ci->temporada, ci->episodio);
+  if (estado == 0) return 0;
+  if (estado < 0) {
+    char chave[48];
+    ProgRegistro reg;
+    prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
+    if (prog_por_chave(chave, &reg) && reg.tocou == 0) return 0;
+  }
+  return 1;
 }
 
 int detail_ep_foco(int *temp, int *epis) {

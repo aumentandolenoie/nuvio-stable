@@ -1070,9 +1070,13 @@ static void buscarParaPlayerModo(int renovar) {
   // episodio anterior nao pode contaminar o watchdog nem a lista de exclusao.
   limparFonteVOD();
   autoEsperaN = 0;
-  // CARIMBA O ALVO ANTES DE PEDIR (issue #101). A lista que voltar passa a
-  // saber de que episodio ela e; sem isto ninguem consegue distinguir "a lista
-  // do E6" de "a lista do E5 que ninguem invalidou". Ver streams.h.
+  // La nuova ricerca e asincrona: il vecchio elenco NON deve restare visibile
+  // mentre gli addon stanno cercando l'episodio successivo. L'invalidazione
+  // avviene prima di aggiornare il timbro del nuovo target, senza toccare una
+  // lista gia corretta o il fast path del prefetch di Next.
+  if (alvo[0] && stream_n() > 0 && !stream_lista_do_alvo(alvo))
+    stream_invalidar("player episode search changed");
+  // CARIMBA O ALVO ANTES DE PEDIR (issue #101). La lista nuova eredita questo id.
   stream_definir_alvo(alvo);
   if (idC[0]) {
     // SEM LEGENDA DE ADDON NO CANAL: o id do canal ia ao OpenSubtitles como
@@ -4583,6 +4587,11 @@ void app_atualizar(float dt, Uint32 agora) {
 
   legendasDaFonte();
 
+  // Il Play di una serie gia vista aspetta la lista episodi: non deve
+  // chiedere per errore le fonti T1E1 se la meta e ancora in volo.
+  static Uint32 aguardandoMetaDesde;
+  static char aguardandoMetaTitulo[64];
+  if (!detail_aberto()) { aguardandoMetaDesde = 0; aguardandoMetaTitulo[0] = 0; }
   // Botoes do detalhe: quem sabe que existe player e biblioteca e o roteador,
   // nao a tela de detalhe.
   if (detail_aberto()) {
@@ -4623,6 +4632,12 @@ void app_atualizar(float dt, Uint32 agora) {
         // e serie, mesmo quando o catalogo ja trouxe elenco.
         if (!strcmp(ci->tipo, "series") || strcmp(ci->tipo, "movie") ||
             ci->nElenco == 0) desc_episodios(i, 0);
+        // Il prefetch poteva aver gia ricevuto fonti di T1E1 prima che
+        // Nuvio Sync risolvesse il prossimo episodio (es. T2E13).
+        // Non mostrare/riusare quelle fonti per il nuovo target; una lista
+        // gia corretta resta invece intatta (fast path).
+        if (stream_n() > 0 && !stream_lista_do_alvo(alvo))
+          stream_invalidar("detail next episode changed");
         { stream_definir_alvo(alvo); addons_buscar(alvo, ci->tipo); }
         aquecerAoAbrirTitulo();
         // Legendas do OpenSubtitles junto: sao dezenas por titulo e a busca
@@ -4637,7 +4652,35 @@ void app_atualizar(float dt, Uint32 agora) {
     // definitivo — player_do_inicio sobrevive as re-chamadas tardias de
     // player_definir_episodio.
     int doInicio = detail_pediu_do_inicio();
-    if ((detail_pediu_reproduzir() || doInicio) && aguardandoFonte != 2) {
+    int pediuPlay = detail_pediu_reproduzir();
+    // Aspettare solo sul Play PRIMARIO di una serie con visioni gia registrate.
+    // Continua a guardare ha un episodio esplicito, e 'dal principio' deve
+    // poter partire subito: entrambi saltano questa attesa.
+    if (pediuPlay && !doInicio && !cwPedido &&
+        cwTocarT < 1 && cwTocarE < 1 && detail_play_aguarda_episodios()) {
+      const CatItem *ci = cat_item(detail_indice());
+      Uint32 agora = SDL_GetTicks();
+      if (!aguardandoMetaDesde || !ci ||
+          strcmp(aguardandoMetaTitulo, ci->imdb)) {
+        aguardandoMetaDesde = agora ? agora : 1;
+        snprintf(aguardandoMetaTitulo, sizeof aguardandoMetaTitulo, "%s",
+                 ci ? ci->imdb : "");
+        ilha_avisar("det-ep-meta", ILHA_INFO, NULL,
+                    i18n("Caricamento degli episodi in corso…"), 5000u, 0);
+      }
+      if (agora - aguardandoMetaDesde < 20000u) {
+        // Nessun player e nessuna fonte sbagliata. Il prossimo quadro
+        // riprova quando desc_episodios ha pubblicato la lista corretta.
+        detail_pedir_reproduzir();
+      } else {
+        aguardandoMetaDesde = 0;
+        aguardandoMetaTitulo[0] = 0;
+        ilha_avisar("det-ep-meta-falha", ILHA_ERRO, NULL,
+                    i18n("Episodi non disponibili. Riprova."), 5000u, 0);
+      }
+      pediuPlay = 0;
+    } else { aguardandoMetaDesde = 0; aguardandoMetaTitulo[0] = 0; }
+    if ((pediuPlay || doInicio) && aguardandoFonte != 2) {
       // Da Continua a guardare, mostrare le FONTI prima della schermata di
       // caricamento. Saltare la scelta solo se QUESTO film/episodio ha
       // iniziato davvero la riproduzione nelle ultime sei ore.
