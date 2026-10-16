@@ -36,7 +36,7 @@ static int valido(const char *s) {
   return 1;
 }
 
-// Accetta solo flussi media HTTPS di YouTube, mai URL arbitrarie nella risposta.
+// Accetta solo flussi media HTTPS di YouTube, mai URL arbitrarie nella resposta.
 // L'URL scade e non viene scritto su disco.
 static int mediaUrl(const char *s) {
   const char *host, *fim, *p;
@@ -119,7 +119,7 @@ static int resolver(const char *id, char *url, size_t cap) {
            "\"deviceMake\":\"Oculus\",\"deviceModel\":\"Quest 3\","
            "\"osName\":\"Android\",\"osVersion\":\"12L\",\"hl\":\"it\",\"gl\":\"IT\"}},"
            "\"contentCheckOk\":true,\"racyCheckOk\":true}", id);
-  risposta = rede_postar(api, 7, headersVr, corpo);
+  resposta = rede_postar(api, 7, headersVr, corpo);
   ok = estrai(resposta, url, cap);
   free(resposta);
   if (ok) return 1;
@@ -128,7 +128,7 @@ static int resolver(const char *id, char *url, size_t cap) {
            "\"clientVersion\":\"20.49.6\",\"deviceModel\":\"iPhone16,2\","
            "\"osName\":\"iOS\",\"osVersion\":\"18.0\",\"hl\":\"it\",\"gl\":\"IT\"}},"
            "\"contentCheckOk\":true,\"racyCheckOk\":true}", id);
-  risposta = rede_postar(api, 7, headersIos, corpo);
+  resposta = rede_postar(api, 7, headersIos, corpo);
   ok = estrai(resposta, url, cap);
   free(resposta);
   return ok;
