@@ -747,7 +747,7 @@ static const char *V_QUALTRAIL[] = { "Máxima", "1080p", "720p", "480p" };
 static const char *V_ASPTRAIL[]  = { "Zoom cinema", "Zoom leve", "Zoom ultra", "Original" };
 // Fonte do trailer (trailerfonte.h). O indice e o gravado e o TRF_* do
 // modulo: 0 Automatico, 1 Apple, 2 IMDb, 3 YouTube — nao reordenar.
-static const char *V_TRAILFONTE[] = { "Automático", "Apple TV", "IMDb", "YouTube" };
+static const char *V_TRAILFONTE[] = { "Automático", "Apple TV", "IMDb", "YouTube", "TMDB (navegador)" };
 // Nomes NATIVOS, sem i18n: quem trocou para um idioma que nao le precisa achar o seu.
 // A ordem e a de IDIOMA_* (idiomacod.h) e a do valor gravado: so acrescentar no fim.
 // EXCECAO: o primeiro rotulo, "Automático", e o unico que passa por i18n (os
@@ -1145,7 +1145,7 @@ static const Opcao OPCOES[AJ_N] = {
   // De onde vem o trailer (dono, 22/09/2026: "deixa o toggle no settings de
   // qual o source do trailer"). Vale para a pagina de titulo e o destaque;
   // a regra inteira, com o que cada TV toca, esta em trailerfonte.h.
-  ESC("Fonte do trailer",           V_TRAILFONTE, 4),
+  ESC("Fonte do trailer",           V_TRAILFONTE, 5),
 
   ESC("Expandir pôster ao focar",   V_LIGA, 2),   // focusedPosterBackdropExpandEnabled
   NUM("Atraso da expansão",         0, 10, 1, " s"), // ...ExpandDelaySeconds
