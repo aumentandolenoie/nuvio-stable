@@ -35,6 +35,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .nuvio-stable/test_contract.py
+          python3 tools/stable-release-notes.py --check
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           # Regression checks for recent watch progress, stale episode checks and CW order.
@@ -205,21 +206,8 @@ jobs:
             echo "Release tag already exists: refusing to replace installed binaries."
             exit 1
           fi
-          cat > build/homebrew/release-notes.md <<'EOF'
-          Nuvio Stable - versione indipendente per LG webOS, basata su Nuvio Native Legacy.
-
-          - Mantiene la sincronizzazione delle impostazioni compatibili con il profilo Nuvio.
-          - Priorità ai metadati esterni, anche in italiano, quando selezionata.
-          - Selettore fonti VOD prima del player quando attivo, inclusa la rail Continua a guardare.
-          - Da Continua a guardare la scelta non riappare se lo stesso film/episodio ha iniziato a riprodursi meno di 6 ore prima sullo stesso profilo e TV.
-          - Seconda lingua audio di riserva per profilo: priorita a quella principale, poi alla riserva, infine traccia predefinita del file.
-          - Traduzioni UI complete e allineate; preferenze audio precedenti conservate.
-          - Guida TV esclusa dalla selezione obbligatoria.
-          - ID dedicato space.nuvio.native.stable: non sovrascrive la Legacy.
-          - Compilazione ARMv7 con motore P2P, ASS e conversione DTS.
-
-          Build verificata automaticamente; funzionamento su TV reale ancora da confermare.
-          EOF
+          python3 tools/stable-release-notes.py "$STABLE_VERSION" > build/homebrew/release-notes.md
+          test -s build/homebrew/release-notes.md
           gh release create "$TAG" \
             "$STABLE_IPK" \
             build/homebrew/repo.json \
@@ -230,6 +218,33 @@ jobs:
             --title "Nuvio Stable $STABLE_VERSION - LG webOS" \
             --notes-file build/homebrew/release-notes.md \
             --latest
+
+      - name: Backfill version-specific notes for historical Stable releases
+        if: github.event_name != 'pull_request'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          # Ricostruzione storica una tantum, verificata contro i commit/tag
+          # precedenti; non cambia asset, tag, commit o lo status "latest".
+          if [ "$STABLE_VERSION" != "2.0.17" ]; then
+            echo "Historical notes were backfilled with Stable 2.0.17."
+            exit 0
+          fi
+          for minor in $(seq 5 16); do
+            V="2.0.$minor"
+            TAG="v$V"
+            if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              echo "No historical release $TAG; skipping."
+              continue
+            fi
+            python3 tools/stable-release-notes.py "$V" > build/homebrew/history-notes.md
+            test -s build/homebrew/history-notes.md
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" \
+              --notes-file build/homebrew/history-notes.md
+            echo "Updated historical notes for $TAG"
+          done
 
       - name: Upload diagnostic build logs on failure
         if: failure()
