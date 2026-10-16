@@ -1,8 +1,8 @@
 # Nuvio Stable — LG webOS
 
-Fork non ufficiale della Nuvio Native Legacy. Versione con identificativo separato `space.nuvio.native.stable`, preferenza per i metadati addon e selettore delle fonti a ogni avvio VOD quando attivato.
+Fork non ufficiale della Nuvio Native Legacy per LG webOS, con identificativo separato `space.nuvio.native.stable`, metadati addon prioritari quando selezionati, scelta delle fonti VOD (in Continua a guardare si salta solo per riprese entro 6 ore) e due lingue audio preferite con priorità principale/riserva.
 
-**Installazione Homebrew Channel:** aggiungi l’indirizzo `https://github.com/aumentandolenoie/nuvio-stable/releases/latest/download/repo.json` quando una release verificata sarà pubblicata. I pacchetti `.ipk` sono nelle [release di Nuvio Stable](https://github.com/aumentandolenoie/nuvio-stable/releases).
+**Installazione Homebrew Channel:** aggiungi l’indirizzo `https://github.com/aumentandolenoie/nuvio-stable/releases/latest/download/repo.json` per installare o aggiornare. I pacchetti `.ipk` sono nelle [release di Nuvio Stable](https://github.com/aumentandolenoie/nuvio-stable/releases).
 
 La build mantiene la sincronizzazione delle preferenze del profilo compatibili con l’app ufficiale; le opzioni proprie della fork restano locali. GPLv3 e crediti upstream conservati di seguito.
 
@@ -16,7 +16,7 @@ La build mantiene la sincronizzazione delle preferenze del profilo compatibili c
 </picture>
 
 <p align="center">
-  <a href="https://github.com/iqui27/nuvio-native-legacy/releases/latest"><strong>Download latest release</strong></a>
+  <a href="https://github.com/aumentandolenoie/nuvio-stable/releases/latest"><strong>Download Nuvio Stable LG release</strong></a>
   &nbsp;·&nbsp; <a href="INSTALL.md">Install guide</a>
   &nbsp;·&nbsp; <a href="#reporting-a-problem">Report a problem</a>
   &nbsp;·&nbsp; <a href="https://discord.gg/9NWr6SHyzJ">Discord</a>
