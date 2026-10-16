@@ -307,9 +307,16 @@ static void kbMontar(void) {
   kbTemLayout = idiomaCirilico();
   if (!kbTemLayout) layoutCir = 0;
   kbCarregar(layoutCir ? LAYOUT_CIRILICO : "qwertyuiopasdfghjklzxcvbnm1234567890");
-  kbFil = (kbN + BU_KB_COLS - 1) / BU_KB_COLS;
-  resto = kbN - (kbFil - 1) * BU_KB_COLS;
-  for (r = 0; r < kbFil; r++) KB_COLUNAS[r] = (r == kbFil - 1) ? resto : BU_KB_COLS;
+  if (!layoutCir) {
+    // File reali QWERTY: 10 + 9 + 7 lettere, poi 10 cifre.
+    kbFil = 4;
+    KB_COLUNAS[0] = 10; KB_COLUNAS[1] = 9;
+    KB_COLUNAS[2] = 7; KB_COLUNAS[3] = 10;
+  } else {
+    kbFil = (kbN + BU_KB_COLS - 1) / BU_KB_COLS;
+    resto = kbN - (kbFil - 1) * BU_KB_COLS;
+    for (r = 0; r < kbFil; r++) KB_COLUNAS[r] = (r == kbFil - 1) ? resto : BU_KB_COLS;
+  }
   KB_COLUNAS[kbFil] = kbTemLayout ? 4 : 3;
 }
 
@@ -802,9 +809,15 @@ static void ponteiroRecente(int i, int b) {
 }
 #endif
 
+static int kbIndice(int f, int c) {
+  int i = c;
+  for (int r = 0; r < f; r++) i += KB_COLUNAS[r];
+  return i;
+}
+
 static void aplicarTecla(void) {
   if (focoKb.fileira < kbFil) {
-    int k = focoKb.fileira * BU_KB_COLS + focoKb.coluna;
+    int k = kbIndice(focoKb.fileira, focoKb.coluna);
     if (k < kbN) campoAcrescentar(kbTeclas[k]);
   } else if (focoKb.coluna == 0) {
     // espaco no comeco nao entra: nao muda o filtro e so acumula lixo no campo
@@ -1561,7 +1574,7 @@ static void desenhaTeclado(void) {
       buPilulaAcento(t, BU_TECLA_RAIO, k);
       const char *s;
       if (f < kbFil) {
-        snprintf(rotulo, sizeof rotulo, "%s", kbTeclas[f * BU_KB_COLS + c]);
+        snprintf(rotulo, sizeof rotulo, "%s", kbTeclas[kbIndice(f, c)]);
         s = rotulo;
       } else s = (c == 0) ? i18n("espaço") : (c == 1 ? i18n("apagar")
                : (c == 2 ? i18n("limpar") : (layoutCir ? "ABC" : "\xd0\x90\xd0\x91\xd0\x92")));
