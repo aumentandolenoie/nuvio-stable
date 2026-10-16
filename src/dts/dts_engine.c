@@ -1,4 +1,5 @@
 #include "dts_engine.h"
+#include "dts_retry.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -138,10 +139,30 @@ static void *range_worker(void *opaque) {
     job->state=2;
     pthread_mutex_unlock(&e->range_lock);
     uint64_t begun=clock_ns(CLOCK_MONOTONIC);
-    if(!e->dv)
+    if(!e->dv) {
       job->data=rede_baixar_trecho64_cab(e->url,e->headers,job->start,job->end,
         &job->count,&job->total,&job->status,&job->cancel);
-    else {
+      /* Only one retry, only after a FAST transient failure. Never turn a
+       * slow HTTP timeout into another 15s wait, and never retry auth/403,
+       * missing objects/404 or true EOF/416. Reuse the SAME worker/slot:
+       * no extra threads, speculative buffers or video-player changes. */
+      uint64_t first_done=clock_ns(CLOCK_MONOTONIC);
+      if (!job->data &&
+          dts_range_retryable(job->status,job->count,
+                              first_done>=begun?first_done-begun:UINT64_MAX,
+                              cancelled(e) || __atomic_load_n(&job->cancel,__ATOMIC_RELAXED))) {
+        int first_status=job->status;
+        const struct timespec backoff={.tv_sec=0,.tv_nsec=100000000L};
+        nanosleep(&backoff,NULL);
+        if (!cancelled(e) && !__atomic_load_n(&job->cancel,__ATOMIC_RELAXED)) {
+          job->data=rede_baixar_trecho64_cab(e->url,e->headers,job->start,job->end,
+            &job->count,&job->total,&job->status,&job->cancel);
+          printf("[dts-range] one transient retry at=%lldMiB first_http=%d retry_http=%d ok=%d\n",
+                 (long long)(job->start>>20),first_status,job->status,job->data!=NULL);
+          fflush(stdout);
+        }
+      }
+    } else {
       /* After the first answer, go straight to the address behind the add-on
        * redirects. Credential headers follow only on the same origin. A final
        * link that stops answering (expired: 403/410, or any failure) is
