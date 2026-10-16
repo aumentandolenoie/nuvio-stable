@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 // TETO. Uma pessoa que acompanha 100 series com 50 episodios cada tem 5000
 // entradas; a 24 bytes sao 120 KB, que cabem com folga ate no heap FIXO de
@@ -16,7 +17,13 @@
 // continua valendo, porque meio mapa e melhor que nenhum.
 #define VE_LOTE VE_LOTE_MAX
 
-typedef struct { char id[16]; short temp, ep; unsigned char visto; } Marca;
+// La risposta del Trakt puo essere stata richiesta PRIMA che il player
+// marcasse l'episodio. completed:false di quel vecchio snapshot non puo
+// cancellare immediatamente un completamento locale appena registrato.
+// La protezione e breve: una modifica remota successiva torna a prevalere.
+#define VE_MARCA_LOCALE_S 300
+
+typedef struct { char id[16]; short temp, ep; unsigned char visto; time_t localeAte; } Marca;
 static Marca *mapa;
 static int n, cap, avisouTeto;
 // Sobe a cada mudanca de estado no mapa (vistoep_revisao).
@@ -102,8 +109,12 @@ void vistoep_lapides(int (*barra)(const char *, int, int, long long),
 }
 
 void vistoep_definir(const char *imdb, int temporada, int episodio, int visto) {
+  char id[16];
+  int i;
+  base(imdb, id, sizeof id);
   pthread_mutex_lock(&trava);
-  definir(imdb, temporada, episodio, visto);
+  if (definir(imdb, temporada, episodio, visto) && (i = achar(id, temporada, episodio)) >= 0)
+    mapa[i].localeAte = visto ? time(NULL) + VE_MARCA_LOCALE_S : 0;
   pthread_mutex_unlock(&trava);
   // MARCAR AQUI E A PESSOA (o player ao concluir o episodio): assistir de novo
   // desfaz a desmarcacao. O 0 daqui nao cria uma — quem desmarca e o gesto da
@@ -144,6 +155,18 @@ int vistoep_fonte(const char *imdb, int temporada, int episodio, int visto,
   if (visto && lapBarra) juiz = lapBarra(imdb, temporada, episodio, remotoMs);
   if (juiz > 0) visto = 0;
   pthread_mutex_lock(&trava);
+  if (!visto) {
+    char id[16];
+    int i;
+    base(imdb, id, sizeof id);
+    i = achar(id, temporada, episodio);
+    if (i >= 0 && mapa[i].visto && mapa[i].localeAte > time(NULL)) {
+      // Un 'false' senza data non prova che il server abbia gia ricevuto
+      // il visto appena scritto dal player. Non riscrivere il check in UI.
+      pthread_mutex_unlock(&trava);
+      return 1;
+    }
+  }
   ok = definir(imdb, temporada, episodio, visto);
   pthread_mutex_unlock(&trava);
   if (!c) return ok;
