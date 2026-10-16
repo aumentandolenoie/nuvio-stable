@@ -8,13 +8,13 @@ static int mockMode, androidCalls, iosCalls, vrCalls, byteRequests;
 char *rede_postar(const char *url, int seconds, const char *const *headers, const char *body) {
   (void)url; (void)seconds; (void)headers;
   if (!mockMode) return NULL;
-  if (strstr(body, "\\"clientName\\":\\"ANDROID_VR\\"")) vrCalls++;
-  else if (strstr(body, "\\"clientName\\":\\"ANDROID\\"")) androidCalls++;
-  else if (strstr(body, "\\"clientName\\":\\"IOS\\"")) iosCalls++;
+  if (strstr(body, "\"clientName\":\"ANDROID_VR\"")) vrCalls++;
+  else if (strstr(body, "\"clientName\":\"ANDROID\"")) androidCalls++;
+  else if (strstr(body, "\"clientName\":\"IOS\"")) iosCalls++;
   else assert(!"unexpected client");
   if (mockMode == 1 && androidCalls && !iosCalls)
-    return strdup("{\\"streamingData\\":{\\"formats\\":[{\\"itag\\":18,\\"mimeType\\":\\"video/mp4\\",\\"url\\":\\"https://rr1.googlevideo.com/videoplayback?deny=1\\"}]}}");
-  return strdup("{\\"streamingData\\":{\\"formats\\":[{\\"itag\\":18,\\"mimeType\\":\\"video/mp4\\",\\"url\\":\\"https://rr1.googlevideo.com/videoplayback?ok=1\\"}]}}");
+    return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?deny=1\"}]}}");
+  return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?ok=1\"}]}}");
 }
 char *rede_baixar_trecho64_cab(const char *url, const char *headers, int64_t start,
                                int64_t end, long *size, int64_t *total, int *status,
