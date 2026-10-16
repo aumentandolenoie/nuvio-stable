@@ -47,6 +47,7 @@ static TituloTempo detalheTempo;
 #include "agendaui.h"
 #include "vistoep.h"
 #include "contalib.h"
+#include "progresso.h"
 #include "proximo.h"
 #include <time.h>
 #include "pessoa.h"
@@ -1807,13 +1808,28 @@ static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
     // Segui il VISTO PIU RECENTE di Nuvio Sync (non il piu avanzato).
     // Una riproduzione completata in locale dopo quel visto ha la precedenza.
     ContaSemente sementes[64];
+    long long recente = ci->retomadoMs;
     int ns = contalib_sementes_a_seguir(sementes, 64, 0), k;
+    // cat_aplicar_progresso aggiorna subito percentuale e T/E, ma NON
+    // retomadoMs. L'istante esatto del player appena chiuso e nel registro
+    // per-episodio di Nuvio Sync: senza leggerlo la semente vecchia E11
+    // poteva prevalere su E12 completato pochi secondi fa.
+    if (ci->progresso >= limiar && ci->temporada > 0 && ci->episodio > 0) {
+      char chave[48];
+      ProgRegistro reg;
+      prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
+      if (prog_por_chave(chave, &reg) && reg.lastWatchedMs > recente &&
+          reg.durSeg >= 60.0 && reg.posSeg * 100 >= reg.durSeg * limiar &&
+          reg.tocou != 0) recente = reg.lastWatchedMs;
+    }
     for (k = 0; k < ns; k++) {
-      if (strcmp(sementes[k].id, ci->imdb)) continue;
+      size_t idLen = strlen(sementes[k].id);
+      if (strncmp(sementes[k].id, ci->imdb, idLen) ||
+          (ci->imdb[idLen] && ci->imdb[idLen] != ':')) continue;
       // La semente e gia il PROSSIMO dopo l'ancora vista nella conta.
       // Usa la numerazione direttamente, senza indovinare l'ultimo di stagione.
       if (!(ci->progresso >= limiar && ci->temporada > 0 &&
-            ci->episodio > 0 && ci->retomadoMs > sementes[k].vistoMs &&
+            ci->episodio > 0 && recente > sementes[k].vistoMs &&
             vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0)) {
         at = sementes[k].temporada; ae = sementes[k].episodio - 1;
         temVisto = ae >= 0;
