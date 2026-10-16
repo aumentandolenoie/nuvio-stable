@@ -3073,6 +3073,12 @@ void detail_evento(const SDL_Event *e) {
 
   if (e->type != SDL_KEYDOWN) return;
   SDL_Keycode k = e->key.keysym.sym;
+  // Una scelta dell'utente nella stagione/episodi prevale sempre sulla
+  // preselezione automatica se la lista del catalogo arriva in ritardo.
+  if (epAutoPendente && (foco.fileira == SEC_TEMPORADAS ||
+      foco.fileira == SEC_EPISODIOS) &&
+      (k == SDLK_LEFT || k == SDLK_RIGHT || k == SDLK_RETURN ||
+       k == SDLK_KP_ENTER)) epAutoPendente = 0;
 
   if (k == SDLK_ESCAPE || k == SDLK_AC_BACK || k == SDLK_BACKSPACE ||
       k == SDLK_DELETE) {
