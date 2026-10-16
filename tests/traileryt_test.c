@@ -29,6 +29,14 @@ int main(void) {
                 url, sizeof url) == 0);
   assert(estrai("{\"streamingData\":{\"hlsManifestUrl\":\"https://rr1.googlevideo.com/"
                 "api/manifest/hls_playlist/index.m3u8\"}}", url, sizeof url) == 1);
+  // Un flusso TMDB rifiutato non deve essere riprovato e scambiato per Apple/IMDb.
+  pthread_mutex_lock(&ytMutex);
+  ytState = 1;
+  snprintf(ytResolved, sizeof ytResolved, "https://rr1.googlevideo.com/videoplayback?itag=18");
+  pthread_mutex_unlock(&ytMutex);
+  assert(traileryt_invalidar("https://rr1.googlevideo.com/videoplayback?itag=18") == 1);
+  assert(ytState == -1);
+  assert(traileryt_invalidar("https://rr1.googlevideo.com/videoplayback?itag=18") == 0);
   puts("PASS: TMDB/YouTube native media URL selection and validation");
   return 0;
 }
