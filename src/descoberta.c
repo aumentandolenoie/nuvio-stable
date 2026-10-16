@@ -962,7 +962,7 @@ static int consultarAlvo(const AlvoBusca *a, const char *termo,
   // estao la. O alvo do Nuvio tem 5 s e, se falhar, o Cinemeta mais 6.
   // #231: com "Buscar no Cinemeta" desligado, nem o add-on Cinemeta nem a reserva
   // do catalogo do Nuvio (seg_cine < 0) respondem.
-  if (a->nuvio && ajustes_busca_nuvio() == 2) return 0;   // #311: Nuvio fora da busca
+  if (a->nuvio) return 0; // Stable: i risultati di ricerca arrivano solo dagli addon installati
   if (!a->nuvio && !ajustes_busca_cinemeta() &&
       (baseEhCinemeta(a->base) || desc_busca_base_oculta(a->base) ||
        !strcasecmp(a->addon, "cinemeta"))) return 0;
