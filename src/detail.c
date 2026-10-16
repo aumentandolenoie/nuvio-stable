@@ -1769,7 +1769,8 @@ static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
   } memo;
   unsigned revV, revE, revC;
   int indice, furthest, limiar, at = 0, ae = 0, nt = 0, ne = 0;
-  int temVisto = 0, n;
+  int temVisto = 0, n, completo = 0;
+  long long recente = ci ? ci->retomadoMs : 0;
   if (!ci || strcmp(ci->tipo, "series") || !ci->imdb[0]) return 0;
   indice = cat_indice_titulo(ci->imdb, idx);
   if (indice < 0) return 0;
@@ -1796,11 +1797,22 @@ static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
   // Lo storico degli episodi visti arriva da Nuvio Sync nel medesimo mapa che
   // aggiorna il player: senza Trakt, extras_proximo_episodio resta vuoto.
   temVisto = vistoep_ultimo_visto(ci->imdb, &at, &ae);
-  // Se il progresso remoto e gia completo ma il pull dei visti non e arrivato,
-  // non tornare a T1E1. Uno 'non visto' esplicito (0) non viene promosso.
-  if (ci->temporada > 0 && ci->episodio > 0 && ci->progresso >= limiar &&
-      vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0 &&
-      (!temVisto || (furthest && (ci->temporada > at ||
+  // Se il pull del watched non e ancora arrivato, un progresso completo
+  // e un'ancora provvisoria. Mai pero quando questo apparecchio ha registrato
+  // esplicitamente solo un seek: tocou=0 non dimostra una visione.
+  if (ci->temporada > 0 && ci->episodio > 0 && ci->progresso >= limiar) {
+    int estado = vistoep_estado(ci->imdb, ci->temporada, ci->episodio);
+    char chave[48];
+    ProgRegistro reg;
+    int temReg;
+    prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
+    temReg = prog_por_chave(chave, &reg);
+    completo = estado != 0 && !(estado < 0 && temReg && reg.tocou == 0);
+    if (completo && temReg && reg.lastWatchedMs > recente &&
+        reg.durSeg >= 60.0 && reg.posSeg * 100 >= reg.durSeg * limiar &&
+        reg.tocou != 0) recente = reg.lastWatchedMs;
+  }
+  if (completo && (!temVisto || (furthest && (ci->temporada > at ||
         (ci->temporada == at && ci->episodio > ae))))) {
     at = ci->temporada; ae = ci->episodio; temVisto = 1;
   }
@@ -1808,38 +1820,23 @@ static int proximoNuvioNoDetalhe(const CatItem *ci, int *t, int *e) {
     // Segui il VISTO PIU RECENTE di Nuvio Sync (non il piu avanzato).
     // Una riproduzione completata in locale dopo quel visto ha la precedenza.
     ContaSemente sementes[64];
-    long long recente = ci->retomadoMs;
     int ns = contalib_sementes_a_seguir(sementes, 64, 0), k;
-    // cat_aplicar_progresso aggiorna subito percentuale e T/E, ma NON
-    // retomadoMs. L'istante esatto del player appena chiuso e nel registro
-    // per-episodio di Nuvio Sync: senza leggerlo la semente vecchia E11
-    // poteva prevalere su E12 completato pochi secondi fa.
-    if (ci->progresso >= limiar && ci->temporada > 0 && ci->episodio > 0) {
-      char chave[48];
-      ProgRegistro reg;
-      prog_chave(chave, sizeof chave, ci->imdb, ci->temporada, ci->episodio);
-      if (prog_por_chave(chave, &reg) && reg.lastWatchedMs > recente &&
-          reg.durSeg >= 60.0 && reg.posSeg * 100 >= reg.durSeg * limiar &&
-          reg.tocou != 0) recente = reg.lastWatchedMs;
-    }
+    // Il tempo di visione piu recente viene dal progress_key locale:
+    // cat_aplicar_progresso non aggiorna subito retomadoMs nel CatItem.
     for (k = 0; k < ns; k++) {
       size_t idLen = strlen(sementes[k].id);
       if (strncmp(sementes[k].id, ci->imdb, idLen) ||
           (ci->imdb[idLen] && ci->imdb[idLen] != ':')) continue;
       // La semente e gia il PROSSIMO dopo l'ancora vista nella conta.
       // Usa la numerazione direttamente, senza indovinare l'ultimo di stagione.
-      if (!(ci->progresso >= limiar && ci->temporada > 0 &&
-            ci->episodio > 0 && recente > sementes[k].vistoMs &&
-            vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0)) {
+      if (!(completo && recente > sementes[k].vistoMs)) {
         at = sementes[k].temporada; ae = sementes[k].episodio - 1;
         temVisto = ae >= 0;
       } else { at = ci->temporada; ae = ci->episodio; temVisto = 1; }
       break;
     }
     // Nessuno storico della conta: il completamento locale piu recente vince.
-    if ((ns <= 0 || k == ns) && ci->progresso >= limiar &&
-        ci->temporada > 0 && ci->episodio > 0 &&
-        vistoep_estado(ci->imdb, ci->temporada, ci->episodio) != 0) {
+    if ((ns <= 0 || k == ns) && completo) {
       at = ci->temporada; ae = ci->episodio; temVisto = 1;
     }
   }
