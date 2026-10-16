@@ -15,10 +15,9 @@ static inline int dts_range_retryable(int http_status, long bytes,
     case 0:   // connection failure, only when it failed promptly
     case 206: // empty partial-content response (never a valid media chunk)
     case 408: // request timeout, if immediate
-    case 429: // temporary rate limit; only one bounded retry
     case 500: case 502: case 503: case 504:
       return 1;
-    default: // 401, 403, 404, 416 and all other responses are not retried
+    default: // 401, 403, 404, 416 and 429 (Retry-After) are not retried
       return 0;
   }
 }
