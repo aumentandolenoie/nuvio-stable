@@ -2,7 +2,7 @@
 // puo' ricevere una URL HTTPS di un formato progressivo (audio+video).
 // Questo risolutore e' volutamente sperimentale: YouTube puo' rispondere 403,
 // richiedere token di origine o fornire soltanto formati SABR. In quel caso
-// il chiamante deve ripiegare sulle fonti Apple TV/IMDb gia' supportate.
+// la fonte TMDB mostra un errore e non ripiega silenziosamente su Apple/IMDb.
 // Nessuna dipendenza da browser, applicazioni esterne o servizi di terze parti.
 #include "traileryt.h"
 #include "rede.h"
@@ -36,22 +36,46 @@ static int valido(const char *s) {
   return 1;
 }
 
-// Accetta solo flussi media HTTPS di YouTube, mai URL arbitrarie nella resposta.
-// L'URL scade e non viene scritto su disco.
-static int mediaUrl(const char *s) {
-  const char *host, *fim, *p;
-  size_t n;
+// Accetta soltanto host Googlevideo reali e HTTPS: le risposte remote
+// non possono indurre la TV a richiedere URL arbitrarie nella LAN.
+static int googleVideoHost(const char *s) {
+  const char *host, *fine;
+  size_t n, suffix = strlen(".googlevideo.com");
   if (!s || strncmp(s, "https://", 8)) return 0;
   host = s + 8;
-  fim = strchr(host, '/');
-  if (!fim) return 0;
-  n = (size_t)(fim - host);
-  if (n < 16 || n > 200 || !strstr(fim, "videoplayback")) return 0;
-  // Per impedire redirect o host falsi, confronta il SUFFISSO del dominio.
-  for (p = host; p + 16 <= fim; ++p) {
-    if (p + 16 == fim && !strncmp(p, ".googlevideo.com", 16)) return 1;
+  fine = strchr(host, '/');
+  if (!fine) return 0;
+  n = (size_t)(fine - host);
+  if (!n || n > 200 || memchr(host, ':', n) || memchr(host, '@', n)) return 0;
+  if (n == strlen("googlevideo.com") && !strncmp(host, "googlevideo.com", n)) return 1;
+  return n > suffix && !strncmp(fine - suffix, ".googlevideo.com", suffix);
+}
+static int mediaUrl(const char *s) {
+  return googleVideoHost(s) && strstr(strchr(s + 8, '/'), "/videoplayback") != NULL;
+}
+static int hlsUrl(const char *s) {
+  return googleVideoHost(s) &&
+         strstr(strchr(s + 8, '/'), "/api/manifest/hls_playlist/") != NULL;
+}
+
+// Prima di pubblicare il flusso al decoder uMS, verifica che la TV possa
+// leggerne i primi byte con la SUA connessione. Molte URL Android VR sono
+// ancora restituite dall'API ma rispondono HTTP 403 sul CDN (agosto 2026).
+static int provaDiretta(const char *url) {
+  long n = 0;
+  int status = 0;
+  int64_t total = -1;
+  char *primi;
+  if (hlsUrl(url)) {
+    char *indice = rede_baixar(url, 6);
+    int ok = indice && !strncmp(indice, "#EXTM3U", 7);
+    free(indice);
+    return ok;
   }
-  return n == strlen("googlevideo.com") && !strncmp(host, "googlevideo.com", n);
+  if (!mediaUrl(url)) return 0;
+  primi = rede_baixar_trecho64_cab(url, NULL, 0, 1, &n, &total, &status, NULL);
+  free(primi);
+  return status == 206 && n == 2;
 }
 
 static int estrai(const char *corpo, char *dest, size_t cap) {
@@ -85,53 +109,63 @@ static int estrai(const char *corpo, char *dest, size_t cap) {
   }
   // Alternativa iOS: manifest HLS direttamente leggibile dal decoder webOS.
   js_texto(corpo, NULL, "hlsManifestUrl", candidato, sizeof candidato);
-  if (!strncmp(candidato, "https://", 8) &&
-      (strstr(candidato, ".googlevideo.com/") || strstr(candidato, "googlevideo.com/"))) {
+  if (hlsUrl(candidato)) {
     snprintf(dest, cap, "%s", candidato);
     return 1;
   }
   return 0;
 }
 
+static int tentaCliente(const char *api, const char *id, const char *nome,
+                         const char *version, const char *os, const char *osVersion, const char *model,
+                         const char *const *headers, char *url, size_t cap) {
+  char corpo[620];
+  char candidato[YT_URL_CAP] = "";
+  char *resposta, status[40] = "";
+  int got, validoUrl;
+  snprintf(corpo, sizeof corpo,
+           "{\"videoId\":\"%s\",\"context\":{\"client\":{\"clientName\":\"%s\","
+           "\"clientVersion\":\"%s\",\"osName\":\"%s\",\"osVersion\":\"%s\","
+           "\"deviceModel\":\"%s\",\"hl\":\"it\",\"gl\":\"IT\"}},"
+           "\"contentCheckOk\":true,\"racyCheckOk\":true}",
+           id, nome, version, os, osVersion, model);
+  resposta = rede_postar(api, 6, headers, corpo);
+  if (resposta)
+    js_texto(resposta, NULL, "status", status, sizeof status);
+  got = estrai(resposta, candidato, sizeof candidato);
+  free(resposta);
+  validoUrl = got && provaDiretta(candidato);
+  // Logga soltanto lo stato (mai URL firmate o corpo della resposta).
+  printf("[trailer] TMDB stream client=%s status=%s candidate=%d accessible=%d\n",
+         nome, status[0] ? status : "network", got, validoUrl);
+  fflush(stdout);
+  if (!validoUrl) return 0;
+  snprintf(url, cap, "%s", candidato);
+  return 1;
+}
+
 static int resolver(const char *id, char *url, size_t cap) {
-  const char *const headersVr[] = {
-    "X-YouTube-Client-Name: 28",
-    "X-YouTube-Client-Version: 1.65.10",
+  // La versione ANDROID_VR 1.65.10 e' soggetta a 403 sistematici dal
+  // 17 agosto 2026. Prima proviamo ANDROID, poi iOS (HLS), infine VR,
+  // verificando sul dispositivo la resposta HTTP reale prima del play.
+  const char *const hAndroid[] = {
+    "X-YouTube-Client-Name: 3",
+    "X-YouTube-Client-Version: 21.03.36",
     "Origin: https://www.youtube.com",
-    "User-Agent: com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L) gzip",
+    "User-Agent: com.google.android.youtube/21.03.36 (Linux; U; Android 14) gzip",
     NULL
   };
-  const char *const headersIos[] = {
+  const char *const hIos[] = {
     "X-YouTube-Client-Name: 5",
-    "X-YouTube-Client-Version: 20.49.6",
+    "X-YouTube-Client-Version: 21.03.2",
     "Origin: https://www.youtube.com",
-    "User-Agent: com.google.ios.youtube/20.49.6 (iPhone16,2; U; CPU iOS 18_0 like Mac OS X)",
+    "User-Agent: com.google.ios.youtube/21.03.2 (iPhone16,2; U; CPU iOS 18_0 like Mac OS X)",
     NULL
   };
-  char corpo[600];
-  char *resposta;
-  int ok;
-  // Chiave pubblica del client YouTube (non e' una credenziale Nuvio).
   const char *api = "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-  snprintf(corpo, sizeof corpo,
-           "{\"videoId\":\"%s\",\"context\":{\"client\":{\"clientName\":\"ANDROID_VR\","
-           "\"clientVersion\":\"1.65.10\",\"androidSdkVersion\":32,"
-           "\"deviceMake\":\"Oculus\",\"deviceModel\":\"Quest 3\","
-           "\"osName\":\"Android\",\"osVersion\":\"12L\",\"hl\":\"it\",\"gl\":\"IT\"}},"
-           "\"contentCheckOk\":true,\"racyCheckOk\":true}", id);
-  resposta = rede_postar(api, 7, headersVr, corpo);
-  ok = estrai(resposta, url, cap);
-  free(resposta);
-  if (ok) return 1;
-  snprintf(corpo, sizeof corpo,
-           "{\"videoId\":\"%s\",\"context\":{\"client\":{\"clientName\":\"IOS\","
-           "\"clientVersion\":\"20.49.6\",\"deviceModel\":\"iPhone16,2\","
-           "\"osName\":\"iOS\",\"osVersion\":\"18.0\",\"hl\":\"it\",\"gl\":\"IT\"}},"
-           "\"contentCheckOk\":true,\"racyCheckOk\":true}", id);
-  resposta = rede_postar(api, 7, headersIos, corpo);
-  ok = estrai(resposta, url, cap);
-  free(resposta);
-  return ok;
+  if (tentaCliente(api,id,"ANDROID","21.03.36","Android","14","Pixel 8",hAndroid,url,cap)) return 1;
+  if (tentaCliente(api,id,"IOS","21.03.2","iOS","18.0","iPhone16,2",hIos,url,cap)) return 1;
+  return 0;
 }
 
 static void *ytWorker(void *unused) {
@@ -154,7 +188,7 @@ static void *ytWorker(void *unused) {
       snprintf(ytResolved, sizeof ytResolved, "%s", ok ? url : "");
       ytFinishedAt = time(NULL);
       printf("[trailer] TMDB interno: %s (risoluzione %s)\n",
-             id, ok ? "flusso disponibile" : "non disponibile, fallback Apple/IMDb");
+             id, ok ? "flusso verificato" : "nessun flusso accessibile");
       fflush(stdout);
     }
     pthread_mutex_unlock(&ytMutex);
