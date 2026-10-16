@@ -447,13 +447,13 @@ static int trailerSemFonteLogado = 0;
 static int tmdbSemFluxo = 0; // distinguere non disponibile da ricerca in corso
 static void tmdbAvvisoIndisponivel(void) {
   ilha_avisar("tmdb-trailer-unavailable", ILHA_ERRO, NULL,
-              "Trailer TMDB non riproducibile. Scegli Automatica per Apple TV/IMDb.",
+              "TMDB non riproducibile",
               6500u, 0);
 }
 static void tmdbAvvisoLingua(int k) {
-  char msg[150];
+  char msg[80];
   const char *lg = extras_trailer_idioma(k);
-  snprintf(msg, sizeof msg, "Trailer TMDB: lingua dichiarata %s (audio non verificato)",
+  snprintf(msg, sizeof msg, "TMDB: lingua %s (audio incerto)",
            lg[0] ? lg : "non indicata");
   ilha_avisar("tmdb-trailer-language", ILHA_INFO, NULL, msg, 5500u, 0);
 }
@@ -2393,6 +2393,8 @@ static void tocarTrailerCheio(int k) {
     if (tmdbSemFluxo) { tmdbAvvisoIndisponivel(); return; }
     tmdbCheioPendente = k >= 0 ? k : 0;
     tmdbCheioDa = SDL_GetTicks();
+    ilha_avisar("tmdb-trailer-loading", ILHA_INFO, NULL,
+                "TMDB: verifica video...", 3500u, 0);
     return;
   }
 #endif
@@ -3300,7 +3302,7 @@ void detail_atualizar(float dt, Uint32 agora) {
   if (tmdbCheioPendente >= 0) {
     if (!aberto || saindo || trailerfonte_ajuste() != TRF_TMDB)
       tmdbCheioPendente = -1;
-    else if (agora - tmdbCheioDa > 23000u) {
+    else if (agora - tmdbCheioDa > 60000u) {
       tmdbCheioPendente = -1;
       tmdbAvvisoIndisponivel();
     } else if (trailer_suportado()) {
