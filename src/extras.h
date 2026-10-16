@@ -199,6 +199,7 @@ const char *extras_ficha_lancamento(void);      // "2026-01-15"
 int         extras_n_trailers(void);
 const char *extras_trailer_yt(int i);        // id do video ("dQw4w9WgXcQ")
 const char *extras_trailer_nome(int i);      // "Official Trailer"
+const char *extras_trailer_idioma(int i);    // ISO 639-1 dichiarato da TMDB (non certifica audio)
 // URL da miniatura. Previsivel a partir do id, sem chamada de API — e o mesmo
 // caminho que o web usa (metaDetailsScreen.js:5728). Passe direto a tex_obter:
 // o cache de texturas baixa e guarda qualquer URL sozinho.
