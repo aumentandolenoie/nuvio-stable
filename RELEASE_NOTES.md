@@ -2,6 +2,15 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.19 — Diagnostica di apertura delle fonti
+
+### Novità
+- Il riquadro di errore delle fonti mostra il dettaglio tecnico del player, quando disponibile, oppure indica che il backend non ha restituito un codice.
+- Nessun cambiamento a conversione DTS→AAC, decoder, fonti o timeout.
+
+### Verifiche
+- Controllo statico della modifica; riproduzione reale su LG da verificare.
+
 ## 2.0.18 — Episodi, tracce audio e sottotitoli per lingua
 
 ### Novità
