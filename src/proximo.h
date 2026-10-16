@@ -152,4 +152,10 @@ int prox_seguinte(const CatItem *ci, const CatEp *eps, int n, int limiarPct,
 // O cartao (posplay.c) e a janela (player.c) usam esta mesma regra: antes cada
 // um tinha a sua e podiam discordar.
 int prox_indice_seguinte(const CatEp *eps, int n, int temporada, int episodio);
+// Dall'episodio appena VISTO al primo episodio esistente non ancora visto:
+// segue le stagioni, ignora speciali, duplicati e uscite future.
+// La callback legge il medesimo stato visto condiviso da Nuvio Sync e player.
+int prox_nao_visto_depois(const CatEp *eps, int n, int temporada, int episodio,
+                          long long agoraMs, int (*jaVisto)(void *, int, int),
+                          void *contexto, int *proxT, int *proxE);
 #endif
