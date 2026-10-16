@@ -188,3 +188,22 @@ int prox_indice_seguinte(const CatEp *eps, int n, int t, int e) {
   }
   return melhor;
 }
+
+int prox_nao_visto_depois(const CatEp *eps, int n, int temporada, int episodio,
+                          long long agoraMs, int (*jaVisto)(void *, int, int),
+                          void *contexto, int *proxT, int *proxE) {
+  int t = temporada, e = episodio, i;
+  if (!eps || n < 1 || t < 1 || e < 1) return 0;
+  while ((i = prox_indice_seguinte(eps, n, t, e)) >= 0) {
+    long long estreia = prox_episodio_data_ms(&eps[i]);
+    // Non suggerire episodi non ancora usciti. La data assente non e un veto.
+    if (estreia != PROX_SEM_DATA && estreia > agoraMs) return 0;
+    t = eps[i].temporada;
+    e = eps[i].episodio;
+    if (jaVisto && jaVisto(contexto, t, e)) continue;
+    if (proxT) *proxT = t;
+    if (proxE) *proxE = e;
+    return 1;
+  }
+  return 0;
+}
