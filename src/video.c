@@ -60,6 +60,7 @@ static volatile int dvAudios;
 // Faixa do MKV (ordinal entre as de audio) escolhida pelo dvPronto no lugar de uma
 // que o caminho nao alimenta; -1 = nenhuma. O iniciarDts a entrega ao motor.
 static int dvAudioMkvOrd = -1;
+static int mkvDtsAlvo = -1; // ordinal DTS esplicitamente default/preferito e nascosto da LG
 static int dvHabilitado, dtsModoDv, dvRecuoAviso;
 // O player ainda nao pediu o ponto salvo ao player da TV (video_dv_segurar):
 // a troca para o caminho espera, para nascer na posicao certa.
@@ -2003,6 +2004,36 @@ static void *lerMkv(void *arg) {
     // Pubblicare i dati prima del contatore, come le altre tracce native.
     if (miaSessao == __atomic_load_n(&sessao, __ATOMIC_ACQUIRE) &&
         !strcmp(url, urlAtual) && !dtsSessao) {
+      // La fonte WALL-E: AAC inglese visibile, DTS-ES italiano FlagDefault
+      // nascosto dalla TV. Non inferire dall'ordine del sourceInfo: usa
+      // preferenza audio e FlagDefault reale del MKV, soltanto se l'identita
+      // e univoca e il DTS non compare fra le tracce native.
+      { int best = -1, bestScore = -1, ties = 0, ord = 0;
+        const char *preferito = ling_audio(), *riserva = ling_audio2();
+        for (i = 0; i < n; i++) {
+          const MkvFaixa *m = &fx[i];
+          int score, k, presente = 0;
+          if (m->tipo != 2) continue;
+          if (strncmp(m->codec, "A_DTS", 5)) { ord++; continue; }
+          for (k = 0; k < nAudio; k++)
+            if (video_faixa_dts(&faixaAudio[k]) &&
+                (!m->idioma[0] || !faixaAudio[k].idioma[0] ||
+                 ling_casa(m->idioma, faixaAudio[k].idioma))) presente = 1;
+          score = m->padrao ? 2 : 0;
+          if (preferito && preferito[0] && m->idioma[0] &&
+              ling_casa(m->idioma, preferito)) score += 8;
+          else if (riserva && riserva[0] && m->idioma[0] &&
+                   ling_casa(m->idioma, riserva)) score += 4;
+          if (!presente && score >= 2) {
+            if (score > bestScore) { bestScore = score; best = ord; ties = 1; }
+            else if (score == bestScore) ties++;
+          }
+          ord++;
+        }
+        mkvDtsAlvo = best >= 0 && ties == 1 ? best : -1;
+        if (mkvDtsAlvo >= 0)
+          printf("[dts] MKV: traccia DTS predefinita/preferita #%d assente nel decoder LG; conversione possibile\\n", mkvDtsAlvo + 1);
+      }
       for (i = 0; i < quante; i++) audioOmesse[i] = omesse[i];
       __atomic_store_n(&nAudioOmesse, quante, __ATOMIC_RELEASE);
     }
@@ -2200,7 +2231,7 @@ int video_tocar(const char *url) {
   dtsTentou = 0; dtsRevisao = 0; dtsSaida[0] = 0; dtsNativePending = 0; dtsEstado = 0;
   dtsHabilitado = dts_playback_enabled() && dtsLiberadoNestaTv();
   printf("[dts] fallback %s\n", dtsHabilitado ? "available" : "unavailable");
-  dvSondado = dvMkvPerfil = dvAudios = 0; dtsModoDv = 0; dvAudioMkvOrd = -1; dvSegurar = 0;
+  dvSondado = dvMkvPerfil = dvAudios = 0; dtsModoDv = 0; dvAudioMkvOrd = -1; mkvDtsAlvo = -1; dvSegurar = 0;
   mkvNaoMkv = 0;
   dvNao = 0; dvSessaoN++; dvFonteAberta = 0; dvAudioDe[0] = 0;
   nv_dvsonda_zerar(&mkvRetry); mkvRetryEm = 0; dvEntradaSeg = 0.0;
@@ -2254,7 +2285,8 @@ void video_bombear(void) {
     // SO COM FAIXA DTS CONHECIDA (teste na C9, 06/10): o erro 200 tambem vem
     // de TrueHD e de faixa ainda sem codec; o fallback derrubava a reproducao
     // nativa, que na 2.0.0 seguia. Sem a lista de faixas, espera ela chegar.
-    int knownDts = video_faixa_dts(video_audio(audioAtual)) > 0;
+    int knownDts = video_faixa_dts(video_audio(audioAtual)) > 0 ||
+                    (dvSondado && mkvDtsAlvo >= 0 && mkvDtsAlvo < dvAudios);
     int forcar = 0;
 #ifdef NV_DTS_DEBUG
     // A C9 decodifica DTS sozinha: sem isto o caminho de conversao nunca roda
@@ -2792,6 +2824,12 @@ static int dvPronto(void) {
     video_escolher_audio(dvMemOrd);
   }
   if (dvAudioMkvOrd >= 0) return 1;   // ja decidido; iniciarDts pode ter adiado (bind ativo)
+  // DTS default/preferito presente nel MKV ma invisibile alla TV: il nostro
+  // decoder lo converte in AAC e consente anche il percorso Dolby Vision.
+  if (mkvDtsAlvo >= 0 && mkvDtsAlvo < dvAudios && dtsHabilitado) {
+    dvAudioMkvOrd = mkvDtsAlvo;
+    return 1;
+  }
   // audioAtual e o indice da lista da TV; dvAudio* sao as faixas do MKV. A TV
   // pode filtrar a lista: localiza a faixa dela no MKV antes de olhar o codec.
   const VideoFaixa *tv = audioAtual >= 0 && audioAtual < nAudio ? &faixaAudio[audioAtual] : NULL;
@@ -2873,6 +2911,16 @@ static int iniciarDts(int stream) {
     snprintf(selected.language, sizeof selected.language, "%s", a->idioma);
     snprintf(selected.codec, sizeof selected.codec, "%s", a->codec);
     selected.channels = a->canais;
+  }
+  // Non usare audioAtual del decoder (AAC inglese) per un DTS che la TV
+  // nasconde. Il demux interno verifica ordinal + lingua + codec + canali.
+  if (mkvDtsAlvo >= 0 && mkvDtsAlvo < dvAudios &&
+      (!dtsModoDv || dvAudioMkvOrd == mkvDtsAlvo)) {
+    memset(&selected, 0, sizeof selected);
+    snprintf(selected.language, sizeof selected.language, "%s", dvAudioIdioma[mkvDtsAlvo]);
+    snprintf(selected.codec, sizeof selected.codec, "dts");
+    selected.channels = dvAudioCanais[mkvDtsAlvo];
+    ordinal = mkvDtsAlvo; count = dvAudios; trocada = 1;
   }
   // DV com a faixa trocada pelo dvPronto: ordinal, contagem e idioma sao os do
   // MKV (dts_playback.c prepare(): o k-esimo audio do arquivo, conferido por
