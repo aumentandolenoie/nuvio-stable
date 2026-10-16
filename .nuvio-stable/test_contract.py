@@ -24,7 +24,10 @@ check("nessuna attesa per addon precedente per aprire la lista parziale",
 check("continua a guardare passa per il dettaglio condiviso",
       "home_pediu_tocar()" in app
       and "if (tocar) { cwPedido = 1; detail_pedir_reproduzir(); }" in app
-      and "if ((detail_pediu_reproduzir() || doInicio) && aguardandoFonte != 2)" in app)
+      and "int pediuPlay = detail_pediu_reproduzir();" in app
+      and "if ((pediuPlay || doInicio) && aguardandoFonte != 2)" in app
+      and "if (pediuPlay && !doInicio && !cwPedido &&" in app
+      and "detail_play_aguarda_episodios()" in app)
 play = app[app.index("// A FONTE LEMBRADA DESTE TITULO"):]
 check("guida TV separata dal selettore VOD",
       "if (player_id_canal()[0])" in app
