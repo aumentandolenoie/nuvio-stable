@@ -129,13 +129,13 @@ static int tentaCliente(const char *api, const char *id, const char *nome,
            "\"deviceModel\":\"%s\",\"hl\":\"it\",\"gl\":\"IT\"}},"
            "\"contentCheckOk\":true,\"racyCheckOk\":true}",
            id, nome, version, os, osVersion, model);
-  risposta = rede_postar(api, 6, headers, corpo);
-  if (risposta)
-    js_texto(risposta, NULL, "status", status, sizeof status);
-  got = estrai(risposta, candidato, sizeof candidato);
-  free(risposta);
+  resposta = rede_postar(api, 6, headers, corpo);
+  if (resposta)
+    js_texto(resposta, NULL, "status", status, sizeof status);
+  got = estrai(resposta, candidato, sizeof candidato);
+  free(resposta);
   validoUrl = got && provaDiretta(candidato);
-  // Logga soltanto lo stato (mai URL firmate o corpo della risposta).
+  // Logga soltanto lo stato (mai URL firmate o corpo della resposta).
   printf("[trailer] TMDB stream client=%s status=%s candidate=%d accessible=%d\n",
          nome, status[0] ? status : "network", got, validoUrl);
   fflush(stdout);
@@ -147,7 +147,7 @@ static int tentaCliente(const char *api, const char *id, const char *nome,
 static int resolver(const char *id, char *url, size_t cap) {
   // La versione ANDROID_VR 1.65.10 e' soggetta a 403 sistematici dal
   // 17 agosto 2026. Prima proviamo ANDROID, poi iOS (HLS), infine VR,
-  // verificando sul dispositivo la risposta HTTP reale prima del play.
+  // verificando sul dispositivo la resposta HTTP reale prima del play.
   const char *const hAndroid[] = {
     "X-YouTube-Client-Name: 3",
     "X-YouTube-Client-Version: 21.03.36",
