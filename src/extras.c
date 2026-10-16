@@ -386,6 +386,9 @@ static int nomeDeEpisodio(const char *nm) {
 static int cmpVideo(const void *pa, const void *pb) {
   const VideoTmdb *a = pa, *b = pb;
   int c;
+  // Preferire la lingua scelta in Integrazioni TMDB anche per le serie:
+  // prima la lingua, poi la data di pubblicazione della stagione/trailer.
+  if ((a->peso / 2) != (b->peso / 2)) return (b->peso / 2) - (a->peso / 2);
   if (a->serie && (c = strcmp(b->pub, a->pub)) != 0) return c;
   if (a->peso != b->peso) return b->peso - a->peso;
   return a->ordem - b->ordem;
@@ -884,10 +887,9 @@ static void *buscar(void *arg) {
     // quatro toggles vem ligados e o pedido ja acontecia. Para quem desligou
     // os quatro, e um GET /tv/<id> por serie aberta que antes nao havia.
     if (chave[0] && idT > 0 &&
-        (serie ||
-         (ajustes_tmdb_ficha() || ajustes_tmdb_datas() ||
-          ajustes_tmdb_trailers() || ajustes_tmdb_col() ||
-          ajustes_tmdb_prod()))) {
+        (ajustes_tmdb_ficha() || ajustes_tmdb_datas() ||
+         ajustes_tmdb_trailers() || ajustes_tmdb_col() ||
+         ajustes_tmdb_prod() || (serie && (ajustes_tmdb_redes() || ajustes_tmdb_eps())))) {
       // `append_to_response` faz o TMDB devolver extras DENTRO deste mesmo
       // corpo. O conjunto segue os toggles da conta: release_dates responde a
       // tmdb_use_release_dates, videos a tmdb_use_trailers, recommendations a
@@ -1145,7 +1147,7 @@ static void *buscar(void *arg) {
         // TRAILER DA TEMPORADA MAIS RECENTE, quando a obra nao tem nenhum
         // (#123). Um GET a mais so nesse caso; o trailer de temporada e da
         // serie, nao de episodio.
-        if (ultTemp > 0 && pedidoAindaAtual(id)) {
+        if (ajustes_tmdb_trailers() && ultTemp > 0 && pedidoAindaAtual(id)) {
           char *cs;
           urlVideos(url, sizeof url, 1, idT, ultTemp, chave, desc_tmdb_idioma());
           cs = rede_baixar(url, 15);
