@@ -98,6 +98,16 @@ static void uxValorTexto(int op, int v, char *buf, size_t tam) {
   } else if (o->tipo == OP_NUMERO) {
     snprintf(buf, tam, "%d%s", v, o->sufixo ? o->sufixo : "");
     return;
+  } else if (op == AJ_AUD_LINGUA2) {
+    // La riserva usa indici propri: 0 = Nessuna; 1.. = lingue
+    // della lista principale a partire dall'indice 2 (senza Da conta/Tutte).
+    if (v == 0) texto = "Nenhuma";
+    else {
+      const int idx = v + 1;
+      const char *cod = idx >= 2 && idx < ling_opcao_n() ? ling_opcao_codigo(idx) : NULL;
+      texto = cod && cod[0] ? ling_nome(cod) : "Nenhuma";
+    }
+    texto = i18n(texto);
   } else if (op == AJ_LEG_LINGUA || op == AJ_LEG_LINGUA2 || op == AJ_AUD_LINGUA) {
     const char *cod = ling_opcao_codigo(v >= 0 && v < ling_opcao_n() ? v : 0);
     texto = !cod || !cod[0] ? "Da conta" : !strcmp(cod, "*") ? "Todas"
