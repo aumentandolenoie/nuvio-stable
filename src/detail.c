@@ -37,6 +37,7 @@ static TituloTempo detalheTempo;
 #include "ajustes.h"
 #include "home.h"
 #include "extras.h"
+#include "traileryt.h"
 #include "trailer.h"
 #include "trailerimdb.h"
 #include "trailerapple.h"
@@ -332,6 +333,9 @@ static RevelaArte revEp[DET_REV_EP], revRel[EX_REL_MAX];
 // a arte volta e fica); `trailerFade` e a mistura arte -> video.
 static Uint32 trailerDesde = 0;
 static int    trailerTentado = 0;
+// OK mentre il risolutore TMDB e in corso: completa in fullscreen senza browser.
+static int tmdbCheioPendente = -1;
+static Uint32 tmdbCheioDa = 0;
 // ESCADA COM PRAZO do autoplay na Samsung: a fonte aberta (TRF_APPLE,
 // TRF_YOUTUBE de trailerfonte.h), 0 = nada aberto, -1 = acabou a escada. Antes a pagina abria a Apple e esperava para
 // sempre — o log 1646 mostra o HLS pedido e nenhuma linha depois. Agora, sem
@@ -445,6 +449,23 @@ static const char *trailerFonte(int k, int *qual, int cheia) {
   const char *u = NULL;
   int q = 0, aj = trailerfonte_ajuste(), tz = trailerfonte_tizen();
   TrailerDecisao d;
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+  static char tmdbDiretto[4096];
+  if (aj == TRF_TMDB) {
+    if (ajustes_tmdb_trailers() && extras_n_trailers() > 0) {
+      int pos = (k >= 0 && k < extras_n_trailers()) ? k : 0;
+      int stato = traileryt_obter(extras_trailer_yt(pos), tmdbDiretto, sizeof tmdbDiretto);
+      if (stato == 1) {
+        if (qual) *qual = TRF_TMDB;
+        return tmdbDiretto; // URL HTTPS gia' compatibile con video_tocar
+      }
+      if (stato == 0) return NULL; // thread HTTP in corso: non bloccare SDL
+    } else if (ajustes_tmdb_trailers() && extras_carregando()) return NULL;
+    // URL YouTube assente, 403, soltanto SABR o integrazione spenta:
+    // Apple TV / IMDb come riserva, sempre dentro Nuvio.
+    aj = TRF_AUTO;
+  }
+#endif
   memset(&c, 0, sizeof c);
   if (qual) *qual = 0;
   if (ci && ci->imdb[0]) {
@@ -2346,6 +2367,15 @@ static int acaoEm(int n) {
 // (trailer_evento) e a pagina continua com o mesmo foco.
 static void tocarTrailerCheio(int k) {
   const char *u = trailer_suportado() ? trailerFonte(k, NULL, 1) : NULL;
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+  if (!u && trailerfonte_ajuste() == TRF_TMDB) {
+    // Non aprire mai il browser LG. Un OK mentre il video si risolve resta
+    // in attesa per il tempo del worker, poi ritorna al titolo.
+    tmdbCheioPendente = k >= 0 ? k : 0;
+    tmdbCheioDa = SDL_GetTicks();
+    return;
+  }
+#endif
   if (u) {
     GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
     trailerEtapa = 0; trailerPrazo = 0;   // tela cheia: so o teclado fecha
@@ -2364,7 +2394,7 @@ static void tocarTrailerCheio(int k) {
     trailer_abrir(extras_trailer_yt(k), tela, 0, 1);
   }
 #else
-  else extras_trailer_abrir(k);
+  else if (trailerfonte_ajuste() != TRF_TMDB) extras_trailer_abrir(k);
 #endif
 }
 
@@ -3242,6 +3272,21 @@ static void toquePessoaFocar(int i, int b) { (void)b; pessoaFoco = i; }
 static float blocoAnt[3] = { -1.0f, -1.0f, -1.0f };   // Notas / Numeros / Progresso no quadro anterior
 
 void detail_atualizar(float dt, Uint32 agora) {
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+  if (tmdbCheioPendente >= 0) {
+    if (!aberto || saindo || trailerfonte_ajuste() != TRF_TMDB ||
+        agora - tmdbCheioDa > 23000u) tmdbCheioPendente = -1;
+    else if (trailer_suportado()) {
+      const char *u = trailerFonte(tmdbCheioPendente, NULL, 1);
+      if (u) {
+        GfxRect tela = { 0, 0, NV_TELA_W, NV_TELA_H };
+        tmdbCheioPendente = -1;
+        trailerEtapa = 0; trailerPrazo = 0;
+        trailer_abrir(u, tela, trailerfonte_com_som(trailerfonte_tizen()), 1);
+      }
+    }
+  }
+#endif
   // `agora` ficou sem uso quando o repouso da troca de temporada saiu (ver a
   // nota mais abaixo). Fica na assinatura porque ela e a mesma de todas as
   // telas e app.c chama todas do mesmo jeito.
