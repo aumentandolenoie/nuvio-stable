@@ -37,6 +37,11 @@ jobs:
           python3 .nuvio-stable/test_contract.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
+          # Regression checks for recent watch progress, stale episode checks and CW order.
+          bash tests/progresso.sh
+          bash tests/vistoep.sh
+          cc -O1 -g -Wall -Wextra -pthread -Isrc src/cwordem.c src/cwretido.c tests/cwordem.c -o /tmp/nuvio-cwordem-core-tests
+          /tmp/nuvio-cwordem-core-tests
           bash tests/traileryt.sh
           # Guard the player path we touched and ensure subtitle confidence
           # rules keep rejecting uncertain alignments.
