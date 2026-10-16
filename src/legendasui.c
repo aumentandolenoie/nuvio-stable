@@ -419,8 +419,22 @@ void legendasui_abrir(void) {
   aberto = 1; mais = 1; ver = 0; menu = okPendente = okLongo = 0; alvo = 0; rolagemZerar(); aviso[0] = 0;
   focoChave[0] = 0; foco = 0;
   montarLinhas();
-  // Open on the row of the active primary, else on the first row.
+  // Apri sul gruppo della lingua gia attiva, se possibile. L'utente
+  // vede subito "Italiano (10)" invece di "Disattivata" quando sta gia
+  // guardando con sottotitoli italiani.
   idPrimario(prim);
+  if (mais && !ver) {
+    const char *preferita = prefLinha(0);
+    for (i = 0; i < nCand && prim[0]; i++)
+      if (!strcmp(prim, cand[i].id)) { preferita = cand[i].idioma; break; }
+    if (preferita && preferita[0])
+      for (i = 0; i < nLinhasV; i++)
+        if (linhas[i].tipo == LR_IDIOMA && linhas[i].cand >= 0 &&
+            ling_casa(cand[linhas[i].cand].idioma, preferita)) {
+          focar(i); return;
+        }
+  }
+  // Open on the row of the active primary, else on the first row.
   for (i = 0; i < nLinhasV; i++)
     if ((linhas[i].tipo == LR_CAND || linhas[i].tipo == LR_PAR) && linhas[i].slot == 0 && linhas[i].cand >= 0 &&
         !strcmp(cand[linhas[i].cand].id, prim)) break;
