@@ -7,5 +7,5 @@
 // Solo ID YouTube validi; l'URL restituito ha durata limitata.
 int traileryt_obter(const char *youtube_id, char *url, size_t url_cap);
 // Segnala che la TV ha rifiutato il flusso: usa il fallback, non riprovare in loop.
-void traileryt_invalidar(const char *url);
+int traileryt_invalidar(const char *url); // ritorna 1 solo per flussi TMDB
 #endif

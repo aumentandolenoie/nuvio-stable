@@ -5,6 +5,7 @@
 #include "ajustes.h"
 #include "trailerfonte.h"
 #include "traileryt.h"
+#include "ilha.h"
 #include "video.h"      // trailer_osd_desenhar reads video_pos/duracao on every target
 #include <stdio.h>
 #include <stdlib.h>
@@ -384,7 +385,12 @@ void trailer_abrir(const char *fonte, GfxRect r, int som, int modoCheia) {
   if (!trailer_js_abrir(fonte, r.x, r.y, r.w, r.h, som, ajustes_trailer_zoom(), NV_REC_URL)) return;
 #else
   if (nova) {
-    if (!video_tocar(fonte)) return;
+    if (!video_tocar(fonte)) {
+      if (traileryt_invalidar(fonte))
+        ilha_avisar("tmdb-trailer-error", ILHA_ERRO, NULL,
+                    "Trailer TMDB non riproducibile su questa TV.", 6500u, 0);
+      return;
+    }
 #ifdef NV_TPK
     video_tpk_trailer_marcar(1);
 #endif
@@ -575,7 +581,10 @@ void trailer_atualizar(Uint32 agora) {
   // Acabou ou a fonte falhou: fecha e a pagina volta a arte.
   // conflito: outro app (YouTube) tomou o plano de video — fecha, fica a arte.
   if (video_terminou() || video_falhou() || video_conflito_recurso()) {
-    if (video_falhou()) traileryt_invalidar(fonteAtual);
+    if (video_falhou() && traileryt_invalidar(fonteAtual))
+      ilha_avisar("tmdb-trailer-error", ILHA_ERRO, NULL,
+                  "Il video TMDB non e' riproducibile. Prova la fonte Automatica.",
+                  6500u, 0);
     falhouUltima = video_falhou() || video_conflito_recurso() ? 1 : 0;
     trailer_fechar();
   }
