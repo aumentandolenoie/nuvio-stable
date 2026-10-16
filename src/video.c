@@ -1886,6 +1886,7 @@ static void *lerMkv(void *arg) {
   MkvFaixa fx[MKV_MAX_FAIXAS];
   MkvCap   caps[MKV_MAX_CAPS];
   char url[sizeof urlAtual];
+  const unsigned miaSessao = __atomic_load_n(&sessao, __ATOMIC_ACQUIRE);
   int n, i, j, casou = 0, nCaps = 0;
   (void)arg;
 
@@ -1969,7 +1970,7 @@ static void *lerMkv(void *arg) {
   // originale: nessun Range addizionale, nessuna alterazione dell'ordine nativo.
   // Affermiamo "incompatibile" solo quando il file elenca PIU audio di
   // quanti ne espone la TV e il codec omesso e DTS/TrueHD/MLP.
-  if (mkvFioSessao == __atomic_load_n(&sessao, __ATOMIC_ACQUIRE) &&
+  if (miaSessao == __atomic_load_n(&sessao, __ATOMIC_ACQUIRE) &&
       !strcmp(url, urlAtual) && !dtsSessao) {
     int originali = 0, dtsNativi = 0, hdNativi = 0, dtsGia = 0, hdGia = 0;
     VideoFaixa omesse[NV_FAIXA_MAX];
@@ -2000,8 +2001,11 @@ static void *lerMkv(void *arg) {
                m->canais == 6 ? " 5.1" : m->canais == 8 ? " 7.1" : "");
     }
     // Pubblicare i dati prima del contatore, come le altre tracce native.
-    for (i = 0; i < quante; i++) audioOmesse[i] = omesse[i];
-    __atomic_store_n(&nAudioOmesse, quante, __ATOMIC_RELEASE);
+    if (miaSessao == __atomic_load_n(&sessao, __ATOMIC_ACQUIRE) &&
+        !strcmp(url, urlAtual) && !dtsSessao) {
+      for (i = 0; i < quante; i++) audioOmesse[i] = omesse[i];
+      __atomic_store_n(&nAudioOmesse, quante, __ATOMIC_RELEASE);
+    }
   }
   { int na = 0, achouVideo = 0;
     for (j = 0; j < n; j++) {
@@ -3450,7 +3454,7 @@ unsigned video_bufferando_ms(void) {
 int  video_n_audio(void)   { return nAudio; }
 int  video_n_legenda(void) { return nLeg; }
 const VideoFaixa *video_audio(int i)   { return (i >= 0 && i < nAudio) ? &faixaAudio[i] : NULL; }
-int video_n_audio_omesse(void) { return __atomic_load_n(&nAudioOmesse, __ATOMIC_ACQUIRE); }
+int video_n_audio_omesse(void) { return dtsSessao ? 0 : __atomic_load_n(&nAudioOmesse, __ATOMIC_ACQUIRE); }
 const VideoFaixa *video_audio_omessa(int i) {
   return i >= 0 && i < video_n_audio_omesse() ? &audioOmesse[i] : NULL;
 }
