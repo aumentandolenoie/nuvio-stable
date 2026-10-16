@@ -451,8 +451,8 @@ static void refiltrar(void) {
     goto montado;
   }
   sugestao = 0;
-  spotpessoa_pedir(consulta, SDL_GetTicks());
-  gerPessoa = spotpessoa_geracao();
+  // Non interrogare TMDB per risultati supplementari.
+
 
   // BUSCA NA REDE. A tela so filtrava o que ja estava em memoria — as ~12
   // primeiras linhas de cada catalogo da home — entao qualquer titulo fora
@@ -574,49 +574,14 @@ static void refiltrar(void) {
     }
   }
 
-  int nCat = cat_n_fileiras();
-  for (int r = 0; r < nCat && nFil < BU_MAX_FILEIRAS; r++) {
-    const CatFileira *cf = cat_fileira(r);
-    if (!cf) break;
-    if (desc_busca_base_oculta(cf->base)) continue;   // "Buscar no Cinemeta" desligado
-    int achou = 0;
-    for (int i = 0; i < cf->n && achou < BU_MAX_POR_FIL; i++) {
-      const CatItem *ci = cat_item(cf->ini + i);
-      if (!ci) continue;
-      char titulo[320];
-      normalizar(ci->titulo, titulo, sizeof titulo);
-      if (strstr(titulo, alvo)) fil[nFil].itens[achou++] = cf->ini + i;
-    }
-    if (!achou) continue;
-    fil[nFil].titulo = cf->titulo;
-    // `catalogAddonNameEnabled` decide a linha "de <addon>" sob o titulo da
-    // fileira. O dado NAO existe deste lado: `CatFileira` guarda chave, titulo,
-    // tipo e a janela no vetor — o nome do addon fica em addons.c e a fileira
-    // nao o carrega. Ate descoberta.c passar esse campo adiante, a linha nao e
-    // desenhada; escrever o TIPO ("movie") no lugar seria pior que a ausencia,
-    // porque leria como se fosse a origem.
-    fil[nFil].origem = NULL;
-    fil[nFil].n = achou;
-    nFil++;
-  }
+  // I cataloghi locali misti (anche Nuvio) non entrano nella ricerca:
+  // i risultati arrivano esclusivamente dagli endpoint search degli addon.
 
   // Nuvio Stable: nessun riquadro separato Risultato migliore.
   // Tutti i risultati rimangono nelle righe dei cataloghi degli addon.
   for (int i = 0; i < nFil; i++) { fil[i].melhor = 0; fil[i].pessoas = 0; }
 
-  // PESSOAS (mockup): a fileira entra logo depois da primeira de titulos.
-  montarPessoas(alvo);
-  if (nPess > 0 && nFil < BU_MAX_FILEIRAS) {
-    int pos = nFil < (fil[0].melhor ? 2 : 1) ? nFil : (fil[0].melhor ? 2 : 1);
-    if (nFil == 0) pos = 0;
-    memmove(&fil[pos + 1], &fil[pos], (size_t)(nFil - pos) * sizeof fil[0]);
-    nFil++;
-    memset(&fil[pos], 0, sizeof fil[pos]);
-    fil[pos].titulo = i18n("Pessoas");
-    fil[pos].pessoas = 1;
-    fil[pos].n = nPess;
-    for (int i = 0; i < nPess; i++) fil[pos].itens[i] = i;
-  }
+  // Nessuna ricerca TMDB di persone: solo risultati dei cataloghi addon.
 montado:
   // Quem ja estava na tela herda o estado da onda; quem nao estava e nova.
   { char chaveAntes[BU_MAX_FILEIRAS][96];
