@@ -386,6 +386,9 @@ static int nomeDeEpisodio(const char *nm) {
 static int cmpVideo(const void *pa, const void *pb) {
   const VideoTmdb *a = pa, *b = pb;
   int c;
+  // Preferire la lingua scelta in Integrazioni TMDB anche per le serie:
+  // prima la lingua, poi la data di pubblicazione della stagione/trailer.
+  if ((a->peso / 2) != (b->peso / 2)) return (b->peso / 2) - (a->peso / 2);
   if (a->serie && (c = strcmp(b->pub, a->pub)) != 0) return c;
   if (a->peso != b->peso) return b->peso - a->peso;
   return a->ordem - b->ordem;
