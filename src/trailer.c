@@ -388,7 +388,7 @@ void trailer_abrir(const char *fonte, GfxRect r, int som, int modoCheia) {
     if (!video_tocar(fonte)) {
       if (traileryt_invalidar(fonte))
         ilha_avisar("tmdb-trailer-error", ILHA_ERRO, NULL,
-                    "Trailer TMDB non riproducibile su questa TV.", 6500u, 0);
+                    "TMDB non riproducibile", 6500u, 0);
       return;
     }
 #ifdef NV_TPK
@@ -583,7 +583,7 @@ void trailer_atualizar(Uint32 agora) {
   if (video_terminou() || video_falhou() || video_conflito_recurso()) {
     if (video_falhou() && traileryt_invalidar(fonteAtual))
       ilha_avisar("tmdb-trailer-error", ILHA_ERRO, NULL,
-                  "Il video TMDB non e' riproducibile. Prova la fonte Automatica.",
+                  "TMDB non riproducibile",
                   6500u, 0);
     falhouUltima = video_falhou() || video_conflito_recurso() ? 1 : 0;
     trailer_fechar();
