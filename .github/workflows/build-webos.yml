@@ -11,13 +11,15 @@ on:
       - .nuvio-stable/test_contract.py
       - deploy/app/appinfo.json
       - tools/tizen-config.xml
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
   contents: write
 
 concurrency:
-  group: nuvio-stable-homebrew
+  group: ${{ github.event_name == 'pull_request' && format('nuvio-stable-pr-{0}', github.event.pull_request.number) || 'nuvio-stable-homebrew' }}
   cancel-in-progress: true
 
 jobs:
@@ -35,6 +37,7 @@ jobs:
           python3 .nuvio-stable/test_contract.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
+          bash tests/traileryt.sh
           python3 tools/idiomas.py
           # Upstream's ajustes_secoes legacy assertion flags seven deliberately
           # hidden card-depth options; this is unrelated to Stable's changes.
@@ -176,6 +179,7 @@ jobs:
           retention-days: 30
 
       - name: Publish permanent public Homebrew Channel release
+        if: github.event_name != 'pull_request'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -223,6 +227,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Installation link
+        if: github.event_name != 'pull_request'
         shell: bash
         run: |
           echo "## Nuvio Stable - LG webOS" >> "$GITHUB_STEP_SUMMARY"
