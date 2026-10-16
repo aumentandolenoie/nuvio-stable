@@ -338,6 +338,7 @@ int  video_n_legenda(void) { return SIM.nLeg; }
 const VideoFaixa *video_audio(int i) { return i >= 0 && i < SIM.nAudio ? &SIM.audio[i] : 0; }
 int video_n_audio_omesse(void) { return 0; }
 const VideoFaixa *video_audio_omessa(int i) { (void)i; return NULL; }
+int video_audio_noncompatibile(int i) { (void)i; return 0; }
 const VideoFaixa *video_legenda(int i) { return i >= 0 && i < SIM.nLeg ? &SIM.leg[i] : 0; }
 int video_legenda_ordinal_mkv(int i) { (void)i; return -1; }
 int  video_mkv_sondado(void) { return 2; }
@@ -578,6 +579,7 @@ static int nAudio, nLeg, audioAtual, legAtual = -1;
 // Solo per visualizzazione: nessun indice in questo vettore raggiunge uMS.
 static VideoFaixa audioOmesse[NV_FAIXA_MAX];
 static int nAudioOmesse;
+static int audioRecuperadoSemSource;
 
 // Afirmacao de DV da fonte escolhida. Setada por video_definir_dv ANTES do
 // tocar, porque o video_tocar zera vidDV ao comecar uma sessao nova.
@@ -983,6 +985,7 @@ static int eventoPayload(const char *p, unsigned minhaSessao) {
       srcTrickable = q ? (strncmp(q + 12, "true", 4) == 0) : -1; }
     const char *q;
     nAudio = nLeg = 0;
+    audioRecuperadoSemSource = 0;
     vidAtmos = 0;
     // Empty strings/arrays mean no tracks. Stay inside each track array so
     // the following videoTrackInfo cannot be mistaken for audio.
@@ -1867,6 +1870,7 @@ static void completarAudioMkv(const MkvFaixa *fx, int n) {
     f->stream_index = f->stream_id = -1;
     f->ordinalMkv = 0;
     audioAtual = 0;
+    audioRecuperadoSemSource = 1;
   }
   snprintf(f->codec, sizeof f->codec, "%s", !strncmp(audio->codec, "A_DTS", 5) ? "dts" : audio->codec);
   if (!f->idioma[0] && strcmp(audio->idioma, "und"))
@@ -2470,6 +2474,7 @@ static int tocarInterno(const char *url, int comDV) {
   bufferandoDesde = 0;
   nAudio = nLeg = 0; audioAtual = 0; legAtual = -1; vidAtmos = 0;
   __atomic_store_n(&nAudioOmesse, 0, __ATOMIC_RELEASE);
+  audioRecuperadoSemSource = 0;
   legUrlAtual[0] = 0; mkvPendente = 0;
   snprintf(vidHdr, sizeof vidHdr, "none");
   seiX0 = seiX1 = seiX2 = seiY0 = seiY1 = seiY2 = 0;
@@ -3448,6 +3453,18 @@ const VideoFaixa *video_audio(int i)   { return (i >= 0 && i < nAudio) ? &faixaA
 int video_n_audio_omesse(void) { return __atomic_load_n(&nAudioOmesse, __ATOMIC_ACQUIRE); }
 const VideoFaixa *video_audio_omessa(int i) {
   return i >= 0 && i < video_n_audio_omesse() ? &audioOmesse[i] : NULL;
+}
+int video_audio_noncompatibile(int i) {
+  const VideoFaixa *f = video_audio(i);
+  if (!f) return 1;
+  // Una traccia sintetizzata dal MKV non e stata offerta dal decoder.
+  if (audioRecuperadoSemSource && !dtsSessao && video_faixa_dts(f)) return 1;
+  // Decoder LG ha comunicato davvero che la traccia attiva e senza suono.
+  if (i == audioAtual && video_faixa_dts(f)) {
+    int d = video_dts_estado();
+    if (d == VIDEO_DTS_SEM_SOM || d == VIDEO_DTS_FALHOU) return 1;
+  }
+  return 0;
 }
 const VideoFaixa *video_legenda(int i) { return (i >= 0 && i < nLeg) ? &faixaLeg[i] : NULL; }
 int video_legenda_ordinal_mkv(int i) { return (i >= 0 && i < nLeg) ? faixaLeg[i].ordinalMkv : -1; }
