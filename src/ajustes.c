@@ -5926,7 +5926,7 @@ static const char *ajudaOpcaoBase(int op) {
       return "De onde vem o trailer da tela do título e do destaque. Automático tenta a Apple TV e, sem ela, o IMDb; no botão de trailer, que toca com som, o IMDb vem primeiro, porque o da Apple toca sem som nesta TV. Uma fonte escolhida é a única tentada. O YouTube não toca nesta TV.";
 #endif
 #else
-      return "Fonte dos trailers na página do título. TMDB (interno, experimental) prefere o vídeo no idioma escolhido no TMDB e tenta tocá-lo sem sair do Nuvio. Se YouTube não fornecer um fluxo direto compatível, usa Apple TV/IMDb. Automático mantém a ordem Apple TV/IMDb.";
+      return "TMDB (interno, experimental): procura o vídeo na língua escolhida para TMDB e verifica se o fluxo é acessível antes de tentar a reprodução nesta TV. Se não funcionar, mostra um aviso; para usar Apple TV/IMDb, selecione Automático. Não abre o navegador.";
 #endif
 
     // --- Posteres e cards
