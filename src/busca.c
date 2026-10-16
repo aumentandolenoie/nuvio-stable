@@ -445,9 +445,9 @@ static void refiltrar(void) {
   // RESULTADOS: o de buscas recentes vive justamente com o campo vazio.
   if (busca_codepoints(alvo) < 2) {
     if (painel == 1 && !sugestao) painel = 0;
-    sugestao = 1;
+    sugestao = 0;
     redePend = 0; nVelho = 0; redeDisparado[0] = 0;
-    montarSugestoes();
+    // Nessun Popolari/Cataloghi Nuvio prima di digitare: solo ricerche recenti.
     goto montado;
   }
   sugestao = 0;
