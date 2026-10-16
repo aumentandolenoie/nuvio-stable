@@ -889,7 +889,8 @@ static void *buscar(void *arg) {
     if (chave[0] && idT > 0 &&
         (ajustes_tmdb_ficha() || ajustes_tmdb_datas() ||
          ajustes_tmdb_trailers() || ajustes_tmdb_col() ||
-         ajustes_tmdb_prod() || (serie && (ajustes_tmdb_redes() || ajustes_tmdb_eps())))) {
+         ajustes_tmdb_mais() || ajustes_tmdb_prod() ||
+         (serie && (ajustes_tmdb_redes() || ajustes_tmdb_eps())))) {
       // `append_to_response` faz o TMDB devolver extras DENTRO deste mesmo
       // corpo. O conjunto segue os toggles da conta: release_dates responde a
       // tmdb_use_release_dates, videos a tmdb_use_trailers, recommendations a
