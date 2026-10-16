@@ -2,6 +2,20 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.18 — Episodi, tracce audio e sottotitoli per lingua
+
+### Novità
+- **Serie TV:** all'apertura della scheda, stagione e carosello degli episodi vengono posizionati sull'episodio da riprendere oppure sul successivo, in base ai progressi di **Nuvio Sync**. La navigazione manuale ha sempre precedenza.
+- **Menu audio:** le tracce DTS e TrueHD che risultano presenti nel MKV ma non sono offerte dal decoder LG vengono mostrate in grigio con l'avviso «Fonte audio non compatibile». Non si possono selezionare come tracce native.
+- **Sottotitoli:** prima si sceglie la lingua, poi una delle tracce disponibili in quella lingua; il tasto Indietro torna all'elenco delle lingue. Restano disponibili la gestione primaria/secondaria, lo stile e AutoSync.
+- **Conversione DTS→AAC:** riconoscimento della traccia DTS nel file MKV anche quando LG espone soltanto un'altra traccia compatibile. La scelta è vincolata alle preferenze audio e al flag predefinito del MKV, con verifica di unicità e identificazione dell'indice originale tramite demultiplexer.
+- **DTS-ES:** il confronto delle tracce non rifiuta più una traccia identificata univocamente per una discrepanza tra 6 e 7 canali segnalati dai diversi decoder. Preservata la possibilità di conversione con video Dolby Vision Profile 8.1.
+- **Prestazioni e sicurezza:** il percorso informativo riutilizza la sonda MKV già presente senza ulteriori download; gli indici nativi non sono alterati e il motore DTS→AAC non è stato ricodificato.
+
+### Verifiche
+- Controlli dei contratti UI e DTS, compilazione nativa LG webOS ARMv7, verifica del pacchetto IPK e manifest Homebrew tramite GitHub Actions.
+- **Da confermare su TV reale:** conversione e sincronizzazione del DTS-ES italiano di *WALL·E* (offset audio sorgente di 800 ms), oltre alla visualizzazione delle nuove interfacce. Il test automatico non sostituisce la riproduzione sul televisore.
+
 ## 2.0.17 — Riproduzione delle serie e Nuvio Sync
 
 ### Correzioni
