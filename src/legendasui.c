@@ -386,7 +386,7 @@ static void montarLinhas(void) {
       for (j = 0; j < n && nLinhasV < LUI_MAX_LINHAS; j++) {
         char k[96];
         i = ordem[j];
-        if (ver && !ling_casa(cand[i].idioma, verIdioma)) continue;
+        if (ver && (verIdioma[0] ? !ling_casa(cand[i].idioma, verIdioma) : cand[i].idioma[0] != 0)) continue;
         snprintf(k, sizeof k, "m|%s", cand[i].id);
         linhaCandidata(i, alvo, k);
       } }
@@ -799,8 +799,8 @@ static void textoLinha(const LuiLinha *l, char *nome, size_t tn, char *sub, size
     case LR_IDIOMA:
       if (c) {
         *idioma = c->idioma;
-        snprintf(nome, tn, "%s", c->idioma[0] ? nomeIdioma(c->idioma) : i18n("Lingua sconosciuta"));
-        snprintf(sub, ts, "%d %s", l->slot, i18n(l->slot == 1 ? "sottotitolo" : "sottotitoli"));
+        snprintf(nome, tn, "%s", c->idioma[0] ? nomeIdioma(c->idioma) : "?");
+        snprintf(sub, ts, "%d %s", l->slot, i18n("Legendas"));
         *icone = "pl_captions";
       }
       break;
@@ -1033,7 +1033,7 @@ void legendasui_corpo(GfxRect c, float a) {
   montarLinhas();
   pont = !menu && a > 0.99f && ponteiro_ativo();
   plrui_kicker(tituloSessao(), x0 + 10.0f, y, 115, 115, 113, a);
-  { TxtLinha t = txt_linha(TXT_ILHA_PERGUNTA, ver ? (verIdioma[0] ? nomeIdioma(verIdioma) : i18n("Lingua sconosciuta")) : mais ? i18n("Lingua dei sottotitoli") : "Recomendadas", 243, 242, 239, 255);
+  { TxtLinha t = txt_linha(TXT_ILHA_PERGUNTA, ver ? (verIdioma[0] ? nomeIdioma(verIdioma) : i18n("Lingua sconosciuta")) : mais ? i18n("Idioma") : "Recomendadas", 243, 242, 239, 255);
     float ty = y + 22.0f;
     const char *rot[2] = { "Faixas", "Estilo" };
     int cont[2] = { nCand, -1 };
