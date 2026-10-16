@@ -2919,7 +2919,9 @@ static int iniciarDts(int stream) {
     memset(&selected, 0, sizeof selected);
     snprintf(selected.language, sizeof selected.language, "%s", dvAudioIdioma[mkvDtsAlvo]);
     snprintf(selected.codec, sizeof selected.codec, "dts");
-    selected.channels = dvAudioCanais[mkvDtsAlvo];
+    // DTS-ES puo annunciare 6 o 7 canali a seconda del demux/decoder.
+    // Identita gia verificata con ordinale, codec e lingua; canali 0 = non imporre.
+    selected.channels = 0;
     ordinal = mkvDtsAlvo; count = dvAudios; trocada = 1;
   }
   // DV com a faixa trocada pelo dvPronto: ordinal, contagem e idioma sao os do
