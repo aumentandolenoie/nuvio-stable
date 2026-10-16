@@ -36,7 +36,6 @@ jobs:
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           python3 tools/idiomas.py
-          python3 tools/idiomas.py
           # Upstream's ajustes_secoes legacy assertion flags seven deliberately
           # hidden card-depth options; this is unrelated to Stable's changes.
           # Stable's selector, metadata and per-profile contracts are checked above.
@@ -150,7 +149,10 @@ jobs:
 
           - Mantiene la sincronizzazione delle impostazioni compatibili con il profilo Nuvio.
           - Priorità ai metadati esterni, anche in italiano, quando selezionata.
-          - Selettore fonti ad ogni avvio VOD se attivo, anche da Continua a guardare.
+          - Selettore fonti VOD prima del player quando attivo, inclusa la rail Continua a guardare.
+          - Da Continua a guardare la scelta non riappare se lo stesso film/episodio ha iniziato a riprodursi meno di 6 ore prima sullo stesso profilo e TV.
+          - Seconda lingua audio di riserva per profilo: priorita a quella principale, poi alla riserva, infine traccia predefinita del file.
+          - Traduzioni UI complete e allineate; preferenze audio precedenti conservate.
           - Guida TV esclusa dalla selezione obbligatoria.
           - ID dedicato space.nuvio.native.stable: non sovrascrive la Legacy.
           - Compilazione ARMv7 con motore P2P, ASS e conversione DTS.
