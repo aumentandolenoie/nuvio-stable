@@ -1070,9 +1070,13 @@ static void buscarParaPlayerModo(int renovar) {
   // episodio anterior nao pode contaminar o watchdog nem a lista de exclusao.
   limparFonteVOD();
   autoEsperaN = 0;
-  // CARIMBA O ALVO ANTES DE PEDIR (issue #101). A lista que voltar passa a
-  // saber de que episodio ela e; sem isto ninguem consegue distinguir "a lista
-  // do E6" de "a lista do E5 que ninguem invalidou". Ver streams.h.
+  // La nuova ricerca e asincrona: il vecchio elenco NON deve restare visibile
+  // mentre gli addon stanno cercando l'episodio successivo. L'invalidazione
+  // avviene prima di aggiornare il timbro del nuovo target, senza toccare una
+  // lista gia corretta o il fast path del prefetch di Next.
+  if (alvo[0] && stream_n() > 0 && !stream_lista_do_alvo(alvo))
+    stream_invalidar("player episode search changed");
+  // CARIMBA O ALVO ANTES DE PEDIR (issue #101). La lista nuova eredita questo id.
   stream_definir_alvo(alvo);
   if (idC[0]) {
     // SEM LEGENDA DE ADDON NO CANAL: o id do canal ia ao OpenSubtitles como
