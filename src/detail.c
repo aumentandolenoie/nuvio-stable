@@ -3659,12 +3659,13 @@ void detail_atualizar(float dt, Uint32 agora) {
         if (ciAuto->temporadas[k] == tt) { temporada = k; break; }
       for (k = 0; k < n; k++) {
         const CatEp *ep = cat_episodio(idx, k);
-        if (!ep || ep->temporada != tt) continue;
-        if (ep->episodio == ee) { trovata = c; break; }
+        if (!ep || (ciAuto->nTemporadas > 0 && ep->temporada != tt)) continue;
+        if (ep->temporada == tt && ep->episodio == ee) { trovata = c; break; }
         c++;
       }
       if (trovata >= 0) {
         epAncora = trovata;
+        if (foco.fileira == SEC_EPISODIOS) foco.coluna = trovata;
         foco.colunaLembrada[SEC_EPISODIOS] = trovata;
         foco.colunaLembrada[SEC_TEMPORADAS] = temporada;
         foco.nColunas[SEC_EPISODIOS] = epVisiveis();
