@@ -2,7 +2,7 @@
 // puo' ricevere una URL HTTPS di un formato progressivo (audio+video).
 // Questo risolutore e' volutamente sperimentale: YouTube puo' rispondere 403,
 // richiedere token di origine o fornire soltanto formati SABR. In quel caso
-// il chiamante deve ripiegare sulle fonti Apple TV/IMDb gia' supportate.
+// la fonte TMDB mostra un errore e non ripiega silenziosamente su Apple/IMDb.
 // Nessuna dipendenza da browser, applicazioni esterne o servizi di terze parti.
 #include "traileryt.h"
 #include "rede.h"
@@ -162,17 +162,10 @@ static int resolver(const char *id, char *url, size_t cap) {
     "User-Agent: com.google.ios.youtube/21.03.2 (iPhone16,2; U; CPU iOS 18_0 like Mac OS X)",
     NULL
   };
-  const char *const hVr[] = {
-    "X-YouTube-Client-Name: 28",
-    "X-YouTube-Client-Version: 1.65.10",
-    "Origin: https://www.youtube.com",
-    "User-Agent: com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L) gzip",
-    NULL
-  };
   const char *api = "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
   if (tentaCliente(api,id,"ANDROID","21.03.36","Android","14","Pixel 8",hAndroid,url,cap)) return 1;
   if (tentaCliente(api,id,"IOS","21.03.2","iOS","18.0","iPhone16,2",hIos,url,cap)) return 1;
-  return tentaCliente(api,id,"ANDROID_VR","1.65.10","Android","12L","Quest 3",hVr,url,cap);
+  return 0;
 }
 
 static void *ytWorker(void *unused) {
