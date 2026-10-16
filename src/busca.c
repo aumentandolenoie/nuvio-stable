@@ -130,7 +130,7 @@ static float buTopoEsq(void) {
 // altura (capa 330x186 + padding 20); cartaz 180x270, nome 17 a 10 abaixo.
 #define BU_KICK_H       34.0f
 #define BU_MELHOR_H    226.0f
-#define BU_CARTAZ_W    330.0f
+#define BU_CARTAZ_W    270.0f
 #define BU_CARTAZ_H    270.0f
 #define BU_NOME_ALT     (buTecladoNativo() ? 50.0f : 30.0f)
 #define BU_SECAO_GAP    34.0f
@@ -1115,11 +1115,8 @@ void busca_evento(const SDL_Event *e) {
       // `fastHorizontalNavigationEnabled`: o web pula de 3 em 3 dentro da
       // fileira quando a preferencia esta ligada. Numa fileira de 12 cards, 4
       // toques em vez de 12 para chegar ao fim.
+      // Ogni pressione del telecomando deve avanzare di un solo poster.
       focus_mover(&focoRes, 1, 0);
-      if (ajustes_navegacao_horizontal_rapida()) {
-        focus_mover(&focoRes, 1, 0);
-        focus_mover(&focoRes, 1, 0);
-      }
       break;
     case SDLK_UP: {
       int moveu = focus_mover(&focoRes, 0, -1);
