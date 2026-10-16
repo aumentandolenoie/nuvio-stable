@@ -263,6 +263,24 @@ int main(void) {
   ateAquiSoEnviaMudancas();
   booleanosENumerosInvalidos();
   loteSoContaMudancasEfetivas();
+  // Lo stato unificato dei visti (Nuvio Sync + player) deve fornire
+  // l'ultimo episodio completato per il pulsante Play della serie.
+  {
+    int t = 0, e = 0;
+    vistoep_esquecer();
+    assert(!vistoep_ultimo_visto("ttOffice", &t, &e));
+    vistoep_definir("ttOffice", 2, 11, 1);
+    vistoep_definir("ttOffice", 2, 12, 1);
+    vistoep_definir("ttOffice", 2, 15, 0);
+    vistoep_definir("ttAltraSerie", 9, 9, 1);
+    assert(vistoep_ultimo_visto("ttOffice", &t, &e) && t == 2 && e == 12);
+    vistoep_definir("ttOffice", 3, 1, 1);
+    assert(vistoep_ultimo_visto("ttOffice", &t, &e) && t == 3 && e == 1);
+    vistoep_definir("ttOffice", 3, 1, 0);
+    assert(vistoep_ultimo_visto("ttOffice", &t, &e) && t == 2 && e == 12);
+    vistoep_esquecer();
+    puts("ok Nuvio Sync: ancora dei visti per episodio e profilo");
+  }
   puts("vistoep: tudo ok");
   return 0;
 }
