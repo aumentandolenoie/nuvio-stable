@@ -476,6 +476,7 @@ void faixas_abrir_em(int col) {
   // A sonda esperava 20 s de buffer (video.c) — numa fonte lenta a folha
   // abria com "Legenda 1..N" e sem selo ASS, e a escolha ia a TV.
   if (modo) { video_sondar_mkv_agora(); legendasui_abrir(); }
+  else video_sondar_mkv_agora(); // mostra anche i codec che la TV ha nascosto
   // Clamp nas duas colunas. A lista de legendas CRESCE durante a sessao (as do
   // OpenSubtitles chegam depois) e a de audio so existe apos o sourceInfo:
   // guardar um indice de antes e reabrir sem conferir poe o foco fora do vetor.
