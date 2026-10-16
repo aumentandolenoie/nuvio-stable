@@ -98,6 +98,15 @@ static void gravarLocalEhPendenteComHora(void) {
   s = porChave("tt1234567_s4e9");
   assert(s && s->posSeg == 1500 && s->lastWatchedMs == agora);
   { ProgRegistro r[8]; assert(prog_ler(r, 8) == 2); }
+  // Il prossimo episodio e a 0%: la recenza della SERIE e quella dell\x27ultima
+  // riproduzione, non un timestamp inesistente dell\x27episodio successivo.
+  assert(prog_ultimo_da_obra("tt1234567:4:11") == agora);
+  assert(prog_ultimo_da_obra("tt1234567") == agora);
+  assert(prog_ultimo_da_obra("tt9999999") == 0);
+  // Non usare l\x27attivita di un altro profilo per ordinare questa rail.
+  perfil = 2;
+  assert(prog_ultimo_da_obra("tt1234567") == 0);
+  perfil = 1;
   // ruido do player nao grava
   assert(!prog_gravar_local("tt1234567", 4, 9, 0, 0, -1));
   assert(!prog_gravar_local("tt1234567", 4, 9, 1, 1, -1));
