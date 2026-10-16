@@ -7671,7 +7671,8 @@ static int nValores(int op) {
   // destaque e sem botao Trailer na pagina (#204, log da 1.6.5: "detalhe: sem
   // trailer (ajuste 3, apple tem, imdb tem, youtube n/a)"). Fora da lista, o 3
   // ja gravado le como fora da faixa e fica o padrao, Automatico (limita).
-  if (op == AJ_TRAILER_FONTE) return 3;
+  // Il quinto valore apre il trailer TMDB nel browser webOS.
+  if (op == AJ_TRAILER_FONTE) return 5;
 #endif
   return OPCOES[op].n;
 }
