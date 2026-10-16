@@ -19,6 +19,14 @@ assert 'return i == AJ_CW_FONTE' in s and 'i == AJ_AUD_LINGUA2' in s
 assert 'ling_local_audio2(c)' in s
 assert 'OPC(AJ_AUD_LINGUA), OPC(AJ_AUD_LINGUA2)' in ui
 assert 'secondary audio language: Nenhuma' in default
+picker = Path('src/ajustes_ux_dados.inc').read_text()
+assert 'else if (op == AJ_AUD_LINGUA2)' in picker
+reserve = picker.split('else if (op == AJ_AUD_LINGUA2)', 1)[1].split('else if (op == AJ_LEG_LINGUA', 1)[0]
+assert 'v == 0' in reserve and '"Nenhuma"' in reserve
+assert 'v + 1' in reserve and 'ling_opcao_codigo(idx)' in reserve
+assert 'ling_nome(cod)' in reserve and 'i18n(texto)' in reserve
+assert 'ling_audio2(void)   { return emVigor(localAud2, ""); }' in Path('src/linguas.c').read_text()
+
 for source in (v, t, a):
     assert 'nv_audiopref_trova(' in source
     assert 'ling_audio(), ling_audio2()' in source or 'ling_audio(),\n                                          ling_audio2()' in source
