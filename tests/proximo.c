@@ -25,6 +25,12 @@ static CatItem serie(int t, int e, int progresso) {
   return c;
 }
 
+// Visti sincronizzati: il prossimo non puo tornare all'inizio della serie.
+static int epGiaVisto(void *u, int t, int e) {
+  int *lim = (int *)u;
+  return t == 2 && e <= *lim;
+}
+
 int main(void) {
   ProxSugestao s;
 
@@ -171,6 +177,30 @@ int main(void) {
     assert(prox_indice_seguinte(l, 7, 0, 1) == 0);           // tocando especial: segue a T1
     assert(prox_indice_seguinte(NULL, 0, 1, 1) == -1);
     puts("ok  proximo episodio: repetido, faltando, virada, especial, fim");
+  }
+  {
+    // The Office: T2E12 concluso in Nuvio Sync -> T2E13, mai T1E1.
+    CatEp v[5] = { ep(1, 1, "prima stagione", ""),
+                   ep(2, 11, "Office E11", ""), ep(2, 12, "Office E12", ""),
+                   ep(2, 13, "Office E13", ""), ep(3, 1, "Office S3", "") };
+    int t = 0, e = 0, vistos = 12;
+    assert(prox_nao_visto_depois(v, 5, 2, 12, AGORA, epGiaVisto, &vistos, &t, &e));
+    assert(t == 2 && e == 13);
+    // Salto di stagione, nessuna ripartenza dal primo episodio.
+    assert(prox_nao_visto_depois(v, 5, 2, 13, AGORA, NULL, NULL, &t, &e));
+    assert(t == 3 && e == 1);
+    // L'episodio 13 gia visto va saltato.
+    vistos = 13;
+    assert(prox_nao_visto_depois(v, 5, 2, 12, AGORA, epGiaVisto, &vistos, &t, &e));
+    assert(t == 3 && e == 1);
+    // Il successivo suggerito dalla conta T2E1 richiede ancora T2E0.
+    assert(prox_nao_visto_depois(v, 5, 2, 0, AGORA, NULL, NULL, &t, &e));
+    assert(t == 2 && e == 11);
+    // Episodio futuro: mai inviare le fonti per una puntata non pubblicata.
+    snprintf(v[4].dataIso, sizeof v[4].dataIso, "2099-01-01");
+    assert(!prox_nao_visto_depois(v, 5, 2, 13, AGORA, NULL, NULL, &t, &e));
+    assert(!prox_nao_visto_depois(v, 5, 3, 1, AGORA, NULL, NULL, &t, &e));
+    puts("ok Nuvio Sync: E12->E13, cambio stagione, visti, futuro");
   }
   puts("proximo: PASS (ancora absoluta, janela de novidade, virada de temporada,"
        " fim da serie, sem progresso)");
