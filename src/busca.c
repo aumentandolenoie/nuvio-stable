@@ -56,7 +56,7 @@
 
 // --- GLASS UI "ILHA" (mockup aprovado, secao 10 de design/glass-ilha) ---------
 // Campo e teclado sao DUAS ILHAS na coluna da esquerda (520 de largura); a
-// direita ficam o melhor resultado, os titulos e as buscas recentes. Margem 96
+// direita ficam as fileiras dos cataloghi addon e le ricerche recenti. Margem 96
 // (a .pg do mockup), rail fixa entra antes. Sem contorno: foco = superficie
 // mais clara (linhas, cartoes) ou pilula no acento (tecla, chip).
 //   campo   520 x 76, raio 38, padding 28, lupa 28, texto 28/500
@@ -104,9 +104,9 @@ static float buTopoEsq(void) {
 }
 
 // --- Teclado -----------------------------------------------------------------
-#define BU_TECLA_W     62.0f
-#define BU_TECLA_GAP   12.0f
-#define BU_KB_COLS      6
+#define BU_TECLA_W     46.0f
+#define BU_TECLA_GAP    6.0f
+#define BU_KB_COLS     10
 // FILEIRAS DE TECLAS DE LETRA, no maximo (o layout latino usa 6; o cirilico, 7)
 // mais a de baixo (espaco/apagar/limpar/layout). O numero vivo e kbFil.
 #define BU_KB_MAX_FIL   8
@@ -114,7 +114,7 @@ static float buTopoEsq(void) {
 #define BU_KB_W       (BU_KB_COLS * BU_TECLA_W + (BU_KB_COLS - 1) * BU_TECLA_GAP)
 #define BU_KB_X       buX()
 #define BU_KB_Y       (buTopoEsq() + BU_CAMPO_H + BU_ILHA_GAP)   // topo da ilha do teclado
-#define BU_TECLA_RAIO   18.0f
+#define BU_TECLA_RAIO   13.0f
 #define BU_MAX_CONSULTA 48
 
 // --- Coluna da direita --------------------------------------------------------
@@ -126,7 +126,7 @@ static float buTopoEsq(void) {
 // Biblioteca caber inteira, e a busca nao precisa de mais fileiras por isso.
 #define BU_MAX_FILEIRAS 32
 #define BU_MAX_POR_FIL  12
-// Rotulo em caixa alta (15/700) 18 acima do conteudo; melhor resultado 226 de
+// Rotulo em caixa alta (15/700) 18 acima del contenuto; layout coerente.
 // altura (capa 330x186 + padding 20); cartaz 180x270, nome 17 a 10 abaixo.
 #define BU_KICK_H       34.0f
 #define BU_MELHOR_H    226.0f
@@ -270,9 +270,9 @@ static const char LAYOUT_CIRILICO[] =
 static int  layoutCir = 0;                 // 0 latino, 1 cirilico
 static char kbTeclas[BU_KB_MAX_TECLAS][5];
 static int  kbN;                           // teclas de letra do layout ativo
-static int  kbFil = 6;                     // fileiras de letra do layout ativo
+static int  kbFil = 4;                     // fileiras de letra do layout ativo
 static int  kbTemLayout;                   // a tecla de layout aparece?
-static int  KB_COLUNAS[BU_KB_MAX_FIL + 1] = { 6, 6, 6, 6, 6, 6, 3 };
+static int  KB_COLUNAS[BU_KB_MAX_FIL + 1] = { 10, 10, 10, 6, 3 };
 static float buResY(void) {
   if (buTecladoNativo()) return buTopoEsq() + BU_CAMPO_H + 44.0f;
   if (!buRetrato()) return 64.0f;
