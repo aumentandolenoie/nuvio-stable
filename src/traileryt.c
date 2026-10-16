@@ -193,3 +193,16 @@ int traileryt_obter(const char *youtube_id, char *url, size_t url_cap) {
   pthread_mutex_unlock(&ytMutex);
   return status;
 }
+
+void traileryt_invalidar(const char *url) {
+  if (!url || !url[0]) return;
+  pthread_mutex_lock(&ytMutex);
+  if (ytState == 1 && !strcmp(ytResolved, url)) {
+    ytState = -1;
+    ytResolved[0] = 0;
+    ytFinishedAt = time(NULL);
+    printf("[trailer] TMDB interno: URL non accettata dal player, riserva Apple/IMDb\n");
+    fflush(stdout);
+  }
+  pthread_mutex_unlock(&ytMutex);
+}
