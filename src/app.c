@@ -4632,6 +4632,12 @@ void app_atualizar(float dt, Uint32 agora) {
         // e serie, mesmo quando o catalogo ja trouxe elenco.
         if (!strcmp(ci->tipo, "series") || strcmp(ci->tipo, "movie") ||
             ci->nElenco == 0) desc_episodios(i, 0);
+        // Il prefetch poteva aver gia ricevuto fonti di T1E1 prima che
+        // Nuvio Sync risolvesse il prossimo episodio (es. T2E13).
+        // Non mostrare/riusare quelle fonti per il nuovo target; una lista
+        // gia corretta resta invece intatta (fast path).
+        if (stream_n() > 0 && !stream_lista_do_alvo(alvo))
+          stream_invalidar("detail next episode changed");
         { stream_definir_alvo(alvo); addons_buscar(alvo, ci->tipo); }
         aquecerAoAbrirTitulo();
         // Legendas do OpenSubtitles junto: sao dezenas por titulo e a busca
