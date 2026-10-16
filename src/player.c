@@ -742,11 +742,20 @@ void player_erro_fonte(void) {
   erroBotao = 0;
   prebuscaUrl[0] = 0;                // erro no meio da pre-busca: o video nao sai
   erroTitulo[0] = erroDica[0] = 0;   // erro sem motivo nao herda o do anterior
+  // Snapshot do erro tecnico ANTES de fechar/trocar o backend. Apenas UI:
+  // nao altera decoder, abertura, tentativas ou politica de fallback.
+  { const char *tecnico = video_erro_texto();
+    if (tecnico && *tecnico)
+      snprintf(erroDica, sizeof erroDica, "Player: %.145s", tecnico);
+    else
+      snprintf(erroDica, sizeof erroDica, "Diagnostica: backend sem codice; video_falhou=%d, video_pronto=%d",
+               video_falhou(), video_pronto());
+  }
 }
 void player_erro_fonte_motivo(const char *titulo, const char *dica) {
   player_erro_fonte();
   snprintf(erroTitulo, sizeof erroTitulo, "%s", titulo ? titulo : "");
-  snprintf(erroDica, sizeof erroDica, "%s", dica ? dica : "");
+  if (dica && *dica) snprintf(erroDica, sizeof erroDica, "%s", dica);
 }
 // O VIDEO NAO ABRIU. Quase sempre e a fonte; mas quando o hub LS2 negou o
 // registro (registros 1720-1774: PERMISSION em toda sessao) nenhuma fonte
