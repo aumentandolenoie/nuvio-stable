@@ -1411,6 +1411,13 @@ static void abrirInterno(const HomeItem *it) {
   pediuMenu = 0;
   audIdx = -1;
   marco("detail_abrir");
+  // Fork regression guard: the TMDB full-screen request belongs to the title
+  // that created it. Changing title/carousel must never autoplay its old video.
+  tmdbCheioPendente = -1;
+  tmdbCheioDa = 0;
+#if !defined(__EMSCRIPTEN__) && !defined(NV_TPK)
+  tmdbSemFluxo = 0;
+#endif
   // O TITULO ANTERIOR PODE TER DEIXADO FIO NO AR. Trocar de titulo por dentro
   // (um credito de ator, um "Mais como este") reabre esta tela sem passar pelo
   // fechamento, e sem isto os pedidos da serie antiga continuavam saindo para
