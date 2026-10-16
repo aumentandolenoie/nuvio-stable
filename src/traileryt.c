@@ -117,7 +117,7 @@ static int estrai(const char *corpo, char *dest, size_t cap) {
 }
 
 static int tentaCliente(const char *api, const char *id, const char *nome,
-                         const char *version, const char *os, const char *model,
+                         const char *version, const char *os, const char *osVersion, const char *model,
                          const char *const *headers, char *url, size_t cap) {
   char corpo[620];
   char candidato[YT_URL_CAP] = "";
@@ -125,10 +125,10 @@ static int tentaCliente(const char *api, const char *id, const char *nome,
   int got, validoUrl;
   snprintf(corpo, sizeof corpo,
            "{\"videoId\":\"%s\",\"context\":{\"client\":{\"clientName\":\"%s\","
-           "\"clientVersion\":\"%s\",\"osName\":\"%s\",\"osVersion\":\"14\","
+           "\"clientVersion\":\"%s\",\"osName\":\"%s\",\"osVersion\":\"%s\","
            "\"deviceModel\":\"%s\",\"hl\":\"it\",\"gl\":\"IT\"}},"
            "\"contentCheckOk\":true,\"racyCheckOk\":true}",
-           id, nome, version, os, model);
+           id, nome, version, os, osVersion, model);
   risposta = rede_postar(api, 6, headers, corpo);
   if (risposta)
     js_texto(risposta, NULL, "status", status, sizeof status);
@@ -170,9 +170,9 @@ static int resolver(const char *id, char *url, size_t cap) {
     NULL
   };
   const char *api = "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-  if (tentaCliente(api,id,"ANDROID","21.03.36","Android","Pixel 8",hAndroid,url,cap)) return 1;
-  if (tentaCliente(api,id,"IOS","21.03.2","iOS","iPhone16,2",hIos,url,cap)) return 1;
-  return tentaCliente(api,id,"ANDROID_VR","1.65.10","Android","Quest 3",hVr,url,cap);
+  if (tentaCliente(api,id,"ANDROID","21.03.36","Android","14","Pixel 8",hAndroid,url,cap)) return 1;
+  if (tentaCliente(api,id,"IOS","21.03.2","iOS","18.0","iPhone16,2",hIos,url,cap)) return 1;
+  return tentaCliente(api,id,"ANDROID_VR","1.65.10","Android","12L","Quest 3",hVr,url,cap);
 }
 
 static void *ytWorker(void *unused) {
