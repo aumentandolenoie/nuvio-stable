@@ -6058,7 +6058,7 @@ static const char *ajudaOpcaoBase(int op) {
 
     // --- Integracoes
     case AJ_TMDB_LIGADO: return "O TMDB enriquece títulos com sinopse, elenco com foto, ficha técnica e trailers. Desligar corta tudo isso de uma vez.";
-    case AJ_TMDB_IDIOMA: return "Idioma dos metadados e preferência de lingua dos trailer encontrados pelo TMDB (italiano primeiro se disponibile, poi inglese). \"Da interface\" segue o idioma do app. Os trailer TMDB sono riferimenti YouTube, non una sorgente riproducibile su LG.";
+    case AJ_TMDB_IDIOMA: return "Idioma dos metadados e preferência dos vídeos encontrados pelo TMDB. Um trailer nesse idioma vem antes de um em inglês, quando disponível. \"Da interface\" segue o idioma do app. Na LG, os vídeos do TMDB são links do YouTube, não uma fonte reproduzível diretamente.";
     case AJ_TMDB_ARTE: return "Prefere pôster e fundo traduzidos pelo TMDB quando o título tem arte no seu idioma.";
     case AJ_TMDB_BASICO: return "Usa título e sinopse do TMDB no lugar dos que vieram no catálogo do addon.";
     case AJ_TMDB_FICHA: return "Preenche a ficha técnica da página do título (status, duração, países).";
