@@ -3012,6 +3012,72 @@ static void localizarContinuarPublicado(void);
 // (shouldUseSupabaseWatchProgressSync) e quando sync.c os aplica. Com um deles
 // vinculado, o "a seguir" ja vem dele.
 #define CONTA_JANELA_MS (60LL * 24 * 3600 * 1000)
+// La conta Nuvio scarica i 'visti' su un ciclo diverso dal progresso. Dopo la
+// chiusura del player il check locale esiste gia, ma sync_pull_watched_items puo
+// ancora indicare l'episodio PRECEDENTE. Ricavare la semente dal progresso
+// locale SOLO quando quel preciso episodio e anche marcato come VISTO, con
+// riproduzione provata (tocou=1): mai considerare un seek al 100% un visto.
+// La regola e solo per Nuvio Sync; non modifica i provider alternativi.
+static int contaSementiVisteQui(ContaSemente *sem, int n, int max, int altraFonte) {
+  ProgRegistro *reg;
+  int nr, i, k, aggiunte = 0, aggiornate = 0;
+  long long ora = (long long)time(NULL) * 1000LL;
+  if (altraFonte || !ajustes_hist_conta() || !sem || max < 1) return n;
+  reg = (ProgRegistro *)malloc(sizeof(*reg) * PROG_MAX);
+  if (!reg) return n;
+  nr = prog_ler(reg, PROG_MAX);
+  for (i = 0; i < nr; i++) {
+    const ProgRegistro *r = &reg[i];
+    int t = r->temporada, ep = r->episodio + 1, j;
+    if (r->temporada < 1 || r->episodio < 1 || ep > 32767 ||
+        r->tocou != 1 || r->durSeg < 120.0 ||
+        100.0 * r->posSeg / r->durSeg < ajustes_cw_concluido() ||
+        r->lastWatchedMs <= 0 || !r->contentId[0] ||
+        strlen(r->contentId) >= sizeof sem[0].id ||
+        (!r->pendente && (ora < r->lastWatchedMs ||
+                          ora - r->lastWatchedMs > CONTALIB_VISTOS_VALIDADE_S * 1000LL)) ||
+        vistoep_estado(r->contentId, t, r->episodio) != 1) continue;
+    for (j = 0; j < n; j++)
+      if (!strcmp(sem[j].id, r->contentId)) break;
+    if (j < n) {
+      // Con l'opzione 'episodio piu avanzato' non tornare indietro.
+      if (ajustes_cw_do_episodio_mais_alto() &&
+          (t < sem[j].temporada ||
+           (t == sem[j].temporada && ep < sem[j].episodio))) continue;
+      if (r->lastWatchedMs <= sem[j].vistoMs) continue;
+      sem[j].temporada = t; sem[j].episodio = ep;
+      sem[j].vistoMs = r->lastWatchedMs;
+      aggiornate++;
+    } else {
+      if (n >= max) {
+        int vecchio = 0;
+        for (k = 1; k < n; k++)
+          if (sem[k].vistoMs < sem[vecchio].vistoMs) vecchio = k;
+        if (r->lastWatchedMs <= sem[vecchio].vistoMs) continue;
+        j = vecchio;
+      } else j = n++;
+      snprintf(sem[j].id, sizeof sem[j].id, "%s", r->contentId);
+      sem[j].temporada = t; sem[j].episodio = ep;
+      sem[j].vistoMs = r->lastWatchedMs;
+      aggiunte++;
+    }
+  }
+  free(reg);
+  // La fase di montaggio usa l'ordine come spareggio e per la quota limitata.
+  for (i = 1; i < n; i++) {
+    ContaSemente x = sem[i];
+    for (k = i - 1; k >= 0 && sem[k].vistoMs < x.vistoMs; k--)
+      sem[k + 1] = sem[k];
+    sem[k + 1] = x;
+  }
+  if (aggiunte || aggiornate) {
+    printf("[desc] Nuvio Sync: prossimo episodio aggiornato dal visto locale "
+           "(%d nuove serie, %d avanzamenti), senza attendere il pull\n",
+           aggiunte, aggiornate);
+    fflush(stdout);
+  }
+  return n;
+}
 static int contaASeguir(CatItem *lista, int n, int max, int comOutraFonte) {
   static ContaSemente sem[PROX_MAX_BUSCAS];
   static const char *ids[PROX_MAX_BUSCAS];
@@ -3022,12 +3088,8 @@ static int contaASeguir(CatItem *lista, int n, int max, int comOutraFonte) {
   if (!ajustes_cw_proximo()) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
   nSem = contalib_sementes_a_seguir(sem, PROX_MAX_BUSCAS,
                                     ajustes_cw_do_episodio_mais_alto());
-  if (nSem < 0) {
-    printf("[desc] continuar assistindo: a seguir da conta: vistos da conta nao puxados "
-           "ou velhos; nenhuma semente\n");
-    descCwoDefinir(cwo_conta_definir, NULL, 0);
-    return n;
-  }
+  if (nSem < 0) nSem = 0; // offline: il visto locale verificato resta valido
+  nSem = contaSementiVisteQui(sem, nSem, PROX_MAX_BUSCAS, comOutraFonte);
   if (nSem < 1) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
   lote = (CatItem *)malloc(sizeof(CatItem) * PROX_MAX_BUSCAS);
   if (!lote) { descCwoDefinir(cwo_conta_definir, NULL, 0); return n; }
