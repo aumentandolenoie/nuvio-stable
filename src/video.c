@@ -336,6 +336,8 @@ unsigned video_bufferando_ms(void) { return SIM.bufferandoMs; }
 int  video_n_audio(void) { return SIM.nAudio; }
 int  video_n_legenda(void) { return SIM.nLeg; }
 const VideoFaixa *video_audio(int i) { return i >= 0 && i < SIM.nAudio ? &SIM.audio[i] : 0; }
+int video_n_audio_omesse(void) { return 0; }
+const VideoFaixa *video_audio_omessa(int i) { (void)i; return NULL; }
 const VideoFaixa *video_legenda(int i) { return i >= 0 && i < SIM.nLeg ? &SIM.leg[i] : 0; }
 int video_legenda_ordinal_mkv(int i) { (void)i; return -1; }
 int  video_mkv_sondado(void) { return 2; }
@@ -572,6 +574,10 @@ static int       semDVForcado;
 // quadro e reprocessar o JSON no desenho seria desperdicio.
 static VideoFaixa faixaAudio[NV_FAIXA_MAX], faixaLeg[NV_FAIXA_MAX];
 static int nAudio, nLeg, audioAtual, legAtual = -1;
+// Tracce codificate nel MKV ma assenti dal sourceInfo del decoder LG.
+// Solo per visualizzazione: nessun indice in questo vettore raggiunge uMS.
+static VideoFaixa audioOmesse[NV_FAIXA_MAX];
+static int nAudioOmesse;
 
 // Afirmacao de DV da fonte escolhida. Setada por video_definir_dv ANTES do
 // tocar, porque o video_tocar zera vidDV ao comecar uma sessao nova.
@@ -1954,6 +1960,45 @@ static void *lerMkv(void *arg) {
   }
 
   completarAudioMkv(fx, n);
+  // Il decoder LG puo nascondere DTS/TrueHD dalla lista sourceInfo.
+  // La stessa sonda MKV gia necessaria a sottotitoli/DV fornisce la lista
+  // originale: nessun Range addizionale, nessuna alterazione dell'ordine nativo.
+  // Affermiamo "incompatibile" solo quando il file elenca PIU audio di
+  // quanti ne espone la TV e il codec omesso e DTS/TrueHD/MLP.
+  if (mkvFioSessao == __atomic_load_n(&sessao, __ATOMIC_ACQUIRE) &&
+      !strcmp(url, urlAtual) && !dtsSessao) {
+    int originali = 0, dtsNativi = 0, hdNativi = 0, dtsGia = 0, hdGia = 0;
+    VideoFaixa omesse[NV_FAIXA_MAX];
+    int quante = 0;
+    for (i = 0; i < n; i++) if (fx[i].tipo == 2) originali++;
+    for (i = 0; i < nAudio; i++) {
+      const char *codec = faixaAudio[i].codec;
+      if (video_faixa_dts(&faixaAudio[i])) dtsNativi++;
+      if (strcasestr(codec, "TRUEHD") || strcasestr(codec, "MLP")) hdNativi++;
+    }
+    if (originali > nAudio) for (i = 0; i < n && quante < NV_FAIXA_MAX; i++) {
+      const MkvFaixa *m = &fx[i];
+      int dts = m->tipo == 2 && !strncmp(m->codec, "A_DTS", 5);
+      int hd = m->tipo == 2 && (strstr(m->codec, "TRUEHD") || strstr(m->codec, "MLP"));
+      VideoFaixa *v;
+      if (!dts && !hd) continue;
+      if (dts && dtsGia++ < dtsNativi) continue;
+      if (hd && hdGia++ < hdNativi) continue;
+      v = &omesse[quante++];
+      memset(v, 0, sizeof *v);
+      v->numero = -1; v->stream_index = v->stream_id = -1;
+      snprintf(v->idioma, sizeof v->idioma, "%s", m->idioma);
+      snprintf(v->codec, sizeof v->codec, "%s", m->codec);
+      v->canais = m->canais;
+      snprintf(v->rotulo, sizeof v->rotulo, "%s · %s%s",
+               v->idioma[0] ? i18n(ling_nome(v->idioma)) : i18n("Áudio"),
+               dts ? "DTS" : "TrueHD",
+               m->canais == 6 ? " 5.1" : m->canais == 8 ? " 7.1" : "");
+    }
+    // Pubblicare i dati prima del contatore, come le altre tracce native.
+    for (i = 0; i < quante; i++) audioOmesse[i] = omesse[i];
+    __atomic_store_n(&nAudioOmesse, quante, __ATOMIC_RELEASE);
+  }
   { int na = 0, achouVideo = 0;
     for (j = 0; j < n; j++) {
       if (fx[j].tipo == 1 && !achouVideo) {
@@ -2424,6 +2469,7 @@ static int tocarInterno(const char *url, int comDV) {
   velEnviada = 100;   // pipeline novo nasce em 1x; video_bombear reaplica
   bufferandoDesde = 0;
   nAudio = nLeg = 0; audioAtual = 0; legAtual = -1; vidAtmos = 0;
+  __atomic_store_n(&nAudioOmesse, 0, __ATOMIC_RELEASE);
   legUrlAtual[0] = 0; mkvPendente = 0;
   snprintf(vidHdr, sizeof vidHdr, "none");
   seiX0 = seiX1 = seiX2 = seiY0 = seiY1 = seiY2 = 0;
@@ -3399,6 +3445,10 @@ unsigned video_bufferando_ms(void) {
 int  video_n_audio(void)   { return nAudio; }
 int  video_n_legenda(void) { return nLeg; }
 const VideoFaixa *video_audio(int i)   { return (i >= 0 && i < nAudio) ? &faixaAudio[i] : NULL; }
+int video_n_audio_omesse(void) { return __atomic_load_n(&nAudioOmesse, __ATOMIC_ACQUIRE); }
+const VideoFaixa *video_audio_omessa(int i) {
+  return i >= 0 && i < video_n_audio_omesse() ? &audioOmesse[i] : NULL;
+}
 const VideoFaixa *video_legenda(int i) { return (i >= 0 && i < nLeg) ? &faixaLeg[i] : NULL; }
 int video_legenda_ordinal_mkv(int i) { return (i >= 0 && i < nLeg) ? faixaLeg[i].ordinalMkv : -1; }
 
