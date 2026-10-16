@@ -89,7 +89,7 @@ static int buTelefone(void) {
 }
 static int buRetratoTelefone(void) { return buRetrato() && buTelefone(); }
 static int buTecladoNativo(void) { return buTelefone() && st_ime_disponivel(); }
-static int buUmaColuna(void) { return buRetrato() || buTecladoNativo(); }
+static int buUmaColuna(void) { return 1; }
 static float buCampoH(void) { return buTecladoNativo() ? 104.0f : 76.0f; }
 static float buMargem(void) { return buTelefone() ? 48.0f : BU_MARG; }
 static float buX(void)   { return ajustes_rail_largura_fixa() + buMargem(); }
@@ -118,7 +118,7 @@ static float buTopoEsq(void) {
 #define BU_MAX_CONSULTA 48
 
 // --- Coluna da direita --------------------------------------------------------
-#define BU_RES_X       (buUmaColuna() ? buX() : buX() + BU_COL_W + BU_COL_GAP)
+#define BU_RES_X       buX()
 #define BU_RES_Y       buResY()
 #define BU_DIR         buDir()
 #define BU_RES_AREA_H  (NV_TELA_H - 48.0f - BU_RES_Y)
@@ -130,7 +130,7 @@ static float buTopoEsq(void) {
 // altura (capa 330x186 + padding 20); cartaz 180x270, nome 17 a 10 abaixo.
 #define BU_KICK_H       34.0f
 #define BU_MELHOR_H    226.0f
-#define BU_CARTAZ_W    180.0f
+#define BU_CARTAZ_W    330.0f
 #define BU_CARTAZ_H    270.0f
 #define BU_NOME_ALT     (buTecladoNativo() ? 50.0f : 30.0f)
 #define BU_SECAO_GAP    34.0f
@@ -274,10 +274,7 @@ static int  kbFil = 4;                     // fileiras de letra do layout ativo
 static int  kbTemLayout;                   // a tecla de layout aparece?
 static int  KB_COLUNAS[BU_KB_MAX_FIL + 1] = { 10, 10, 10, 6, 3 };
 static float buResY(void) {
-  if (buTecladoNativo()) return buTopoEsq() + BU_CAMPO_H + 44.0f;
-  if (!buRetrato()) return 64.0f;
-  return BU_KB_Y + 2.0f * BU_KB_PAD + (kbFil + 1) * BU_TECLA_W
-       + kbFil * BU_TECLA_GAP + 92.0f;
+  return buTopoEsq() + BU_CAMPO_H + 52.0f;
 }
 
 // O idioma dos metadados usa cirilico? (ru, uk, be, bg, sr, mk)
@@ -879,7 +876,7 @@ int busca_iniciar(void) {
   memset(animRec, 0, sizeof animRec);
   focoRec = 0; nRecLayout = 0;
   okPress = okLongo = 0; okDesde = 0;
-  campoFoco = buTecladoNativo() ? 1 : 0; animFocoCampo = animMic = 0.0f;
+  campoFoco = 1; animFocoCampo = animMic = 0.0f;
   refiltrar();
   return 1;
 }
@@ -993,7 +990,7 @@ void busca_evento(const SDL_Event *e) {
     okPress = 0; okLongo = 0; okDesde = 0;
   }
   if (e->type != SDL_KEYDOWN) return;
-  if (buTecladoNativo() && painel == 0 && !campoFoco) campoFoco = 1;
+  if (painel == 0 && !campoFoco) campoFoco = 1;
 
   if (k == SDLK_BACKSPACE && painel == 0) {
     if (nConsulta > 0) { campoApagar(); refiltrar(); }
@@ -1041,11 +1038,9 @@ void busca_evento(const SDL_Event *e) {
   if (painel == 0 && campoFoco) {
     switch (k) {
       case SDLK_DOWN:
-        if (buTecladoNativo()) {
-          if (nFil > 0 && !sugestao) { registrarConsulta(); painel = 1; }
-          else if (recentesVisiveis()) recentesEntrar();
-          else if (nFil > 0) painel = 1;
-        } else campoFoco = 0;
+        if (nFil > 0 && !sugestao) { registrarConsulta(); painel = 1; }
+        else if (recentesVisiveis()) recentesEntrar();
+        else if (nFil > 0) painel = 1;
         return;
       // DIREITA anda campo -> Falar -> Celular, o que existir aqui.
       case SDLK_RIGHT:
@@ -1141,7 +1136,7 @@ void busca_evento(const SDL_Event *e) {
           if (d < melhor) { melhor = d; focoRec = i; }
         }
         recentesAjustarFoco();
-      } else if (!moveu && buTecladoNativo()) { painel = 0; campoFoco = 1; }
+      } else if (!moveu) { painel = 0; campoFoco = 1; }
       break;
     }
     case SDLK_DOWN: focus_mover(&focoRes, 0,  1); break;
@@ -1167,12 +1162,12 @@ static float buPasso(void) {
   if (cols > 5) cols = 5;
   return (fmaxf(1.0f, larg) - (cols - 1) * 22.0f) / cols + 22.0f;
 #else
-  return (larg - 4.0f * 22.0f) / 5.0f + 22.0f;
+  return (larg - 3.0f * 26.0f) / 4.0f + 26.0f;
 #endif
 }
 static float buCartazW(void) {
-  float w = buPasso() - 22.0f;
-  return buTecladoNativo() || w < BU_CARTAZ_W ? w : BU_CARTAZ_W;
+  float w = buPasso() - 26.0f;
+  return w < BU_CARTAZ_W ? w : BU_CARTAZ_W;
 }
 // PESSOAS: avatar 64 + 14 + nome (18), vao 26 entre pessoas (o .av do mockup).
 #define BU_PESS_AV     (buTecladoNativo() ? 96.0f : 64.0f)
@@ -1496,7 +1491,9 @@ static void buArte(GfxRect r, const char *url, float raioPx, float a) {
 // Ilha do campo: lupa, texto 28/500, cursor no acento; com teclado/voz do
 // sistema (Android) o campo e alvo de foco e o microfone/celular entram no fim.
 static void desenhaCampo(Uint32 agora) {
-  GfxRect c = { buX(), buTopoEsq(), BU_COL_W, BU_CAMPO_H };
+  float larg = BU_DIR - buX();
+  float campoW = fminf(larg, 900.0f);
+  GfxRect c = { buX() + (larg - campoW) * 0.5f, buTopoEsq(), campoW, BU_CAMPO_H };
   TxtEstilo estilo = buTecladoNativo() ? TXT_HEADLINE : TXT_CALLOUT;
   float ar, ag, ab;
   ajustes_acento(&ar, &ag, &ab);
@@ -1559,6 +1556,8 @@ static void desenhaCampo(Uint32 agora) {
 
 // Ilha do teclado: teclas de 62 (raio 18), a focada na pilula do acento.
 static void desenhaTeclado(void) {
+  // La tastiera della TV è l'unica tastiera visibile nella ricerca.
+  return;
   if (buTecladoNativo()) return;
   char rotulo[8];
   int linhas = kbFil + 1;
