@@ -21,6 +21,7 @@
 
 // Fontes da vitrine (indices de V_DESCANSO_FONTE).
 #define DESC_FONTE_CATALOGO 0
+#define DESC_FONTE_ESCOLHIDOS 2
 #define DESC_FONTE_LISTA    1    // na lista + em andamento ("Continuar")
 
 // Uma vez por quadro, depois de esmaecer_quadro. `ativo` = esmaecer_descanso().
