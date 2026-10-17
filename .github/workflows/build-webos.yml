@@ -5,27 +5,30 @@ on:
     workflows: ["Verify Nuvio Stable before publishing"]
     types: [completed]
     branches: [main]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: write
 
 concurrency:
-  group: nuvio-stable-homebrew
+  group: ${{ github.event_name == 'pull_request' && format('nuvio-stable-build-pr-{0}', github.event.pull_request.number) || 'nuvio-stable-homebrew' }}
   cancel-in-progress: true
 
 jobs:
   build-lg-webos:
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
+    if: ${{ github.event_name == 'pull_request' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
       - name: Checkout Stable source
         uses: actions/checkout@v5
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.event.workflow_run.head_sha }}
           persist-credentials: false
 
       - name: Confirm verified commit is still main HEAD
+        if: github.event_name == 'workflow_run'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -204,7 +207,7 @@ jobs:
           retention-days: 30
 
       - name: Publish permanent public Homebrew Channel release
-        if: github.event.workflow_run.conclusion == 'success'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -229,7 +232,7 @@ jobs:
             --latest
 
       - name: Backfill version-specific notes for historical Stable releases
-        if: github.event.workflow_run.conclusion == 'success'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -266,7 +269,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Installation link
-        if: github.event.workflow_run.conclusion == 'success'
+        if: github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success'
         shell: bash
         run: |
           echo "## Nuvio Stable - LG webOS" >> "$GITHUB_STEP_SUMMARY"
