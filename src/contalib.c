@@ -489,6 +489,46 @@ int contalib_aplicar_vistos(void) {
     cat_historico_definir_id(vistos[i].id, vistos[i].tipo, 1);
     k++;
   }
+  // Diagnostica SOLO lettura: contare film/serie/episodi effettivamente
+  // ricevuti e trovare le discrepanze tra libreria e cronologia.
+  // Non inviare richieste, modificare marcature o stampare URL/credenziali.
+  {
+    int film = 0, serie = 0, episodi = 0, inLibreria = 0;
+    for (i = 0; i < nVistos; i++) {
+      if (vistos[i].temporada > 0 || vistos[i].episodio > 0) episodi++;
+      else if (!strcmp(vistos[i].tipo, "series")) serie++;
+      else film++;
+    }
+    for (i = 0; i < nItens; i++) {
+      int j;
+      if (strcmp(itens[i].tipo, "movie")) continue;
+      for (j = 0; j < nVistos; j++)
+        if (vistos[j].temporada == 0 && vistos[j].episodio == 0 &&
+            !strcmp(itens[i].id, vistos[j].id) &&
+            !strcmp(vistos[j].tipo, "movie")) { inLibreria++; break; }
+    }
+    printf("[visto-diag] account: righe=%d film=%d serie=%d episodi=%d; "
+           "film della libreria con match esatto=%d/%d elementi biblioteca\n",
+           nVistos, film, serie, episodi, inLibreria, nItens);
+    for (i = 0; i < nItens; i++) {
+      const ContaLibItem *b = &itens[i];
+      int target = strstr(b->titulo, "Jojo Rabbit") ? 1 :
+                   strstr(b->titulo, "Veloce come il vento") ? 2 : 0;
+      int esatto = 0, idDiversoTipo = 0, j;
+      if (!target) continue;
+      for (j = 0; j < nVistos; j++) {
+        if (vistos[j].temporada || vistos[j].episodio) continue;
+        if (!strcmp(b->id, vistos[j].id)) {
+          if (!strcmp(b->tipo, vistos[j].tipo)) esatto++;
+          else idDiversoTipo++;
+        }
+      }
+      printf("[visto-diag] riferimento=%s libreria=1 storico_match=%d "
+             "tipo_diverso=%d stato_catalogo=%d\n",
+             target == 1 ? "Jojo Rabbit" : "Veloce come il vento",
+             esatto, idDiversoTipo, cat_historico_estado_id(b->id, b->tipo));
+    }
+  }
   if (k) printf("[visto] marcado por conta-importacao pos=0 dur=0 assistido=0s n=%d titulos (sem reproducao local)\n", k);
   if (ke) printf("[visto] marcado por conta-importacao pos=0 dur=0 assistido=0s n=%d episodios (sem reproducao local)\n", ke);
   // O LOG POR FONTE (vistoep.h). A conta fala de TODOS os titulos num pull so,
