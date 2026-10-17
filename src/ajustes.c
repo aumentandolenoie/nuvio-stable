@@ -557,6 +557,7 @@ typedef enum {
   // Nuvio Stable 2.0.7: seconda lingua audio, append-only per non alterare
   // gli indici di tutte le vecchie preferenze. Solo su questa TV, per profilo.
   AJ_AUD_LINGUA2,
+  AJ_VITRINE_CATALOGOS, // local action; append-only to protect persisted settings
   AJ_N
 } OpcaoId;
 _Static_assert(DEBRID_RD == 0 && DEBRID_TB == 1 && DEBRID_PM == 2 && DEBRID_AD == 3,
@@ -605,7 +606,7 @@ static const char *V_TAMANHO_GB[] = { "Sem limite", "1 GB", "2 GB", "4 GB", "8 G
 static const int   TAMANHO_GB[]   = { 0, 1, 2, 4, 8, 15, 30 };
 static const char *V_RELOGIO_12H[] = { "24 horas", "12 horas (AM/PM)" };
 static const char *V_LAYOUT_AJUSTES[] = { "Painel", "Lista" };   // #339
-static const char *V_DESCANSO_FONTE[]  = { "Catálogo", "Minha lista e Continuar" };
+static const char *V_DESCANSO_FONTE[]  = { "Catálogo", "Minha lista e Continuar", "Cataloghi selezionati" };
 static const char *V_BRILHO_PLAYER[] = { "100%", "80%", "65%", "50%" };
 // #202: 0 = o ultimo modo usado (comportamento de sempre); 1..8 = PlrAspecto + 1.
 static const char *V_DTS_SAIDA[] = { "Estéreo (AAC)", "5.1 (Dolby Digital)" };
@@ -1379,7 +1380,7 @@ static const Opcao OPCOES[AJ_N] = {
   ACAO("Novidades 2.0"),
   ESC("Manter o vídeo pronto ao sair",   V_LIGA, 2),             // local: manterVideoLocal
   ESC("Estilo do descanso",              V_DESCANSO_ESTILO, 3),  // local: descansoEstiloLocal
-  ESC("Títulos da vitrine",              V_DESCANSO_FONTE, 2),   // local: descansoFonteLocal
+  ESC("Títulos da vitrine",              V_DESCANSO_FONTE, 3),   // local: descansoFonteLocal
   ESC("Formato do relógio",              V_RELOGIO_12H, 2),      // local: relogio12hLocal
   ESC("Tamanho máximo",                  V_TAMANHO_GB, 7),       // local: tamanhoMaxLocal
   ESC("Tamanho mínimo",                  V_TAMANHO_GB, 7),       // local: tamanhoMinLocal
@@ -1440,6 +1441,7 @@ static const Opcao OPCOES[AJ_N] = {
 
   ESC("Configuração dos provedores", V_PROVEDORES_ESCOPO, 2),
   ESC("Idioma do áudio de reserva", V_LINGUA, 2),
+  ACAO("Cataloghi della vetrina"),
 
 };
 
@@ -1688,6 +1690,7 @@ static const char *CHAVE[] = {
 
   "-provedoresEscopo",
   "audioReservaIdiomaLocal", // preferenza per profilo su questa TV, non nel blob web
+  "-vetrinaCataloghi", // action; selections persisted by keys in separate local file
 
 };
 // QUATRO VETORES PARALELOS indexados pelo mesmo enum AJ_*: OPCOES, CHAVE,
@@ -2154,7 +2157,7 @@ int ajustes_enquetes(void)         { return lig(AJ_ENQUETES); }
 int ajustes_busca_cinemeta(void)   { return lig(AJ_BUSCA_CINEMETA); }
 int ajustes_esmaecer(void)         { int v = valor[AJ_ESMAECER]; return v < 0 || v > 5 ? 3 : v; }
 int ajustes_descanso_estilo(void)  { int v = valor[AJ_DESCANSO_ESTILO]; return v < 0 || v > 2 ? 0 : v; }
-int ajustes_descanso_fonte(void)   { int v = valor[AJ_DESCANSO_FONTE]; return v < 0 || v > 1 ? 0 : v; }
+int ajustes_descanso_fonte(void)   { int v = valor[AJ_DESCANSO_FONTE]; return v < 0 || v > 2 ? 0 : v; }
 // #202: -1 = ultimo modo usado; 0..7 = PlrAspecto a aplicar ao abrir o video.
 int ajustes_proporcao_padrao(void) { int v = valor[AJ_PROPORCAO_PADRAO]; return v < 1 || v > 8 ? -1 : v - 1; }
 int ajustes_hdr_ui(void)            { return valor[AJ_HDR_UI] != 1; }   // 1 = Desligado
@@ -5481,6 +5484,7 @@ static const char *textoLeitura(int op) {
     return extras_mdblist_tem_chave() ? i18n("definida") : i18n("ausente");
   }
   if (op == AJ_HERO_CATALOGOS) return heroFonteRotulo();
+  if (op == AJ_VITRINE_CATALOGOS) return vitrineCatalogoRotulo();
   if (op == AJ_ESPACO) {
     // CURTO O BASTANTE PARA CABER NA COLUNA: "201.0 MB em 209 imagens" era
     // cortado em "209..." na TV, e o numero que sobrava era o menos util. O
@@ -5523,6 +5527,7 @@ static int inativa(int op) {
     // ser a vitrine.
     case AJ_DESCANSO_ESTILO: return valor[AJ_ESMAECER] == 0;
     case AJ_DESCANSO_FONTE:  return valor[AJ_ESMAECER] == 0 || ajustes_descanso_estilo() != 0;
+    case AJ_VITRINE_CATALOGOS: return valor[AJ_ESMAECER] == 0 || ajustes_descanso_estilo() != 0 || ajustes_descanso_fonte() != 2;
     case AJ_CW_OK: case AJ_CW_FONTE: case AJ_CW_PROXIMO:
     case AJ_CW_ESTILO: case AJ_CW_THUMB: case AJ_CW_FURTHEST:
     case AJ_CW_NAO_EXIBIDOS: case AJ_CW_ORDEM: case AJ_CW_CONCLUIDO: case AJ_CW_MINIMO: case AJ_CW_RETIDO_TAMBEM:
@@ -6433,6 +6438,68 @@ static char filLetra(int i) {
   return '#';
 }
 
+// Selected Vetrina catalogues use stable homeCatalogKey identifiers, never
+// transient row numbers. Read once; changing Home order does not corrupt them.
+#define VIT_SEL_MAX 8192
+static char vitSel[VIT_SEL_MAX];
+static int vitSelLido, vitFoco;
+static void vitrineLer(void) {
+  if (!vitSelLido) {
+    char *s = dados_ler("vetrina-catalogos.txt");
+    vitSel[0] = 0;
+    if (s) { snprintf(vitSel, sizeof vitSel, "%s", s); free(s); }
+    vitSelLido = 1;
+  }
+}
+int ajustes_vetrina_catalogo_ativo(const char *chave) {
+  char needle[FIL_CHAVE + 3];
+  if (!chave || !chave[0]) return 0;
+  vitrineLer();
+  snprintf(needle, sizeof needle, "\n%s\n", chave);
+  return strstr(vitSel, needle) != NULL;
+}
+static int vitrineIndice(int pos) {
+  int i, n = 0;
+  for (i = 0; i < fil_n(); i++)
+    if (fil_origem_de(fil_chave(i)) == FIL_ORIGEM_CATALOGO && !fil_linha_sem_addon(i)) {
+      if (n++ == pos) return i;
+    }
+  return -1;
+}
+static int vitrineTotal(void) {
+  int n = 0; while (vitrineIndice(n) >= 0) n++; return n;
+}
+static void vitrinePasso(int dir) {
+  int n = vitrineTotal();
+  if (n <= 0) { vitFoco = 0; return; }
+  vitFoco = (vitFoco + dir + n) % n;
+}
+static const char *vitrineCatalogoRotulo(void) {
+  static char label[164];
+  int idx = vitrineIndice(vitFoco);
+  if (idx < 0) { vitFoco = 0; idx = vitrineIndice(0); }
+  if (idx < 0) return i18n("Nessun catalogo disponibile");
+  snprintf(label, sizeof label, "%s %s", ajustes_vetrina_catalogo_ativo(fil_chave(idx)) ? "[x]" : "[ ]", fil_titulo(idx));
+  return label;
+}
+static void vitrineAlternar(void) {
+  int idx = vitrineIndice(vitFoco);
+  if (idx < 0) return;
+  vitrineLer();
+  const char *key = fil_chave(idx);
+  char needle[FIL_CHAVE+3], *at;
+  snprintf(needle, sizeof needle, "\n%s\n", key);
+  at = strstr(vitSel, needle);
+  if (at) memmove(at+1, at+strlen(needle)-1, strlen(at+strlen(needle)-1)+1);
+  else if (strlen(vitSel) + strlen(key) + 3 < sizeof vitSel) {
+    size_t n = strlen(vitSel);
+    // Every entry is newline-delimited, including the first and last.
+    if (!n) { vitSel[0] = '\n'; vitSel[1] = 0; n = 1; }
+    snprintf(vitSel+n, sizeof vitSel-n, "%s\n", key);
+  }
+  dados_gravar("vetrina-catalogos.txt", vitSel);
+}
+
 // Rotulo da fonte do destaque, para a coluna de valor.
 static const char *heroFonteRotulo(void) {
   const char *f = fil_hero_fonte();
@@ -7334,6 +7401,9 @@ static void eventoTela(const SDL_Event *e) {
   if (frAberta) { frEvento(k); return; }
   // A folha de fileiras e modal, como a do vinculo acima.
   if (filAberta) { eventoFileiras(k); return; }
+  if (focoOp == AJ_VITRINE_CATALOGOS && !inativa(focoOp) && (k == SDLK_LEFT || k == SDLK_RIGHT)) {
+    vitrinePasso(k == SDLK_RIGHT ? 1 : -1); return;
+  }
   if (uxEvento(k)) return;
 
   if (k == SDLK_RETURN || k == SDLK_KP_ENTER) {
@@ -7390,6 +7460,7 @@ static void eventoTela(const SDL_Event *e) {
     if (focoOp == AJ_FONTE_REGEX_PADRAO) { frRegexAbrir(); return; }
     if (focoOp == AJ_DIAGNOSTICO) { pediuDiagnostico = 1; return; }
     if (focoOp == AJ_HERO_CATALOGOS) { if (!inativa(focoOp)) heroFonteCiclar(+1); return; }
+    if (focoOp == AJ_VITRINE_CATALOGOS) { if (!inativa(focoOp)) vitrineAlternar(); return; }
     if (focoOp == AJ_VELOCIDADE) { pediuVelocidade = 1; return; }
     if (focoOp == AJ_LIVETV_DIAG) { pediuLivetvDiag = 1; return; }
     if (focoOp == AJ_STALKER_PORTAL || focoOp == AJ_STALKER_MAC) {
