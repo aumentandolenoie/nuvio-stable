@@ -114,6 +114,7 @@ int ajustes_hdr_ui(void);   // #205: 1 = Automatico (padrao), 0 = Desligado
 // #202: -1 = ultimo modo usado (padrao); 0..7 = PlrAspecto aplicado ao abrir o video.
 int ajustes_proporcao_padrao(void);
 int ajustes_descanso_estilo(void);   // ESM_ESTILO_* (esmaecer.h)
+int ajustes_vetrina_catalogo_ativo(const char *chave);
 int ajustes_descanso_fonte(void);    // DESC_FONTE_* (descanso.h)
 int ajustes_dolby_vision(void);
 int ajustes_dolby_atmos(void);
