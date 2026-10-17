@@ -3296,6 +3296,8 @@ static float alturaLinha(int i, int automatica) {
     float ab = grupo == 1 && nOrdem == foco ? abreFoco : nOrdem == linhaAnt ? abreAnt : 0.0f;
     float vis = nl > FOLHA_ADDON_FECHADA ? FOLHA_ADDON_FECHADA + (nl - FOLHA_ADDON_FECHADA) * ab : (float)nl;
     h = 20 + 40 + vis * FOLHA_ADDON_LD + 18 + (temMarca(i, automatica) ? FOLHA_MARCA_H : 0);
+    // Anche con il formatter dell'addon i badge occupano una riga propria.
+    if (selosPacoteVisiveis(&lista[i]) || logosDa(&lista[i], 0)) h += FOLHA_SELO_H + 8.0f;
     if (h < 96) h = 96;
   } else {
     // The connection line opens with the focused row even without a file name.
@@ -4443,6 +4445,26 @@ static void corpoFolha(float x, float w, float anim, Uint32 agora, int ilha) {
     cy+=40;
     if(ajustes_fonte_texto_addon()) {
       cy+=desenharFaixas(s,tx,cy,tr-tx,sel,anim);
+      // Non sostituire il formatter di AIOStreams: aggiungi soltanto i badge.
+      // Mantieni la medesima priorita pacchetto -> badge integrati del modo nativo.
+      {
+        uint64_t badgeMask = logosDa(s, 0);
+        int pacchetto = selosPacoteVisiveis((Stream *)s);
+        if(pacchetto || badgeMask) {
+          float tinta=sel?.78f:.52f;
+          if(pacchetto) {
+            float bw=desenharSelosPacote(s,tx,cy,txtW,FOLHA_SELO_H,
+                          ajustes_selos_coloridos()?anim*(sel?1.0f:.85f):anim,tinta,1);
+            if(selospacote_ativo()<0 && (badgeMask&badges_bit("p-crave")) && bw+16<txtW)
+              badges_desenhar_tom(badges_bit("p-crave"),tx+bw+16,cy,txtW-bw-16,
+                                  FOLHA_SELO_H,tinta,tinta,tinta,anim);
+          } else if(ajustes_selos_coloridos())
+            badges_desenhar_selos(badgeMask,tx,cy,txtW,FOLHA_SELO_H,anim*(sel?1.0f:.85f));
+          else
+            badges_desenhar_tom(badgeMask,tx,cy,txtW,FOLHA_SELO_H,tinta,tinta,tinta,anim);
+          cy+=FOLHA_SELO_H+8.0f;
+        }
+      }
       LinhaAddon ls[FOLHA_ADDON_LINHAS];
       int nl=linhasAddon(s,ls,FOLHA_ADDON_LINHAS);
       // abertura da linha: a mesma mola da altura (alturaLinha)

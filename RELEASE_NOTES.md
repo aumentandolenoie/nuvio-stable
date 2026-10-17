@@ -2,6 +2,16 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.23 — Badge delle fonti con formatter addon
+
+### Correzioni
+- Quando e attiva la descrizione fornita dall'addon (per esempio AIOStreams), la riga della fonte mostra anche i badge del pacchetto o quelli integrati.
+- Testo, icone, ordine delle informazioni e comportamento del formatter addon restano invariati; la riga si adatta all'altezza dei badge.
+- Nessuna modifica alla selezione delle fonti o al player video/audio.
+
+### Verifiche
+- Contratti automatici e compilazione nel workflow; conferma grafica su TV ancora necessaria.
+
 ## 2.0.22 — Diagnostica riutilizzo URL video
 
 ### Novità
