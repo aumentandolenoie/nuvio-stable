@@ -746,7 +746,13 @@ void player_erro_fonte(void) {
   // nao altera decoder, abertura, tentativas ou politica de fallback.
   { const char *tecnico = video_erro_texto();
     if (tecnico && *tecnico)
-      snprintf(erroDica, sizeof erroDica, "Player: %.76s | DTS=%d pronto=%d audio=%d", tecnico, video_dts_estado(), video_pronto(), video_audio_atual());
+      {
+#ifdef NV_WEBOS
+        snprintf(erroDica, sizeof erroDica, "Player: %.36s | %s", tecnico, video_diagnostico_apertura());
+#else
+        snprintf(erroDica, sizeof erroDica, "Player: %.76s | DTS=%d pronto=%d audio=%d", tecnico, video_dts_estado(), video_pronto(), video_audio_atual());
+#endif
+      }
     else
       snprintf(erroDica, sizeof erroDica, "Diagnostica: nessun codice dal backend; errore=%d, pronto=%d",
                video_falhou(), video_pronto());
