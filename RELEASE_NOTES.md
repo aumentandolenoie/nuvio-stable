@@ -2,6 +2,12 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.28 — Navigazione della Vetrina
+
+### Correzioni
+- Frecce sinistra/destra: Vetrina ora intercetta anche il rilascio del tasto (KEYUP), che prima risvegliava lo schermo e la chiudeva subito dopo la selezione.
+- Invariate le azioni Riproduci, Portami al Film/alla Serie e la normale protezione OLED per gli altri tasti.
+
 ## 2.0.27 — Vetrina interattiva
 
 ### Interfaccia
