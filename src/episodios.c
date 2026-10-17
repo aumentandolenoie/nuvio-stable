@@ -224,6 +224,7 @@ static void menuAbrir(int idx, int t, int e, const char *nome, int so) {
   // menu nasceu; a regra de ctxmenu.c que isto copiava abre no KEYDOWN, e la
   // consumir o soltar faz sentido.
   vmAberto = 1; vmFoco = 0; vmConsumir = 0; vmFontesPed = 0;
+  vmDescAberta = 0; vmDescPagina = 0;
   vmFeito = 0;
   vmQuantos[VM_ESTE] = 1;
   vmQuantos[VM_ATE]  = montarLote(idx, VM_ATE, t, e, NULL, 0);
