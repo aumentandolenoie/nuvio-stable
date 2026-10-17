@@ -12,7 +12,7 @@ char *rede_postar(const char *url, int seconds, const char *const *headers, cons
   else if (strstr(body, "\"clientName\":\"ANDROID\"")) androidCalls++;
   else if (strstr(body, "\"clientName\":\"IOS\"")) iosCalls++;
   else assert(!"unexpected client");
-  if (mockMode == 1 && iosCalls)
+  if (mockMode == 1 && iosCalls && !androidCalls)
     return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?deny=1\"}]}}");
   return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?ok=1\"}]}}");
 }
