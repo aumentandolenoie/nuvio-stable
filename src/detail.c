@@ -4115,6 +4115,62 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
     r.x = cx - r.w * 0.5f; r.y = cy - r.h * 0.5f;
     foco_anel(r, NV_RAIO_PILL, 1.0f, a);   // so com "Foco no cartaz" ligado
   }
+  // Azioni testuali del dettaglio: stessa geometria del Play, con icona a
+  // sinistra e label a destra. Non altera gli indici delle azioni.
+  if (circular && (icone == ACAO_LISTA || icone == ACAO_ASSISTIDO ||
+                   icone == ACAO_FONTES || icone == ACAO_TRAILER)) {
+    const CatItem *item = cat_item(idx);
+    int visto = item && cat_visto(item);
+    int inLista = item && item->naLista;
+    int colorato = icone == ACAO_LISTA || icone == ACAO_ASSISTIDO;
+    const char *label = icone == ACAO_LISTA ?
+      (inLista ? i18n("Aggiunto alla libreria") : i18n("Aggiungi alla libreria")) :
+      icone == ACAO_ASSISTIDO ? (visto ? i18n("Visto") : i18n("Non visto")) :
+      icone == ACAO_FONTES ? i18n("Fonti") : i18n("Trailer");
+    const char *simbolo = icone == ACAO_LISTA ? (inLista ? "check" : "mais") :
+      icone == ACAO_ASSISTIDO ? (visto ? "visto" : "naovisto") :
+      icone == ACAO_FONTES ? "fontes" : "aj_clapperboard";
+    float cr = 0.14f, cg = 0.15f, cb = 0.17f;
+    float tinta = 1.0f;
+    if (colorato) {
+      if (icone == ACAO_ASSISTIDO) {
+        cr = visto ? 0.16f : 0.87f;
+        cg = visto ? 0.70f : 0.20f;
+        cb = visto ? 0.32f : 0.24f;
+      } else (void)ajustes_acento_tinta(&cr, &cg, &cb);
+      tinta = focado ? ((0.2126f*cr+0.7152f*cg+0.0722f*cb)>0.53f ? 0.08f : 1.0f) : 1.0f;
+      // Bordo colorato, superficie scura appena tinta a riposo; piena in focus.
+      gfx_cor(r, NV_RAIO_PILL, cr, cg, cb, a * (focado ? 1.0f : 0.84f));
+      if (!focado) {
+        GfxRect inner = {r.x + 2.0f, r.y + 2.0f, r.w - 4.0f, r.h - 4.0f};
+        gfx_cor(inner, NV_RAIO_PILL, 0.10f + cr*0.11f,
+                0.105f + cg*0.11f, 0.12f + cb*0.11f, a);
+      } else luzFoco(r, a);
+    } else if (ajustes_vidro()) {
+      gfx_vidro_painel(r, NV_RAIO_PILL, 0.55f, a);
+      gfx_vidro_pilula_cheia(r, NV_RAIO_PILL, focado ? 1.0f : 0.0f, a);
+      tinta = focado ? (float)gfx_vidro_tinta(1.0f)/255.0f : 1.0f;
+    } else {
+      if (focado) {
+        tinta = focoAcento(&cr, &cg, &cb);
+        luzFoco(r, a);
+      }
+      gfx_cor(r, NV_RAIO_PILL, cr, cg, cb, a);
+    }
+    {
+      float iconW = r.h * 0.34f, gap = 14.0f;
+      int color = (int)(tinta * 255.0f);
+      TxtLinha t = txt_linha_corta(TXT_DET_BOTAO, label,
+                                   color, color, color, 255, r.w - 72.0f);
+      float groupW = iconW + gap + (float)t.w;
+      float left = r.x + (r.w - groupW) * 0.5f;
+      GfxRect ir = {left, r.y + (r.h - iconW)*0.5f, iconW, iconW};
+      gfx_icone(ir, simbolo, tinta, tinta, tinta, a);
+      txt_desenhar_alpha(t, left + iconW + gap,
+                         r.y + (r.h - t.h)*0.5f, a);
+    }
+    return;
+  }
   if (circular) {
     float ic;
     // A PELE E A DA TABELA (botoes.h, 21/09/2026): repouso 0.14/0.15/0.17 e
@@ -4891,7 +4947,19 @@ static void heroWeb(float a, float desloc) {
       if (a > .3f) ponteiro_alvo(anchor.x,anchor.y,anchor.w,anchor.h,ponteiroDetalhe,NULL,-1,first);
     } else for (; nb < n; nb++) {
       int acaoAtual = acaoEm(nb);
-      float largura = acaoAtual == ACAO_ASSISTIDO ? 190.0f : NV_DETW2_CIRC;
+      const CatItem *cat = cat_item(idx);
+      const char *rotAcao = acaoAtual == ACAO_LISTA ?
+        ((cat && cat->naLista) ? i18n("In libreria") : i18n("Aggiungi alla libreria")) :
+        acaoAtual == ACAO_ASSISTIDO ?
+        (cat && cat_visto(cat) ? i18n("Visto") : i18n("Non Visto")) :
+        acaoAtual == ACAO_FONTES ? i18n("Fonti") :
+        acaoAtual == ACAO_TRAILER ? i18n("Trailer") : NULL;
+      float largura = NV_DETW2_CIRC;
+      if (rotAcao) {
+        TxtLinha t = txt_linha(TXT_DET_BOTAO, rotAcao, 255, 255, 255, 255);
+        largura = t.w + NV_DETW2_CIRC * 0.34f + 14.0f + 64.0f;
+        if (largura < 154.0f) largura = 154.0f;
+      }
       GfxRect rc = { bx, cyBtn - NV_DETW2_CIRC * 0.5f,
                      largura, NV_DETW2_CIRC };
       if (detalheRetrato()) rc = heroAcaoRect(&bx, &cyBtn, rc.w, rc.h);

@@ -1,0 +1,71 @@
+name: Verify Nuvio Stable before publishing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/verify-release.yml
+      - .github/workflows/build-webos.yml
+      - src/**
+      - tests/**
+      - .nuvio-stable/**
+      - tools/**
+      - deploy/**
+      - RELEASE_NOTES.md
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact commit to verify
+        uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - name: Check release identity, notes and all regression contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .nuvio-stable/test_contract.py
+          python3 tools/stable-release-notes.py --check
+          python3 tests/ux_serie_tracce.py
+          bash tests/cwfonte6h.sh
+          bash tests/audio_reserva.sh
+          bash tests/progresso.sh
+          bash tests/vistoep.sh
+          cc -O1 -g -Wall -Wextra -Isrc tests/proximo.c -o /tmp/nuvio-proximo-next-tests
+          /tmp/nuvio-proximo-next-tests
+          bash tests/contalib.sh
+          bash tests/contapend.sh
+          cc -O1 -g -Wall -Wextra -pthread -Isrc src/cwordem.c src/cwretido.c tests/cwordem.c -o /tmp/nuvio-cwordem-core-tests
+          /tmp/nuvio-cwordem-core-tests
+          bash tests/traileryt.sh
+          bash tests/dts_retry.sh
+          bash tests/dts_playback.sh
+          bash tests/autosync.sh
+          bash tests/autosync_corpus.sh
+          python3 tools/idiomas.py
+          bash tests/stable_identity.sh
+          bash -n tools/arm.sh
+          bash -n tools/p2p-motor/build-arm.sh
+          NUVIO_PROPERTIES=/dev/null bash tools/env.sh --allow-unconfigured >/dev/null
+          python3 - <<'PY'
+          import json, pathlib, re
+          app = json.loads(pathlib.Path('deploy/app/appinfo.json').read_text())
+          xml = pathlib.Path('tools/tizen-config.xml').read_text()
+          version = re.search(r'<widget[^>]*version="([^"]+)"', xml, re.S)
+          assert version and version.group(1) == app['version'], 'Manifest webOS/Tizen versions differ'
+          assert app['id'] == 'space.nuvio.native.stable', 'Unexpected stable app ID'
+          print('PASS: webOS/Tizen manifests:', app['version'])
+          PY
