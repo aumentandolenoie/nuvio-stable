@@ -2474,7 +2474,7 @@ static int temExplorar(void) {
 // na ilha do circular "..." (detmais.h), o ULTIMO da linha. Ele so existe
 // quando ha ao menos uma delas — senao seria um botao que abre nada.
 static void maisDisponiveis(int d[DMAIS_N]) {
-  d[DMAIS_TRAILER] = temTrailer();
+  d[DMAIS_TRAILER] = 0; // La funzione trailer e ora nel pulsante dedicato.
   d[DMAIS_EXPLORAR] = temExplorar();
   d[DMAIS_ARTE] = temArte();
   d[DMAIS_RECOMENDAR] = temRecomendar();
@@ -2487,7 +2487,7 @@ static int temMais(void) {
 }
 static int nBotoesTodos(void) {
   return (ehSerie() ? 3 : 4) + (temInicio() ? 1 : 0) + (temLembrar() ? 1 : 0)
-         + (temMais() ? 1 : 0);
+         + 1 /* Trailer, visibile anche durante ricerca TMDB */ + (temMais() ? 1 : 0);
 }
 
 static int acoesAgrupadas(void) {
@@ -2530,7 +2530,8 @@ static int acaoEm(int n) {
   // O "..." E O ULTIMO DA LINHA e a conferencia vem ANTES do salto da serie:
   // com 3 circulares numa serie, a ultima posicao e n == 3, e a regra de
   // baixo devolveria 4 — que e ACAO_INICIO, o botao de texto.
-  if (temMais() && n == (ehSerie() ? 3 : 4)) return ACAO_MAIS;
+  if (n == (ehSerie() ? 3 : 4)) return ACAO_TRAILER;
+  if (temMais() && n == (ehSerie() ? 4 : 5)) return ACAO_MAIS;
   if (n >= 2 && ehSerie()) return n + 1;   // serie pula o olho
   return n;
 }
@@ -2917,6 +2918,8 @@ void detail_evento(const SDL_Event *e) {
         pedMarcar = 1;
       } else if (acao == ACAO_ASSISTIDO) {
         pedAssistido = 1;
+      } else if (acao == ACAO_TRAILER) {
+        tocarTrailerCheio(0);
       } else if (acao == ACAO_MAIS) {
         int d[DMAIS_N];
         maisDisponiveis(d);
@@ -4170,6 +4173,8 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
         txt_desenhar_alpha(t, cx - t.w * 0.5f,
                            r.y + r.h * 0.60f, a);
       }
+    } else if (icone == ACAO_TRAILER) {
+      gfx_icone(ig, "aj_clapperboard", ic, ic, ic, a);
     } else if (icone == ACAO_MAIS) {
       // RETICENCIAS do Lucide: o "tem mais aqui" de qualquer interface.
       gfx_icone(ig, "aj_ellipsis", ic, ic, ic, a);
