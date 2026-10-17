@@ -63,8 +63,16 @@ static unsigned sorteio(unsigned *e) { *e = *e * 1664525u + 1013904223u; return 
 
 static int itemServe(int i, int fonte) {
   const CatItem *c = cat_item(i);
-  return c && descanso_item_serve(c->backdrop[0] != 0, c->titulo[0] != 0, c->naLista,
-                                  c->progresso, fonte);
+  if (!c || !descanso_item_serve(c->backdrop[0] != 0, c->titulo[0] != 0, c->naLista,
+                                 c->progresso, fonte)) return 0;
+  if (fonte == DESC_FONTE_ESCOLHIDOS) {
+    for (int r = 0; r < cat_n_fileiras(); r++) {
+      const CatFileira *f = cat_fileira(r);
+      if (f && i >= f->ini && i < f->ini + f->n && ajustes_vetrina_catalogo_ativo(f->chave)) return 1;
+    }
+    return 0;
+  }
+  return 1;
 }
 
 // Sorteia a ordem da sessao. "Minha lista e Continuar" com menos de tres
@@ -91,7 +99,7 @@ static int itemDaFila(int pos) {
   int i;
   if (filaN <= 0) return -1;
   i = fila[((pos % filaN) + filaN) % filaN];
-  return itemServe(i, DESC_FONTE_CATALOGO) ? i : -1;
+  return itemServe(i, fonteAt) ? i : -1;
 }
 
 static void montarProxima(void) {
