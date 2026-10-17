@@ -524,9 +524,9 @@ int contalib_aplicar_vistos(void) {
         }
       }
       printf("[visto-diag] riferimento=%s libreria=1 storico_match=%d "
-             "tipo_diverso=%d stato_catalogo=%d\n",
+             "tipo_diverso=%d\n",
              target == 1 ? "Jojo Rabbit" : "Veloce come il vento",
-             esatto, idDiversoTipo, cat_historico_estado_id(b->id, b->tipo));
+             esatto, idDiversoTipo);
     }
   }
   if (k) printf("[visto] marcado por conta-importacao pos=0 dur=0 assistido=0s n=%d titulos (sem reproducao local)\n", k);
