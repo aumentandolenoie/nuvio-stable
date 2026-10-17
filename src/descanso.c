@@ -57,8 +57,6 @@ static float esperaT;              // preto esperando a arte seguinte
 static int   atual = -1;           // indice de catalogo na tela (ou -1)
 static GLuint texArte, texLogo, texProx;
 static int   pedidoAbrir = -1;
-static int   pedidoPlay;
-static int   acaoSelecionada = 1;
 static char  proxLinha[256];       // "Proxima estreia" do relogio, montada ao entrar
 
 static unsigned sorteio(unsigned *e) { *e = *e * 1664525u + 1013904223u; return *e >> 8; }
@@ -119,7 +117,6 @@ static void montarProxima(void) {
 }
 
 static void entrar(unsigned agora) {
-  acaoSelecionada = 1;
   tempoAtivo = 0.0f;
   itemT = 0.0f; esperaT = 0.0f;
   atual = -1; texArte = texLogo = texProx = 0;
@@ -134,13 +131,7 @@ int descanso_indice_em_tela(void) {
   if (itemT < 0.6f || itemT > DESC_ITEM_S - DESC_SAI_S) return -1;
   return atual;
 }
-void descanso_selezionar(int dir) { acaoSelecionada = dir < 0 ? 0 : 1; }
-int descanso_acao_selezionata(void) { return acaoSelecionada; }
-void descanso_pedir_abrir(void) {
-  pedidoAbrir = descanso_indice_em_tela();
-  pedidoPlay = pedidoAbrir >= 0 && acaoSelecionada == 0;
-}
-int descanso_pedido_riproduzir(void) { int v = pedidoPlay; pedidoPlay = 0; return v; }
+void descanso_pedir_abrir(void) { pedidoAbrir = descanso_indice_em_tela(); }
 int  descanso_pedido_abrir(void) { int v = pedidoAbrir; pedidoAbrir = -1; return v; }
 
 void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte) {
@@ -333,26 +324,6 @@ static void desenharVitrine(unsigned agora, float a) {
     lMeta = txt_linha_corta(TXT_HERO_META, meta, 226, 228, 234, 255, DESC_TEXTO_W);
     lSin = sin[0] ? txt_linha_corta(TXT_HERO_SIN, sin, 200, 204, 212, 255, DESC_TEXTO_W)
                   : (TxtLinha){ 0 };
-    // Due azioni vere, con evidenziazione controllata dal telecomando.
-    // Il bordo luminoso indica sempre quale azione eseguira OK.
-    if (okHome && k[4] > 0.01f) {
-      const char *azioni[2] = { i18n("Riproduci"),
-        i18n(!strcmp(c->tipo, "series") ? "Portami alla Serie" : "Portami al Film") };
-      float wx[2] = { 232.0f, 326.0f }, x = DESC_X, ph = 58.0f;
-      int j;
-      for (j = 0; j < 2; j++) {
-        int sel = acaoSelecionada == j;
-        GfxRect pill = { x, y - ph, wx[j], ph };
-        TxtLinha tA = txt_linha_corta(TXT_CAPTION2, azioni[j],
-                    sel ? 26 : 240, sel ? 26 : 240, sel ? 26 : 240, 255, wx[j]-30);
-        gfx_cor(pill, 14.0f, sel ? 0.98f : 0.18f,
-                sel ? 0.98f : 0.18f, sel ? 0.98f : 0.20f, k[4]);
-        txt_desenhar_alpha(tA, x + (wx[j] - tA.w) * 0.5f,
-                           pill.y + (ph - tA.h) * 0.5f, k[4]);
-        x += wx[j] + 18.0f;
-      }
-      y -= ph + 34.0f;
-    }
     if (lSin.tex) {
       y -= (float)lSin.h;
       txt_desenhar_alpha(lSin, DESC_X, y + (1.0f - k[3]) * 12.0f, k[3]);

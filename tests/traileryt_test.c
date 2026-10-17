@@ -12,7 +12,7 @@ char *rede_postar(const char *url, int seconds, const char *const *headers, cons
   else if (strstr(body, "\"clientName\":\"ANDROID\"")) androidCalls++;
   else if (strstr(body, "\"clientName\":\"IOS\"")) iosCalls++;
   else assert(!"unexpected client");
-  if (mockMode == 1 && androidCalls && !iosCalls)
+  if (mockMode == 1 && iosCalls && !androidCalls)
     return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?deny=1\"}]}}");
   return strdup("{\"streamingData\":{\"formats\":[{\"itag\":18,\"mimeType\":\"video/mp4\",\"url\":\"https://rr1.googlevideo.com/videoplayback?ok=1\"}]}}");
 }
@@ -66,16 +66,16 @@ int main(void) {
   assert(traileryt_invalidar("https://rr1.googlevideo.com/videoplayback?itag=18") == 0);
   assert(!hlsUrl("https://bad.host/p/.googlevideo.com/api/manifest/hls_playlist/index.m3u8"));
   assert(hlsUrl("https://manifest.googlevideo.com/api/manifest/hls_playlist/index.m3u8"));
-  mockMode = 1; // Android CDN 403: usare il client iOS, non VR
+  mockMode = 1; // iOS CDN 403: ripiegare su Android, non VR
   androidCalls = iosCalls = vrCalls = byteRequests = 0;
   assert(resolver("AbCdEfGh123", url, sizeof url) == 1);
   assert(strstr(url, "ok=1") != NULL);
   assert(androidCalls == 1 && iosCalls == 1 && vrCalls == 0);
   assert(byteRequests == 2);
-  mockMode = 2; // Android CDN 206: non chiamare gli altri client
+  mockMode = 2; // iOS CDN 206: non chiamare gli altri client
   androidCalls = iosCalls = vrCalls = byteRequests = 0;
   assert(resolver("AbCdEfGh123", url, sizeof url) == 1);
-  assert(androidCalls == 1 && iosCalls == 0 && vrCalls == 0 && byteRequests == 1);
+  assert(androidCalls == 0 && iosCalls == 1 && vrCalls == 0 && byteRequests == 1);
   puts("PASS: TMDB/YouTube native media URL selection and validation");
   return 0;
 }

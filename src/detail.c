@@ -4162,16 +4162,19 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       // Mantiene l'occhio originale, con stato leggibile dentro al bottone.
       // Riduce l'icona per lasciare spazio alla scritta anche sulla TV.
       int visto = cat_visto(cat_item(idx));
-      float gOlho = r.h * 0.34f;
-      GfxRect olho = {r.x + 22.0f, r.y + (r.h - gOlho) * 0.5f,
-                      gOlho, gOlho};
-      gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
+      // Il gruppo icona + testo e' centrato come una vera pillola.
+      // Padding simmetrico: nessuno spazio morto a destra del testo.
       {
         const char *stato = i18n(visto ? "Visto" : "Non Visto");
         int tinta = (int)(ic * 255.0f);
-        TxtLinha t = txt_linha_corta(TXT_CAPTION2, stato, tinta, tinta, tinta, 255,
-                                    r.w - 66.0f);
-        txt_desenhar_alpha(t, olho.x + olho.w + 12.0f,
+        float gOlho = r.h * 0.34f, gap = 13.0f;
+        TxtLinha t = txt_linha_corta(TXT_DET_BOTAO, stato, tinta, tinta, tinta, 255,
+                                    r.w - 60.0f);
+        float gruppo = gOlho + gap + (float)t.w;
+        float ix = r.x + (r.w - gruppo) * 0.5f;
+        GfxRect olho = {ix, r.y + (r.h - gOlho) * 0.5f, gOlho, gOlho};
+        gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
+        txt_desenhar_alpha(t, ix + gOlho + gap,
                            r.y + (r.h - t.h) * 0.5f, a);
       }
     } else if (icone == ACAO_TRAILER) {
