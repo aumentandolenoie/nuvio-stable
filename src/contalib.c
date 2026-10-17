@@ -272,7 +272,7 @@ int contalib_ler_vistos(const char *json) {
 
   total = contarLinhas(json);
   if (total < 1) return nVistos > 0 ? -1 : 0;
-  if (total > CONTALIB_VISTO_MAX) total = CONTALIB_VISTO_MAX;
+  if (total > CONTALIB_VISTO_MAX) {\n    printf("[contalib] vistos: %d linhas excedem capacidade %d; mantendo snapshot precedente\n", total, CONTALIB_VISTO_MAX);\n    return -1;\n  }
   novo = (ContaVisto *)calloc((size_t)total, sizeof *novo);
   if (!novo) return -1;
 
