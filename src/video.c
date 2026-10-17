@@ -2230,7 +2230,23 @@ int  video_reconectando(void) {
   return nv_recon_ativa(&recon) && (recon.pendente || !pronto) ? recon.tentativa : 0;
 }
 
+// Confronto in memoria degli URL consegnati al player fra aperture distinte.
+// Non salva o stampa l'URL, la firma o i token; si resetta al riavvio dell'app.
+static unsigned long long diagUrlUltimaFirma;
+static int diagUrlVista;
+static const char *diagUrlConfronto = "prima";
+static unsigned long long diagFirmaUrl(const char *s) {
+  unsigned long long h = 14695981039346656037ULL;
+  const unsigned char *p = (const unsigned char *)(s ? s : "");
+  while (*p) { h ^= *p++; h *= 1099511628211ULL; }
+  return h;
+}
 int video_tocar(const char *url) {
+  unsigned long long firma = diagFirmaUrl(url);
+  diagUrlConfronto = !diagUrlVista ? "prima" :
+                     firma == diagUrlUltimaFirma ? "uguale" : "diverso";
+  diagUrlUltimaFirma = firma;
+  diagUrlVista = 1;
   dvRecuado = 0;
   dtsTentou = 0; dtsRevisao = 0; dtsSaida[0] = 0; dtsNativePending = 0; dtsEstado = 0;
   dtsHabilitado = dts_playback_enabled() && dtsLiberadoNestaTv();
@@ -3497,6 +3513,7 @@ const char *video_diagnostico_apertura(void) {
            dtsSessao ? "pipeline-DTS" : pronto ? "dopo-load" : "prima-load",
            dtsTentou, dtsNativePending || (dtsTentou && !dtsSessao),
            recon.tentativa);
+  { size_t n = strlen(diag); snprintf(diag + n, sizeof diag - n, " URL=%s", diagUrlConfronto); }
   return diag;
 }
 int    video_decoder_anunciou(void) { return viuVideo; }
