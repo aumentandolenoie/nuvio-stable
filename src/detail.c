@@ -4124,8 +4124,8 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
     int inLista = item && item->naLista;
     int colorato = icone == ACAO_LISTA || icone == ACAO_ASSISTIDO;
     const char *label = icone == ACAO_LISTA ?
-      (inLista ? i18n("In libreria") : i18n("Aggiungi alla libreria")) :
-      icone == ACAO_ASSISTIDO ? (visto ? i18n("Visto") : i18n("Non Visto")) :
+      (inLista ? i18n("Aggiunto alla libreria") : i18n("Aggiungi alla libreria")) :
+      icone == ACAO_ASSISTIDO ? (visto ? i18n("Visto") : i18n("Non visto")) :
       icone == ACAO_FONTES ? i18n("Fonti") : i18n("Trailer");
     const char *simbolo = icone == ACAO_LISTA ? (inLista ? "check" : "mais") :
       icone == ACAO_ASSISTIDO ? (visto ? "visto" : "naovisto") :
