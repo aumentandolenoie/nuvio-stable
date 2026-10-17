@@ -1656,6 +1656,14 @@ int main(int argc, char **argv) {
           e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP ||
           e.type == SDL_MOUSEWHEEL || e.type == SDL_FINGERDOWN) {
         int age = e.type == SDL_KEYDOWN || e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_FINGERDOWN;
+        // In Vetrina le frecce selezionano l'azione senza uscire dal
+        // salvaschermo. Le altre interazioni mantengono il risveglio OLED.
+        if (e.type == SDL_KEYDOWN && esmaecer_descanso() &&
+            (e.key.keysym.sym == SDLK_LEFT || e.key.keysym.sym == SDLK_RIGHT) &&
+            descanso_indice_em_tela() >= 0) {
+          descanso_selezionar(e.key.keysym.sym == SDLK_LEFT ? -1 : 1);
+          continue;
+        }
         // OK na vitrine da tela de descanso abre o titulo que esta nela
         // (descanso.h). A tecla continua engolida: quem abre e o app.c.
         if (e.type == SDL_KEYDOWN && esmaecer_descanso() &&
