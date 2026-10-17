@@ -7679,7 +7679,8 @@ static void sinopseModalDesenhar(void) {
     txt_bloco_corta(TXT_DET_SIN, tituloDe(idx),255,255,255,box.x+36,box.y+24,box.w-72,42,1.0f,2);
     if (full) {
       int n=(int)strlen(full), off=sinPagina*520;
-      if (off>=n) { sinPagina = n>0 ? (n-1)/520 : 0; off=sinPagina*520; }\n      while (off > 0 && ((unsigned char)full[off] & 0xc0u) == 0x80u) --off;
+      if (off>=n) { sinPagina = n>0 ? (n-1)/520 : 0; off=sinPagina*520; }
+      while (off > 0 && ((unsigned char)full[off] & 0xc0u) == 0x80u) --off;
       txt_bloco_corta(TXT_DET_SIN,full+off,245,245,245,box.x+36,box.y+110,box.w-72,40,1.0f,14);
     }
     txt_bloco_corta(TXT_DET_SIN,i18n("Su/Giù: scorri · OK/Indietro: chiudi"),190,190,190,box.x+36,box.y+box.h-55,box.w-72,30,1.0f,1);
