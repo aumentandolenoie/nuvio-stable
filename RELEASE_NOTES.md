@@ -2,6 +2,13 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.30 — Pulsanti dettaglio in pillola
+
+### Interfaccia
+- Libreria, Visto/Non visto, Fonti e Trailer: pulsanti orizzontali con icona e testo accanto, larghezza adattata al testo.
+- Visto verde e Non visto rosso: bordo colorato e riempimento leggero a riposo; Libreria usa il colore di accento e indica "Aggiunto alla libreria" dopo il salvataggio.
+- Fonti e Trailer conservano la superficie neutra precedente.
+
 ## 2.0.29 — Vetrina semplificata, pillola e trailer
 
 ### Interfaccia
