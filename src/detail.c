@@ -2312,8 +2312,7 @@ static int secaoN(int r) {
     // ela rola para a tela e pronto. Zero colunas faria focus_mover PULA-LA
     // (focus.c:25) e a secao viraria inalcancavel — logo, tambem irrolavel.
     case SEC_DETALHES:
-      if (ehSerie()) return 0;
-      return nLinhasDetalhe() > 0 ? 1 : 0;
+      return 0;  // Sezione rimossa dalla pagina titoli.
     // NUMEROS DA TEMPORADA: UMA COLUNA POR EPISODIO da temporada escolhida
     // (ate o teto de pedidos do modulo, SA_EP_MAX). Esquerda/direita anda pelos
     // episodios e o mesmo episodio fica em foco nos tres cartoes
@@ -2353,7 +2352,7 @@ static int secaoN(int r) {
     // nem ao Wikidata nem ao Wikiquote, e a frase de vazio seria sobre uma
     // consulta que nunca aconteceu.
     case SEC_FRASES:
-      return (ci && ci->imdb[0]) ? 1 : 0;
+      return 0;  // Wikiquote non garantisce frasi in italiano.
     // Sem nenhuma nota a secao nao existe (nada de painel vazio).
     // UMA PARADA SO: o numero grande. Os blocos por fonte nao tomam foco
     // (dono 11/10/2026: "so focar no numero grande e depois ja desce").
@@ -4156,7 +4155,21 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       // O ESTADO E O DE cat_visto (#212), o mesmo do selo do cartaz: antes era
       // so `progresso >= 90`, e filme visto em outro aparelho (ou marcado pelo
       // menu do cartaz, que zera o progresso) ficava com o olho riscado.
-      gfx_icone(ig, cat_visto(cat_item(idx)) ? "visto" : "naovisto", ic, ic, ic, a);
+      // Mantiene l'occhio originale, con stato leggibile dentro al bottone.
+      // Riduce l'icona per lasciare spazio alla scritta anche sulla TV.
+      int visto = cat_visto(cat_item(idx));
+      float gOlho = r.h * 0.33f;
+      GfxRect olho = {cx - gOlho * 0.5f, r.y + r.h * 0.13f,
+                      gOlho, gOlho};
+      gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
+      {
+        const char *stato = i18n(visto ? "Visto" : "Non Visto");
+        int tinta = (int)(ic * 255.0f);
+        TxtLinha t = txt_linha_corta(TXT_CAPTION2, stato, tinta, tinta, tinta, 255,
+                                    r.w - 8.0f);
+        txt_desenhar_alpha(t, cx - t.w * 0.5f,
+                           r.y + r.h * 0.60f, a);
+      }
     } else if (icone == ACAO_MAIS) {
       // RETICENCIAS do Lucide: o "tem mais aqui" de qualquer interface.
       gfx_icone(ig, "aj_ellipsis", ic, ic, ic, a);
