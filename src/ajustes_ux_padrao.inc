@@ -271,3 +271,4 @@
   1, /* video preload and next episode buffer: Desligado, independent source setting */
   0, /* provider setup: shared legacy accounts; choice itself belongs to this profile */
   0, /* secondary audio language: Nenhuma, disabled until chosen */
+  0, /* Vetrina catalogue selection action: no scalar value */
