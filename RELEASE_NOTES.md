@@ -6,7 +6,7 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 
 ### Novità
 - Log di sola lettura delle pagine della cronologia account Nuvio, dei film, delle serie e degli episodi ricevuti.
-- Diagnostica mirata ai film Jojo Rabbit e Veloce come il vento: corrispondenza tra identificativi della libreria e della cronologia e stato del catalogo.
+- Diagnostica mirata ai film Jojo Rabbit e Veloce come il vento: corrispondenza tra identificativi della libreria e della cronologia.
 - La voce Account e servizi > Sincronizzazione ora accetta OK per avviare immediatamente un ciclo Nuvio Sync, con stato di avanzamento nella stessa riga.\n- Nessuna modifica ai dati remoti, alle marcature viste o ai meccanismi di sincronizzazione.
 
 ### Verifiche
