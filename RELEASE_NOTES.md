@@ -2,6 +2,17 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.25 — Cronologia account senza taglio a 2700
+
+### Correzioni
+- Il pull della cronologia vista continua oltre le prime tre pagine da 900, fino alla prima pagina incompleta (massimo di sicurezza 20 pagine / 18000 righe).
+- Se una pagina fallisce o il limite di sicurezza viene raggiunto ancora con una pagina piena, il risultato non viene applicato: resta la precedente copia integra.
+- Il parser rifiuta snapshot oltre la capacità anziché troncarli silenziosamente.
+- Nessuna cancellazione remota o cambiamento alle regole di marcatura; restano disponibili le diagnostiche introdotte nella 2.0.24.
+
+### Verifiche
+- Compilazione e contratti GitHub Actions; verifica reale su TV ancora necessaria.
+
 ## 2.0.24 — Diagnostica sincronizzazione visti
 
 ### Novità

@@ -63,13 +63,13 @@
 #define CONTALIB_PAGINA     500
 #define CONTALIB_PAGINAS    4
 // Vistos custam 48 bytes cada; o teto aqui pode ser folgado.
-#define CONTALIB_VISTO_MAX  2700
+#define CONTALIB_VISTO_MAX  18000
 // Paginacao de `sync_pull_watched_items`, como o web (pullRemoteWatchedItems,
 // watchedItemsSyncService.js:146): paginas de 900 ate uma vir incompleta. Era
 // SO a primeira: a conta do issue #199 respondeu exatamente 900 linhas, uma
-// pagina cheia — o resto nunca era pedido. Tres paginas cabem no teto acima.
+// pagina cheia — o resto nunca era pedido. Ate 20 paginas cabem no teto acima.
 #define CONTALIB_VISTO_PAGINA   900
-#define CONTALIB_VISTO_PAGINAS  3
+#define CONTALIB_VISTO_PAGINAS  20
 
 typedef struct {
   char id[24];        // content_id, "tt0111161"
