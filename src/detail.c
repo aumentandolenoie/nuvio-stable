@@ -2675,6 +2675,23 @@ static void executarMais(int dm) {
 }
 
 void detail_evento(const SDL_Event *e) {
+  if (sinLendo) {
+    if (e->type != SDL_KEYDOWN || e->key.repeat) return;
+    SDL_Keycode sk = e->key.keysym.sym;
+    if (sk == SDLK_ESCAPE || sk == SDLK_BACKSPACE || sk == SDLK_AC_BACK || sk == SDLK_DELETE || sk == SDLK_RETURN || sk == SDLK_KP_ENTER) sinLendo = 0;
+    else if (sk == SDLK_DOWN || sk == SDLK_RIGHT) sinPagina++;
+    else if ((sk == SDLK_UP || sk == SDLK_LEFT) && sinPagina > 0) sinPagina--;
+    return;
+  }
+  if (sinFoco && e->type == SDL_KEYDOWN && !e->key.repeat) {
+    SDL_Keycode sk = e->key.keysym.sym;
+    if (sk == SDLK_RETURN || sk == SDLK_KP_ENTER) {
+      if (sinopseDe(idx) && sinopseDe(idx)[0]) { sinLendo = 1; sinPagina = 0; }
+      return;
+    }
+    if (sk == SDLK_DOWN || sk == SDLK_ESCAPE || sk == SDLK_AC_BACK || sk == SDLK_BACKSPACE) { sinFoco = 0; if (sk != SDLK_DOWN) return; }
+    else if (sk == SDLK_UP || sk == SDLK_LEFT || sk == SDLK_RIGHT) { sinFoco = 0; return; }
+  }
   if (corpoSobArte()) {
     if (trocaarte_aberto()) trocaarte_evento(e);
     return;
@@ -2884,6 +2901,7 @@ void detail_evento(const SDL_Event *e) {
     if (!okDesceEm) return;
     dur = ponteiro_ok_longo() ? NV_HOLD_MS : SDL_GetTicks() - okDesceEm;
     okDesceEm = 0;
+    if (sinFoco) return;
     if (nivel == 0 && focoAmigos) {
       // A lista do que cada amigo achou, AQUI (dono, 06/10/2026), e nao mais a
       // aba Atividade do painel — que repetia so "viu".
@@ -3107,6 +3125,7 @@ void detail_evento(const SDL_Event *e) {
       AmigosTitulo at;
       if (amigosDoTitulo(&at)) { focoAmigos = 1; return; }
     }
+    if (k == SDLK_UP && sinopseDe(idx) && sinopseDe(idx)[0]) { sinFoco = 1; return; }
     if (k == SDLK_UP && reacao_detalhe_abrir(cat_item(idx))) return;
     if (k == SDLK_UP && !e->key.repeat) { pediuSocial = 1; return; }
     // CARROSSEL: a primeira seta para baixo so estica o cartao (ver carCheia).
@@ -4528,6 +4547,9 @@ static TextoGate gateHero;
 // Sinopse: o que foi desenhado por ultimo, para esvanecer entre o antigo e o
 // novo (ingles -> localizado, item raso -> completo) em vez de trocar de uma vez.
 static char   sinVisto[900], sinAnt[900];
+// Read-only full synopsis. The action is reached with UP from the hero buttons.
+static int sinFoco, sinLendo, sinPagina;
+
 static int    sinVistoInit;
 static Uint32 sinTrocaDesde;
 static float  hSinVis;            // altura reservada, suavizada
@@ -4542,6 +4564,7 @@ static void heroReiniciar(void) {
   serieaud_bloco_reiniciar();
   tgraf_reiniciar();
   sinVisto[0] = sinAnt[0] = 0; sinVistoInit = 0; sinTrocaDesde = 0;
+  sinFoco = sinLendo = sinPagina = 0;
   hSinVis = 0.0f; hSinInit = 0; hSinTick = 0;
   metaEsqVisto = 0; metaChegouEm = 0;
 }
@@ -5073,6 +5096,9 @@ static void heroWeb(float a, float desloc) {
                                larguraTextoHero(), NV_DETW2_LD_SIN, a * (1.0f - f),
                                NV_DETW2_SIN_LINHAS);
       else esqueletoSinopse(NV_DETW2_X, ySin, a * (1.0f - f));
+    }
+    if (sinFoco && sin) {
+      gfx_cor((GfxRect){NV_DETW2_X-9.0f, ySin-5.0f, larguraTextoHero()+18.0f, hSinVis+15.0f}, 0.02f, 0.2f, 0.35f, 0.52f, a*0.7f);
     }
     if (sin) txt_bloco_corta(TXT_DET_SIN, sin, 255, 255, 255, NV_DETW2_X, ySin,
                        larguraTextoHero(), NV_DETW2_LD_SIN, a * f,
@@ -7752,6 +7778,20 @@ void detail_desenhar(Uint32 agora) {
   menuDeVisto(agora);
   maisDesenhar();
   if (amtui_aberta()) { ponteiro_camada(); amtui_desenhar(agora); }
+  if (sinLendo) {
+    const char *full = sinopseDe(idx);
+    GfxRect box = {200.0f, 130.0f, NV_TELA_W-400.0f, NV_TELA_H-260.0f};
+    gfx_sem_recorte();
+    gfx_cor((GfxRect){0,0,NV_TELA_W,NV_TELA_H},0,0,0,0,0.86f);
+    gfx_cor(box,0.02f,0.10f,0.11f,0.15f,0.99f);
+    txt_bloco_corta(TXT_DET_SIN, tituloDe(idx),255,255,255,box.x+36,box.y+24,box.w-72,42,1.0f,2);
+    if (full) {
+      int n=(int)strlen(full), off=sinPagina*520;
+      if (off>=n) { sinPagina = n>0 ? (n-1)/520 : 0; off=sinPagina*520; }
+      txt_bloco_corta(TXT_DET_SIN,full+off,245,245,245,box.x+36,box.y+110,box.w-72,40,1.0f,14);
+    }
+    txt_bloco_corta(TXT_DET_SIN,i18n("Su/Giù: scorri · OK/Indietro: chiudi"),190,190,190,box.x+36,box.y+box.h-55,box.w-72,30,1.0f,1);
+  }
 }
 
 static void ultimoEpisodio(int *t, int *e) {
