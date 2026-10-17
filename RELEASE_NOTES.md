@@ -8,6 +8,7 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 - Il comando di marcatura conserva l'occhio aperto/sbarrato e mostra ora anche “Visto” o “Non Visto” dentro il pulsante.
 - Rimossa la sezione “Scheda tecnica di produzione” dai dettagli di film e serie.
 - Rimossa la sezione “Citazioni”: la fonte Wikiquote attuale recupera principalmente portoghese e inglese e non garantisce contenuti italiani.
+- Nei dettagli di film e serie, “Consigli” segue “Trailer” e “Raccolta” (quando disponibile), in ordine coerente anche col telecomando.
 - Nessuna modifica al funzionamento della marcatura, alla sincronizzazione o al player.
 
 ### Verifiche
