@@ -2090,6 +2090,9 @@ void ajustes_abrir_opcao(int op) {
 
 // Rotulo da fonte do destaque (fil_hero_fonte). Definida junto da folha de
 // fileiras, mais abaixo.
+static const char *vitrineCatalogoRotulo(void);
+static void vitrinePasso(int dir);
+static void vitrineAlternar(void);
 static const char *heroFonteRotulo(void);
 static void heroFonteCiclar(int dir);
 
@@ -6490,7 +6493,7 @@ static void vitrineAlternar(void) {
   char needle[FIL_CHAVE+3], *at;
   snprintf(needle, sizeof needle, "\n%s\n", key);
   at = strstr(vitSel, needle);
-  if (at) memmove(at+1, at+strlen(needle)-1, strlen(at+strlen(needle)-1)+1);
+  if (at) memmove(at, at+strlen(needle)-1, strlen(at+strlen(needle)-1)+1);
   else if (strlen(vitSel) + strlen(key) + 3 < sizeof vitSel) {
     size_t n = strlen(vitSel);
     // Every entry is newline-delimited, including the first and last.
@@ -8270,7 +8273,7 @@ static AjPreview familiaPreviaOpcao(int op) {
     case AJ_TAMANHO_UI: case AJ_TAMANHO_AJUSTES: case AJ_LAYOUT_AJUSTES: case AJ_INTERFACE_MODO: case AJ_FUNDO: case AJ_VIDRO_OPAC: case AJ_VIDRO_FOSCO:
     case AJ_AVANCADAS: case AJ_LOGO_APP: case AJ_ABERTURA:
     case AJ_ESMAECER: case AJ_BRILHO_PLAYER: case AJ_HDR_UI: case AJ_MANTER_VIDEO:
-    case AJ_DESCANSO_ESTILO: case AJ_DESCANSO_FONTE:
+    case AJ_DESCANSO_ESTILO: case AJ_DESCANSO_FONTE: case AJ_VITRINE_CATALOGOS:
       return AJPV_INTERFACE;
     case AJ_PERFIL_ATIVO: case AJ_SYNC: case AJ_SAIR:
     case AJ_PERFIL_PESQ: case AJ_PERFIL_EDITAR: case AJ_ADDONS_PRINCIPAL: case AJ_PROVEDORES_ESCOPO: case AJ_ENQUETES:
