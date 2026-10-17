@@ -819,6 +819,8 @@ static int puxarVistos(int perfil, char **destino) {
       free(pag); pag = NULL;
     }
     total += c;
+    printf("[sync] vistos: pagina=%d ricevuti=%d totale=%d limite=%d\n",
+           pagina, c, total, CONTALIB_VISTO_PAGINA * CONTALIB_VISTO_PAGINAS);
     if (c < CONTALIB_VISTO_PAGINA) break;
     if (pagina == CONTALIB_VISTO_PAGINAS)
       printf("[sync] vistos: %d linhas baixadas e a conta tem mais; o resto nao "
