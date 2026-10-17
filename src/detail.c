@@ -3127,7 +3127,7 @@ void detail_evento(const SDL_Event *e) {
       AmigosTitulo at;
       if (amigosDoTitulo(&at)) { focoAmigos = 1; return; }
     }
-    if (k == SDLK_UP && sinopseDe(idx) && sinopseDe(idx)[0]) { sinFoco = 1; return; }
+    if (k == SDLK_DOWN && sinopseDe(idx) && sinopseDe(idx)[0]) { sinFoco = 1; return; }
     if (k == SDLK_UP && reacao_detalhe_abrir(cat_item(idx))) return;
     if (k == SDLK_UP && !e->key.repeat) { pediuSocial = 1; return; }
     // CARROSSEL: a primeira seta para baixo so estica o cartao (ver carCheia).
@@ -7669,6 +7669,23 @@ static void maisDesenhar(void) {
   detmais_desenhar(maisAncora, 1.0f - trocaarte_visivel());
 }
 
+static void sinopseModalDesenhar(void) {
+  if (sinLendo) {
+    const char *full = sinopseDe(idx);
+    GfxRect box = {200.0f, 130.0f, NV_TELA_W-400.0f, NV_TELA_H-260.0f};
+    gfx_sem_recorte();
+    gfx_cor((GfxRect){0,0,NV_TELA_W,NV_TELA_H},0,0,0,0,0.86f);
+    gfx_cor(box,0.02f,0.10f,0.11f,0.15f,0.99f);
+    txt_bloco_corta(TXT_DET_SIN, tituloDe(idx),255,255,255,box.x+36,box.y+24,box.w-72,42,1.0f,2);
+    if (full) {
+      int n=(int)strlen(full), off=sinPagina*520;
+      if (off>=n) { sinPagina = n>0 ? (n-1)/520 : 0; off=sinPagina*520; }\n      while (off > 0 && ((unsigned char)full[off] & 0xc0u) == 0x80u) --off;
+      txt_bloco_corta(TXT_DET_SIN,full+off,245,245,245,box.x+36,box.y+110,box.w-72,40,1.0f,14);
+    }
+    txt_bloco_corta(TXT_DET_SIN,i18n("Su/Giù: scorri · OK/Indietro: chiudi"),190,190,190,box.x+36,box.y+box.h-55,box.w-72,30,1.0f,1);
+  }
+}
+
 void detail_desenhar(Uint32 agora) {
   if (!aberto) return;
   amigostitulo_atualizar();   // barato: so remonta quando o feed social mudou
@@ -7755,6 +7772,7 @@ void detail_desenhar(Uint32 agora) {
     if (pessoaAberta) { ponteiro_camada(); desenhaPessoa(s); }
     if (colListaAberta) { ponteiro_camada(); desenhaListaColecao(s); }
     if (episodios_menu_aberto()) ponteiro_camada();
+    sinopseModalDesenhar();
     reacaoPendente(s);
     maisDesenhar();
     if (amtui_aberta()) { ponteiro_camada(); amtui_desenhar(agora); }
@@ -7778,20 +7796,7 @@ void detail_desenhar(Uint32 agora) {
   menuDeVisto(agora);
   maisDesenhar();
   if (amtui_aberta()) { ponteiro_camada(); amtui_desenhar(agora); }
-  if (sinLendo) {
-    const char *full = sinopseDe(idx);
-    GfxRect box = {200.0f, 130.0f, NV_TELA_W-400.0f, NV_TELA_H-260.0f};
-    gfx_sem_recorte();
-    gfx_cor((GfxRect){0,0,NV_TELA_W,NV_TELA_H},0,0,0,0,0.86f);
-    gfx_cor(box,0.02f,0.10f,0.11f,0.15f,0.99f);
-    txt_bloco_corta(TXT_DET_SIN, tituloDe(idx),255,255,255,box.x+36,box.y+24,box.w-72,42,1.0f,2);
-    if (full) {
-      int n=(int)strlen(full), off=sinPagina*520;
-      if (off>=n) { sinPagina = n>0 ? (n-1)/520 : 0; off=sinPagina*520; }
-      txt_bloco_corta(TXT_DET_SIN,full+off,245,245,245,box.x+36,box.y+110,box.w-72,40,1.0f,14);
-    }
-    txt_bloco_corta(TXT_DET_SIN,i18n("Su/Giù: scorri · OK/Indietro: chiudi"),190,190,190,box.x+36,box.y+box.h-55,box.w-72,30,1.0f,1);
-  }
+  sinopseModalDesenhar();
 }
 
 static void ultimoEpisodio(int *t, int *e) {
