@@ -1,6 +1,6 @@
 {
   "id": "space.nuvio.native.stable",
-  "version": "2.0.26",
+  "version": "2.0.27",
   "vendor": "Nuvio Stable",
   "type": "native",
   "main": "nuvio-proto",

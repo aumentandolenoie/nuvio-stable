@@ -2,6 +2,19 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.27 — Vetrina interattiva
+
+### Interfaccia
+- La Vetrina offre due azioni selezionabili col telecomando: Riproduci e Portami al Film/alla Serie.
+- Riproduci usa il normale flusso di dettaglio, rispettando la scelta della fonte; l'altra azione apre la scheda del titolo.
+- Le frecce sinistra/destra cambiano azione senza chiudere la Vetrina.
+
+### Salvaschermo OLED LG
+- Nessuna simulazione di video nascosto: webOS garantisce l'esenzione dal salvaschermo soltanto ai video realmente visibili a schermo intero, incompatibile con l'overlay grafico di Vetrina. Le protezioni del televisore rimangono attive.
+
+### Verifiche
+- CI e test prima della pubblicazione; il comportamento del telecomando va verificato anche sulla TV.
+
 ## 2.0.26 — Pulsante Visto più chiaro e dettagli essenziali
 
 ### Interfaccia
