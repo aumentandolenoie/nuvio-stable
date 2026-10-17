@@ -169,8 +169,10 @@ static int resolver(const char *id, char *url, size_t cap) {
     NULL
   };
   const char *api = "https://www.youtube.com/youtubei/v1/player?key=AIzaSyAO_FJ2SlqU8Q4STEHLGCilw_Y9_11qcW8";
-  if (tentaCliente(api,id,"ANDROID","21.03.36","Android","14","Pixel 8",hAndroid,url,cap)) return 1;
+  // iOS offre piu' spesso manifest HLS multivariante. Provare prima iOS
+  // evita che un MP4 Android 360p tronchi la ricerca prematuramente.
   if (tentaCliente(api,id,"IOS","21.03.2","iOS","18.0","iPhone16,2",hIos,url,cap)) return 1;
+  if (tentaCliente(api,id,"ANDROID","21.03.36","Android","14","Pixel 8",hAndroid,url,cap)) return 1;
   return 0;
 }
 
