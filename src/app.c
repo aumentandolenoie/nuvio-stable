@@ -3733,12 +3733,7 @@ void app_atualizar(float dt, Uint32 agora) {
   // OK na vitrine da tela de descanso (descanso.h): abre o titulo, so com a
   // Home na frente. Em outra tela o OK so acordou.
   { int k = descanso_pedido_abrir();
-    int play = descanso_pedido_riproduzir();
-    if (k >= 0 && app_na_home()) {
-      abrirPorIndice(k);
-      if (play && detail_aberto()) detail_pedir_reproduzir();
-    }
-  }
+    if (k >= 0 && app_na_home()) abrirPorIndice(k); }
   vigiarMotorP2p();
   diagnostico_intro_atualizar(dt, agora);
   // Spotlight: a mola de entrada/saida e o ditado correm em qualquer tela; o

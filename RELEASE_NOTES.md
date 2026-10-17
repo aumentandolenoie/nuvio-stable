@@ -2,6 +2,16 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.29 — Vetrina semplificata, pillola e trailer
+
+### Interfaccia
+- Vetrina: rimossi i due pulsanti interattivi. OK apre la scheda del titolo visualizzato; gli altri tasti risvegliano Nuvio normalmente.
+- Pillola Visto/Non Visto: icona e scritta centrate come gruppo, con tipografia coerente con gli altri pulsanti.
+
+### Trailer TMDB
+- Il resolver prova prima il client iOS, potenzialmente in grado di fornire HLS adattivo, e soltanto dopo il client Android. Rimane il fallback MP4; nessuna promessa di HD per contenuti privi di qualità superiore.
+- Da verificare sulla LG C2 la qualità effettivamente scelta dal decoder.
+
 ## 2.0.28 — Navigazione della Vetrina
 
 ### Correzioni

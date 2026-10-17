@@ -32,10 +32,6 @@ void descanso_desenhar(unsigned agora);
 int  descanso_indice_em_tela(void);
 // OK na vitrine: guarda o pedido; app.c consome e abre o titulo.
 void descanso_pedir_abrir(void);
-// Scelta fra Riproduci (0) e scheda titolo (1) sulla Vetrina.
-void descanso_selezionar(int dir);
-int descanso_acao_selezionata(void);
-int descanso_pedido_riproduzir(void);
 int  descanso_pedido_abrir(void);   // indice ou -1; CONSOME
 
 // PURAS (teste): o item entra no filtro da fonte?
