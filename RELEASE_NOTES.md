@@ -2,6 +2,16 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.20 — Diagnostica errori e cambio audio
+
+### Novità
+- Messaggio di errore fonte con codice del player, stato DTS, disponibilità del video e indice audio.
+- Traccia diagnostica della richiesta di cambio audio (codec, indice e posizione), senza registrare URL o credenziali.
+- Nessuna modifica al funzionamento del decoder, alla conversione DTS o alla strategia di rete.
+
+### Verifiche
+- Verifiche statiche dei percorsi; test su LG reale necessari per riprodurre e diagnosticare l'errore 300 e la traccia inglese.
+
 ## 2.0.19 — Diagnostica di apertura delle fonti
 
 ### Novità
