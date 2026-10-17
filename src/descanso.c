@@ -86,8 +86,19 @@ static void montarFila(unsigned semente) {
     for (i = 0; i < n; i++) if (itemServe(i, fonte)) conta++;
     if (conta < 3) fonte = DESC_FONTE_CATALOGO;
   }
-  for (i = 0; i < n && filaN < DESC_FILA_MAX; i++)
-    if (itemServe(i, fonte)) fila[filaN++] = i;
+  // Reservoir sampling: any eligible title has the same probability of
+  // entering the 48-item session, including catalogues loaded later.
+  { unsigned vistos = 0;
+    for (i = 0; i < n; i++) {
+      if (!itemServe(i, fonte)) continue;
+      vistos++;
+      if (filaN < DESC_FILA_MAX) fila[filaN++] = i;
+      else {
+        unsigned j = sorteio(&semente) % vistos;
+        if (j < DESC_FILA_MAX) fila[j] = i;
+      }
+    }
+  }
   // Fisher-Yates sobre o que entrou.
   for (i = filaN - 1; i > 0; i--) {
     int j = (int)(sorteio(&semente) % (unsigned)(i + 1)), t = fila[i];
