@@ -2474,7 +2474,7 @@ static int temExplorar(void) {
 // na ilha do circular "..." (detmais.h), o ULTIMO da linha. Ele so existe
 // quando ha ao menos uma delas — senao seria um botao que abre nada.
 static void maisDisponiveis(int d[DMAIS_N]) {
-  d[DMAIS_TRAILER] = temTrailer();
+  d[DMAIS_TRAILER] = 0; // La funzione trailer e ora nel pulsante dedicato.
   d[DMAIS_EXPLORAR] = temExplorar();
   d[DMAIS_ARTE] = temArte();
   d[DMAIS_RECOMENDAR] = temRecomendar();
@@ -2487,13 +2487,14 @@ static int temMais(void) {
 }
 static int nBotoesTodos(void) {
   return (ehSerie() ? 3 : 4) + (temInicio() ? 1 : 0) + (temLembrar() ? 1 : 0)
-         + (temMais() ? 1 : 0);
+         + 1 /* Trailer, visibile anche durante ricerca TMDB */ + (temMais() ? 1 : 0);
 }
 
 static int acoesAgrupadas(void) {
-  if (detalheRetrato()) return 0;
-  return carro || ajustes_home_layout() == HOME_LAYOUT_DINAMICA ||
-         ajustes_home_layout() == HOME_LAYOUT_MODERNA;
+  // L'azione Trailer deve essere sempre raggiungibile e visibile:
+  // il gruppo a scomparsa nasconderebbe il nuovo pulsante sul layout Moderno.
+  // La riga diretta mantiene separate tutte le azioni e il menu «…».
+  return 0;
 }
 
 static int nBotoes(void) {
@@ -2530,7 +2531,8 @@ static int acaoEm(int n) {
   // O "..." E O ULTIMO DA LINHA e a conferencia vem ANTES do salto da serie:
   // com 3 circulares numa serie, a ultima posicao e n == 3, e a regra de
   // baixo devolveria 4 — que e ACAO_INICIO, o botao de texto.
-  if (temMais() && n == (ehSerie() ? 3 : 4)) return ACAO_MAIS;
+  if (n == (ehSerie() ? 3 : 4)) return ACAO_TRAILER;
+  if (temMais() && n == (ehSerie() ? 4 : 5)) return ACAO_MAIS;
   if (n >= 2 && ehSerie()) return n + 1;   // serie pula o olho
   return n;
 }
@@ -2917,6 +2919,8 @@ void detail_evento(const SDL_Event *e) {
         pedMarcar = 1;
       } else if (acao == ACAO_ASSISTIDO) {
         pedAssistido = 1;
+      } else if (acao == ACAO_TRAILER) {
+        tocarTrailerCheio(0);
       } else if (acao == ACAO_MAIS) {
         int d[DMAIS_N];
         maisDisponiveis(d);
@@ -4158,18 +4162,20 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       // Mantiene l'occhio originale, con stato leggibile dentro al bottone.
       // Riduce l'icona per lasciare spazio alla scritta anche sulla TV.
       int visto = cat_visto(cat_item(idx));
-      float gOlho = r.h * 0.33f;
-      GfxRect olho = {cx - gOlho * 0.5f, r.y + r.h * 0.13f,
+      float gOlho = r.h * 0.34f;
+      GfxRect olho = {r.x + 22.0f, r.y + (r.h - gOlho) * 0.5f,
                       gOlho, gOlho};
       gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
       {
         const char *stato = i18n(visto ? "Visto" : "Non Visto");
         int tinta = (int)(ic * 255.0f);
         TxtLinha t = txt_linha_corta(TXT_CAPTION2, stato, tinta, tinta, tinta, 255,
-                                    r.w - 8.0f);
-        txt_desenhar_alpha(t, cx - t.w * 0.5f,
-                           r.y + r.h * 0.60f, a);
+                                    r.w - 66.0f);
+        txt_desenhar_alpha(t, olho.x + olho.w + 12.0f,
+                           r.y + (r.h - t.h) * 0.5f, a);
       }
+    } else if (icone == ACAO_TRAILER) {
+      gfx_icone(ig, "aj_clapperboard", ic, ic, ic, a);
     } else if (icone == ACAO_MAIS) {
       // RETICENCIAS do Lucide: o "tem mais aqui" de qualquer interface.
       gfx_icone(ig, "aj_ellipsis", ic, ic, ic, a);
@@ -4881,15 +4887,17 @@ static void heroWeb(float a, float desloc) {
       desenhaBotao(anchor,NULL,ACAO_LISTA,nivel == 0 && botao == first,a);
       if (a > .3f) ponteiro_alvo(anchor.x,anchor.y,anchor.w,anchor.h,ponteiroDetalhe,NULL,-1,first);
     } else for (; nb < n; nb++) {
+      int acaoAtual = acaoEm(nb);
+      float largura = acaoAtual == ACAO_ASSISTIDO ? 190.0f : NV_DETW2_CIRC;
       GfxRect rc = { bx, cyBtn - NV_DETW2_CIRC * 0.5f,
-                     NV_DETW2_CIRC, NV_DETW2_CIRC };
+                     largura, NV_DETW2_CIRC };
       if (detalheRetrato()) rc = heroAcaoRect(&bx, &cyBtn, rc.w, rc.h);
-      desenhaBotao(rc, NULL, acaoEm(nb), nivel == 0 && botao == nb, a);
+      desenhaBotao(rc, NULL, acaoAtual, nivel == 0 && botao == nb, a);
       if (acaoEm(nb) == ACAO_MAIS) maisAncora = rc;
       if (nivel == 0 && botao == nb && acaoEm(nb) == ACAO_MAIS && !detmais_aberto())
         desenhaDicaBotao(rc, i18n("Mais opções"), a);
       if (a > 0.3f) ponteiro_alvo(rc.x, rc.y, rc.w, rc.h, ponteiroDetalhe, NULL, -1, nb);
-      bx += NV_DETW2_CIRC + NV_DETW2_BTN_GAP;
+      bx += largura + NV_DETW2_BTN_GAP;
     }
   }
 

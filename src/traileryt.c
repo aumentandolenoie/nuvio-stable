@@ -103,13 +103,19 @@ static int estrai(const char *corpo, char *dest, size_t cap) {
     }
     p = js_prox(fim);
   }
-  if (migliore >= 0) {
-    snprintf(dest, cap, "%s", candidato);
-    return 1;
+  // HLS e' una playlist adattiva: webOS puo' scegliere la risoluzione in
+  // base alla banda disponibile, a differenza del singolo MP4 360/720p.
+  // Validiamo prima il manifest; se non e' accessibile restiamo sul MP4
+  // progressivo gia' supportato, senza perdere la riproducibilita'.
+  {
+    char hls[YT_URL_CAP] = "";
+    js_texto(corpo, NULL, "hlsManifestUrl", hls, sizeof hls);
+    if (hlsUrl(hls) && provaDiretta(hls)) {
+      snprintf(dest, cap, "%s", hls);
+      return 1;
+    }
   }
-  // Alternativa iOS: manifest HLS direttamente leggibile dal decoder webOS.
-  js_texto(corpo, NULL, "hlsManifestUrl", candidato, sizeof candidato);
-  if (hlsUrl(candidato)) {
+  if (migliore >= 0) {
     snprintf(dest, cap, "%s", candidato);
     return 1;
   }
