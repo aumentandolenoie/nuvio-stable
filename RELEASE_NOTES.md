@@ -2,6 +2,16 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.22 — Diagnostica riutilizzo URL video
+
+### Novità
+- La schermata errore indica se l'indirizzo passato al player è identico, diverso o il primo osservato rispetto all'apertura precedente nella stessa sessione Nuvio.
+- Il confronto usa una firma volatile soltanto in memoria: non mostra URL, token o credenziali e non introduce richieste di rete.
+- Il confronto non prova che l'addon abbia rigenerato una fonte, né verifica validità o risposta HTTP.
+
+### Verifiche
+- Test automatici e compilazione attraverso GitHub Actions; verifica sul televisore ancora necessaria.
+
 ## 2.0.21 — Diagnostica della fase di apertura
 
 ### Novità
