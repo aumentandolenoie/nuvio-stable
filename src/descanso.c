@@ -52,6 +52,7 @@ static float tempoAtivo;           // segundos desde que a tela de descanso entr
 static int   fila[DESC_FILA_MAX];
 static int   filaN, filaPos;
 static unsigned filaRev;
+static int filaFonte, filaFontePedida = -1;
 static float itemT;                // segundos dentro do item atual
 static float esperaT;              // preto esperando a arte seguinte
 static int   atual = -1;           // indice de catalogo na tela (ou -1)
@@ -92,6 +93,8 @@ static void montarFila(unsigned semente) {
     int j = (int)(sorteio(&semente) % (unsigned)(i + 1)), t = fila[i];
     fila[i] = fila[j]; fila[j] = t;
   }
+  filaFonte = fonte;
+  filaFontePedida = fonteAt;
   filaRev = cat_revisao();
 }
 
@@ -99,7 +102,7 @@ static int itemDaFila(int pos) {
   int i;
   if (filaN <= 0) return -1;
   i = fila[((pos % filaN) + filaN) % filaN];
-  return itemServe(i, fonteAt) ? i : -1;
+  return itemServe(i, filaFonte) ? i : -1;
 }
 
 static void montarProxima(void) {
@@ -153,7 +156,7 @@ void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte)
   tempoAtivo += dt;
   if (estilo != ESM_ESTILO_VITRINE) return;
   // Catalogo trocado no meio (sync, perfil): sorteia de novo, sem cortar o atual.
-  if (filaRev != cat_revisao()) { montarFila(agora); filaPos = 0; }
+  if (filaRev != cat_revisao() || filaFontePedida != fonteAt) { montarFila(agora); filaPos = 0; atual = -1; }
   if (atual < 0) { atual = itemDaFila(filaPos); itemT = 0.0f; }
   c = atual >= 0 ? cat_item(atual) : NULL;
   texArte = c ? tex_obter_larg(c->backdrop, DESC_ARTE_LARG) : 0;
