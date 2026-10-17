@@ -2,6 +2,18 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.26 — Pulsante Visto più chiaro e dettagli essenziali
+
+### Interfaccia
+- Il comando di marcatura conserva l'occhio aperto/sbarrato e mostra ora anche “Visto” o “Non Visto” dentro il pulsante.
+- Rimossa la sezione “Scheda tecnica di produzione” dai dettagli di film e serie.
+- Rimossa la sezione “Citazioni”: la fonte Wikiquote attuale recupera principalmente portoghese e inglese e non garantisce contenuti italiani.
+- Nei dettagli di film e serie, “Consigli” segue “Trailer” e “Raccolta” (quando disponibile), in ordine coerente anche col telecomando.
+- Nessuna modifica al funzionamento della marcatura, alla sincronizzazione o al player.
+
+### Verifiche
+- Controlli automatizzati e build GitHub Actions; layout da verificare anche sulla TV.
+
 ## 2.0.25 — Cronologia account senza taglio a 2700
 
 ### Correzioni

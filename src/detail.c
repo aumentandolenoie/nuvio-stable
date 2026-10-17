@@ -669,17 +669,17 @@ typedef enum { SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO, SEC_REL
 // serie tem a propria tabela porque o enum (que a serie usava como ordem do
 // D-pad) mantem as Notas depois da audiencia.
 static const int ORDEM_FILME[] = {
-  SEC_NOTAS, SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO, SEC_RELACIONADOS,
+  SEC_NOTAS, SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO,
   SEC_AUD_ARCO, SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
-  SEC_TRAILERS, SEC_COLECAO, SEC_COMENTARIOS,
+  SEC_TRAILERS, SEC_COLECAO, SEC_RELACIONADOS, SEC_COMENTARIOS,
   SEC_ESTUDIOS, SEC_FRASES, SEC_DETALHES, SEC_PROGTEMP };
 // NUMEROS DA TEMPORADA (Glass UI 1.8, mockup "Notas e graficos"): os tres
 // graficos da serie viraram UM bloco logo depois das Notas. Ele usa a fileira
 // SEC_AUD_ARCO (SEC_NUMEROS); RADAR, DIGITAL e NOTAS_EP ficaram sem colunas.
 static const int ORDEM_SERIE[] = {
   SEC_TEMPORADAS, SEC_EPISODIOS, SEC_PROGTEMP, SEC_NOTAS, SEC_AUD_ARCO, SEC_ABAS_INFO, SEC_ELENCO,
-  SEC_RELACIONADOS, SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
-  SEC_TRAILERS, SEC_COLECAO, SEC_COMENTARIOS,
+  SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
+  SEC_TRAILERS, SEC_COLECAO, SEC_RELACIONADOS, SEC_COMENTARIOS,
   SEC_ESTUDIOS, SEC_FRASES, SEC_DETALHES };
 #define N_ORDEM ((int)(sizeof ORDEM_FILME / sizeof ORDEM_FILME[0]))
 #define SEC_NUMEROS SEC_AUD_ARCO
@@ -1021,14 +1021,6 @@ static void recalcularLayout(void) {
     // porque nome comprido quebra em duas ("Geneva Robertson-Dworet" na propria
     // captura do dono) e empurra o papel para baixo.
     y = baseDaAbaAtiva() + NV_DETP_EL_GAP_TRAKT;
-    // Recommendations keep their own row and focus, directly below cast.
-    topoSec[SEC_RELACIONADOS] = conteudoSec[SEC_RELACIONADOS] = y;
-    if (secaoN(SEC_RELACIONADOS) > 0) {
-      conteudoSec[SEC_RELACIONADOS] += NV_DETF_CAB_H + NV_DETF_CAB_GAP;
-      y = conteudoSec[SEC_RELACIONADOS] + alturaSecao(SEC_RELACIONADOS) + NV_DETF_SEC_GAP;
-      if (y + NV_DETF_PAD_FIM > docFim) docFim = y + NV_DETF_PAD_FIM;
-    }
-
     // AS TRES BANDAS DE AUDIENCIA vem antes dos comentarios, empilhadas pela
     // mesma regra: nascem onde a aba ativa termina e empurram o que vem depois.
     // Altura vinda do ultimo desenho (ver audAlt), porque cada grafico so diz
@@ -1059,6 +1051,14 @@ static void recalcularLayout(void) {
       y = conteudoSec[SEC_TRAILERS] + alturaSecao(SEC_TRAILERS) + NV_DETF_SEC_GAP;
       { float fim = y + NV_DETF_PAD_FIM - NV_DETF_SEC_GAP;
         if (fim > docFim) docFim = fim; }
+    }
+    // Consigli dopo i trailer, come nei dettagli film. La raccolta non
+    // compare nelle serie, quindi il D-pad salta quel gruppo assente.
+    topoSec[SEC_RELACIONADOS] = conteudoSec[SEC_RELACIONADOS] = y;
+    if (secaoN(SEC_RELACIONADOS) > 0) {
+      conteudoSec[SEC_RELACIONADOS] += NV_DETF_CAB_H + NV_DETF_CAB_GAP;
+      y = conteudoSec[SEC_RELACIONADOS] + alturaSecao(SEC_RELACIONADOS) + NV_DETF_SEC_GAP;
+      if (y + NV_DETF_PAD_FIM > docFim) docFim = y + NV_DETF_PAD_FIM;
     }
     topoSec[SEC_COMENTARIOS] = conteudoSec[SEC_COMENTARIOS] = y;
     if (secaoN(SEC_COMENTARIOS) > 0) {
@@ -2312,8 +2312,7 @@ static int secaoN(int r) {
     // ela rola para a tela e pronto. Zero colunas faria focus_mover PULA-LA
     // (focus.c:25) e a secao viraria inalcancavel — logo, tambem irrolavel.
     case SEC_DETALHES:
-      if (ehSerie()) return 0;
-      return nLinhasDetalhe() > 0 ? 1 : 0;
+      return 0;  // Sezione rimossa dalla pagina titoli.
     // NUMEROS DA TEMPORADA: UMA COLUNA POR EPISODIO da temporada escolhida
     // (ate o teto de pedidos do modulo, SA_EP_MAX). Esquerda/direita anda pelos
     // episodios e o mesmo episodio fica em foco nos tres cartoes
@@ -2353,7 +2352,7 @@ static int secaoN(int r) {
     // nem ao Wikidata nem ao Wikiquote, e a frase de vazio seria sobre uma
     // consulta que nunca aconteceu.
     case SEC_FRASES:
-      return (ci && ci->imdb[0]) ? 1 : 0;
+      return 0;  // Wikiquote non garantisce frasi in italiano.
     // Sem nenhuma nota a secao nao existe (nada de painel vazio).
     // UMA PARADA SO: o numero grande. Os blocos por fonte nao tomam foco
     // (dono 11/10/2026: "so focar no numero grande e depois ja desce").
@@ -4156,7 +4155,21 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       // O ESTADO E O DE cat_visto (#212), o mesmo do selo do cartaz: antes era
       // so `progresso >= 90`, e filme visto em outro aparelho (ou marcado pelo
       // menu do cartaz, que zera o progresso) ficava com o olho riscado.
-      gfx_icone(ig, cat_visto(cat_item(idx)) ? "visto" : "naovisto", ic, ic, ic, a);
+      // Mantiene l'occhio originale, con stato leggibile dentro al bottone.
+      // Riduce l'icona per lasciare spazio alla scritta anche sulla TV.
+      int visto = cat_visto(cat_item(idx));
+      float gOlho = r.h * 0.33f;
+      GfxRect olho = {cx - gOlho * 0.5f, r.y + r.h * 0.13f,
+                      gOlho, gOlho};
+      gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
+      {
+        const char *stato = i18n(visto ? "Visto" : "Non Visto");
+        int tinta = (int)(ic * 255.0f);
+        TxtLinha t = txt_linha_corta(TXT_CAPTION2, stato, tinta, tinta, tinta, 255,
+                                    r.w - 8.0f);
+        txt_desenhar_alpha(t, cx - t.w * 0.5f,
+                           r.y + r.h * 0.60f, a);
+      }
     } else if (icone == ACAO_MAIS) {
       // RETICENCIAS do Lucide: o "tem mais aqui" de qualquer interface.
       gfx_icone(ig, "aj_ellipsis", ic, ic, ic, a);
