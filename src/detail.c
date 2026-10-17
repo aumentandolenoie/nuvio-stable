@@ -4162,17 +4162,17 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       // Mantiene l'occhio originale, con stato leggibile dentro al bottone.
       // Riduce l'icona per lasciare spazio alla scritta anche sulla TV.
       int visto = cat_visto(cat_item(idx));
-      float gOlho = r.h * 0.33f;
-      GfxRect olho = {cx - gOlho * 0.5f, r.y + r.h * 0.13f,
+      float gOlho = r.h * 0.34f;
+      GfxRect olho = {r.x + 22.0f, r.y + (r.h - gOlho) * 0.5f,
                       gOlho, gOlho};
       gfx_icone(olho, visto ? "visto" : "naovisto", ic, ic, ic, a);
       {
         const char *stato = i18n(visto ? "Visto" : "Non Visto");
         int tinta = (int)(ic * 255.0f);
         TxtLinha t = txt_linha_corta(TXT_CAPTION2, stato, tinta, tinta, tinta, 255,
-                                    r.w - 8.0f);
-        txt_desenhar_alpha(t, cx - t.w * 0.5f,
-                           r.y + r.h * 0.60f, a);
+                                    r.w - 66.0f);
+        txt_desenhar_alpha(t, olho.x + olho.w + 12.0f,
+                           r.y + (r.h - t.h) * 0.5f, a);
       }
     } else if (icone == ACAO_TRAILER) {
       gfx_icone(ig, "aj_clapperboard", ic, ic, ic, a);
@@ -4887,15 +4887,17 @@ static void heroWeb(float a, float desloc) {
       desenhaBotao(anchor,NULL,ACAO_LISTA,nivel == 0 && botao == first,a);
       if (a > .3f) ponteiro_alvo(anchor.x,anchor.y,anchor.w,anchor.h,ponteiroDetalhe,NULL,-1,first);
     } else for (; nb < n; nb++) {
+      int acaoAtual = acaoEm(nb);
+      float largura = acaoAtual == ACAO_ASSISTIDO ? 190.0f : NV_DETW2_CIRC;
       GfxRect rc = { bx, cyBtn - NV_DETW2_CIRC * 0.5f,
-                     NV_DETW2_CIRC, NV_DETW2_CIRC };
+                     largura, NV_DETW2_CIRC };
       if (detalheRetrato()) rc = heroAcaoRect(&bx, &cyBtn, rc.w, rc.h);
-      desenhaBotao(rc, NULL, acaoEm(nb), nivel == 0 && botao == nb, a);
+      desenhaBotao(rc, NULL, acaoAtual, nivel == 0 && botao == nb, a);
       if (acaoEm(nb) == ACAO_MAIS) maisAncora = rc;
       if (nivel == 0 && botao == nb && acaoEm(nb) == ACAO_MAIS && !detmais_aberto())
         desenhaDicaBotao(rc, i18n("Mais opções"), a);
       if (a > 0.3f) ponteiro_alvo(rc.x, rc.y, rc.w, rc.h, ponteiroDetalhe, NULL, -1, nb);
-      bx += NV_DETW2_CIRC + NV_DETW2_BTN_GAP;
+      bx += largura + NV_DETW2_BTN_GAP;
     }
   }
 
