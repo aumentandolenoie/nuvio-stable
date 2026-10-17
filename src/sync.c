@@ -808,13 +808,12 @@ static int puxarVistos(int perfil, char **destino) {
     if (c < 0) {
       if (pagina == 1) return -1;
       printf("[sync] vistos: pagina %d falhou; ficando com %d linhas\n", pagina, total);
-      break;
+      free(acum); free(pag); return -1;
     }
     if (pagina > 1 && pag) {
       if (!colarArray(&acum, pag)) {
         printf("[sync] vistos: pagina %d nao colou; ficando com %d linhas\n", pagina, total);
-        free(pag); pag = NULL;
-        break;
+        free(pag); free(acum); return -1;
       }
       free(pag); pag = NULL;
     }
@@ -822,9 +821,12 @@ static int puxarVistos(int perfil, char **destino) {
     printf("[sync] vistos: pagina=%d ricevuti=%d totale=%d limite=%d\n",
            pagina, c, total, CONTALIB_VISTO_PAGINA * CONTALIB_VISTO_PAGINAS);
     if (c < CONTALIB_VISTO_PAGINA) break;
-    if (pagina == CONTALIB_VISTO_PAGINAS)
-      printf("[sync] vistos: %d linhas baixadas e a conta tem mais; o resto nao "
-             "foi pedido\n", total);
+    if (pagina == CONTALIB_VISTO_PAGINAS) {
+      // Una pagina piena non prova che sia l'ultima: mai pubblicare una
+      // cronologia potenzialmente troncata al posto di quella gia salvata.
+      printf("[sync] vistos: limite sicurezza %d raggiunto; snapshot non applicato\n", total);
+      free(acum); free(pag); return -1;
+    }
   }
   free(pag);
   if (destino) { free(*destino); *destino = acum; }
