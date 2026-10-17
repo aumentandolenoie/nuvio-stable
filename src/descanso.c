@@ -52,6 +52,7 @@ static float tempoAtivo;           // segundos desde que a tela de descanso entr
 static int   fila[DESC_FILA_MAX];
 static int   filaN, filaPos;
 static unsigned filaRev;
+static int filaFonte, filaFontePedida = -1;
 static float itemT;                // segundos dentro do item atual
 static float esperaT;              // preto esperando a arte seguinte
 static int   atual = -1;           // indice de catalogo na tela (ou -1)
@@ -63,8 +64,16 @@ static unsigned sorteio(unsigned *e) { *e = *e * 1664525u + 1013904223u; return 
 
 static int itemServe(int i, int fonte) {
   const CatItem *c = cat_item(i);
-  return c && descanso_item_serve(c->backdrop[0] != 0, c->titulo[0] != 0, c->naLista,
-                                  c->progresso, fonte);
+  if (!c || !descanso_item_serve(c->backdrop[0] != 0, c->titulo[0] != 0, c->naLista,
+                                 c->progresso, fonte)) return 0;
+  if (fonte == DESC_FONTE_ESCOLHIDOS) {
+    for (int r = 0; r < cat_n_fileiras(); r++) {
+      const CatFileira *f = cat_fileira(r);
+      if (f && i >= f->ini && i < f->ini + f->n && ajustes_vetrina_catalogo_ativo(f->chave)) return 1;
+    }
+    return 0;
+  }
+  return 1;
 }
 
 // Sorteia a ordem da sessao. "Minha lista e Continuar" com menos de tres
@@ -77,13 +86,26 @@ static void montarFila(unsigned semente) {
     for (i = 0; i < n; i++) if (itemServe(i, fonte)) conta++;
     if (conta < 3) fonte = DESC_FONTE_CATALOGO;
   }
-  for (i = 0; i < n && filaN < DESC_FILA_MAX; i++)
-    if (itemServe(i, fonte)) fila[filaN++] = i;
+  // Reservoir sampling: any eligible title has the same probability of
+  // entering the 48-item session, including catalogues loaded later.
+  { unsigned vistos = 0;
+    for (i = 0; i < n; i++) {
+      if (!itemServe(i, fonte)) continue;
+      vistos++;
+      if (filaN < DESC_FILA_MAX) fila[filaN++] = i;
+      else {
+        unsigned j = sorteio(&semente) % vistos;
+        if (j < DESC_FILA_MAX) fila[j] = i;
+      }
+    }
+  }
   // Fisher-Yates sobre o que entrou.
   for (i = filaN - 1; i > 0; i--) {
     int j = (int)(sorteio(&semente) % (unsigned)(i + 1)), t = fila[i];
     fila[i] = fila[j]; fila[j] = t;
   }
+  filaFonte = fonte;
+  filaFontePedida = fonteAt;
   filaRev = cat_revisao();
 }
 
@@ -91,7 +113,7 @@ static int itemDaFila(int pos) {
   int i;
   if (filaN <= 0) return -1;
   i = fila[((pos % filaN) + filaN) % filaN];
-  return itemServe(i, DESC_FONTE_CATALOGO) ? i : -1;
+  return itemServe(i, filaFonte) ? i : -1;
 }
 
 static void montarProxima(void) {
@@ -145,7 +167,7 @@ void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte)
   tempoAtivo += dt;
   if (estilo != ESM_ESTILO_VITRINE) return;
   // Catalogo trocado no meio (sync, perfil): sorteia de novo, sem cortar o atual.
-  if (filaRev != cat_revisao()) { montarFila(agora); filaPos = 0; }
+  if (filaRev != cat_revisao() || filaFontePedida != fonteAt) { montarFila(agora); filaPos = 0; atual = -1; }
   if (atual < 0) { atual = itemDaFila(filaPos); itemT = 0.0f; }
   c = atual >= 0 ? cat_item(atual) : NULL;
   texArte = c ? tex_obter_larg(c->backdrop, DESC_ARTE_LARG) : 0;

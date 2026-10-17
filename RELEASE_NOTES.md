@@ -2,6 +2,17 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.31 — Descrizioni complete e Vetrina personalizzata
+
+### Descrizioni
+- Nella scheda titolo, con Giù si seleziona la sinossi e OK apre la lettura completa; Giù/Su scorrono, OK o Indietro chiudono.
+- La pressione lunga su un episodio offre anche «Leggi descrizione completa», senza togliere le opzioni già esistenti.
+
+### Vetrina
+- «Titoli della vetrina» dispone della modalità «Cataloghi selezionati».
+- La nuova riga «Cataloghi della vetrina» permette di scegliere più cataloghi: Sinistra/Destra li scorrono, OK li include o esclude.
+- La selezione è locale e usa chiavi stabili dei cataloghi. I cataloghi mancanti non vengono sostituiti da titoli casuali; le vecchie modalità restano invariate.
+
 ## 2.0.30 — Pulsanti dettaglio in pillola
 
 ### Interfaccia

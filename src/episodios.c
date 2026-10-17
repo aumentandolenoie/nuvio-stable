@@ -91,7 +91,7 @@ static int semMolaScroll;
 // este menu, entao ele precisa carregar a porta que tomou. Dentro da folha de
 // episodios a opcao nao existe — quem abriu a folha veio do player e ja tem
 // fonte tocando; oferece-la ali seria uma linha que nao leva a lugar nenhum.
-enum { VM_ESTE = 0, VM_ATE, VM_TEMP, VM_FONTES, VM_DAQUI, VM_N };
+enum { VM_ESTE = 0, VM_ATE, VM_TEMP, VM_FONTES, VM_DAQUI, VM_DESCRICAO, VM_N };
 static int vmAcoes[VM_N], vmN; // linhas visiveis -> gesto (daqui em diante e opcional)
 // O MENU DA TEMPORADA (issue #108, "Pressing 'Season' brings up option to mark
 // all as watched"): o mesmo cartao, aberto pela ABA e nao por um episodio, com
@@ -142,6 +142,8 @@ static void revalidar(void) {
 // custaria uma varredura por episodio 60 vezes por segundo para desenhar uma
 // imagem que nao muda enquanto o menu estiver aberto.
 static int  vmSo;        // 1 = aberto sozinho, sobre outra tela
+static int  vmDescAberta, vmDescPagina;
+static char vmDescTexto[2048];
 static int  vmFontesPed; // consumido por episodios_menu_pediu_fontes()
 // O MENU E DESENHADO POR ctxmenu.c (ctx_menu_desenhar): a mesma ilha do menu do
 // cartaz, com as mesmas medidas. Aqui ficam so o que escrever e as molas.
@@ -183,6 +185,9 @@ static void montarRotulos(void) {
     } else if (modo == VM_ATE) {
       snprintf(vmRot[i], sizeof vmRot[i], quantos == 1 ? i18n("Até aqui (%d episódio)") : i18n("Até aqui (%d episódios)"), quantos);
       ic = "pl_skip-forward";
+    } else if (modo == VM_DESCRICAO) {
+      snprintf(vmRot[i], sizeof vmRot[i], "%s", i18n("Leggi descrizione completa"));
+      ic = "aj_info";
     } else if (modo == VM_DAQUI) {
       snprintf(vmRot[i], sizeof vmRot[i], "%s", i18n("Desmarcar daqui em diante"));
       ic = "aj_eye-off";
@@ -219,6 +224,7 @@ static void menuAbrir(int idx, int t, int e, const char *nome, int so) {
   // menu nasceu; a regra de ctxmenu.c que isto copiava abre no KEYDOWN, e la
   // consumir o soltar faz sentido.
   vmAberto = 1; vmFoco = 0; vmConsumir = 0; vmFontesPed = 0;
+  vmDescAberta = 0; vmDescPagina = 0;
   vmFeito = 0;
   vmQuantos[VM_ESTE] = 1;
   vmQuantos[VM_ATE]  = montarLote(idx, VM_ATE, t, e, NULL, 0);
@@ -239,6 +245,16 @@ static void menuAbrir(int idx, int t, int e, const char *nome, int so) {
   }
   vmAcoes[vmN++] = VM_TEMP;
   if (so) vmAcoes[vmN++] = VM_FONTES;
+  { const CatEp *ep = NULL;
+    int j, n = cat_n_episodios(idx);
+    for (j = 0; j < n; j++) { const CatEp *candidate = cat_episodio(idx, j);
+      if (candidate && candidate->temporada == t && candidate->episodio == e) { ep = candidate; break; } }
+    vmDescTexto[0] = 0;
+    if (ep && ep->sinopse[0]) {
+      snprintf(vmDescTexto, sizeof vmDescTexto, "%s", ep->sinopse);
+      vmAcoes[vmN++] = VM_DESCRICAO;
+    }
+  }
   // Abre do zero: a mola de um menu que acabou de fechar nao e a deste.
   vmAnim = vmAnimV = 0.0f;
   memset(vmFocoAnim, 0, sizeof vmFocoAnim);
@@ -554,6 +570,19 @@ static void menuDesenhar(GfxRect area, float a0) {
   else meta = vmAcoes[vmFoco] != VM_DAQUI && vmVisto ? "Marcar como assistido" : "Desmarcar como assistido";
   ctx_menu_desenhar(m, vmCab, meta, vmFeito ? 0.8f : 0.5f, vmLin, vmOpcoes(), vmFocoAnim,
                     vmFeito ? 0.35f : 1.0f, a, vmAberto && !vmFeito ? ponteiroVmOpcao : NULL);
+  if (vmDescAberta) {
+    GfxRect panel = { 200, 150, NV_TELA_W - 400, NV_TELA_H - 300 };
+    gfx_sem_recorte();
+    gfx_cor((GfxRect){0,0,NV_TELA_W,NV_TELA_H},0,0,0,0,0.85f);
+    gfx_cor(panel,0.02f,0.10f,0.11f,0.15f,0.98f);
+    txt_bloco_corta(TXT_PG_ROTULO, vmCab,255,255,255,panel.x+36,panel.y+30,panel.w-72,38,1.0f,2);
+    { int offset = vmDescPagina * 660;
+      int len = (int)strlen(vmDescTexto);
+      if (offset >= len) { vmDescPagina = len > 0 ? (len-1)/660 : 0; offset = vmDescPagina*660; }
+      txt_bloco_corta(TXT_PG_ROTULO, vmDescTexto+offset,245,245,245,panel.x+36,panel.y+105,panel.w-72,37,1.0f,13);
+      txt_bloco_corta(TXT_PG_ROTULO, i18n("Su/Giù: scorri · OK/Indietro: chiudi"),190,190,190,panel.x+36,panel.y+panel.h-56,panel.w-72,28,1.0f,1);
+    }
+  }
 }
 
 // A frase da confirmacao, montada quando a acao termina.
@@ -566,6 +595,14 @@ static void menuFeito(int n, int visto) {
 }
 
 static void menuEvento(const SDL_Event *ev) {
+  if (vmDescAberta) {
+    if (ev->type != SDL_KEYDOWN || ev->key.repeat) return;
+    SDL_Keycode key = ev->key.keysym.sym;
+    if (key == SDLK_ESCAPE || key == SDLK_BACKSPACE || key == SDLK_AC_BACK || key == SDLK_RETURN || key == SDLK_KP_ENTER) vmDescAberta = 0;
+    else if (key == SDLK_DOWN || key == SDLK_RIGHT) vmDescPagina++;
+    else if ((key == SDLK_UP || key == SDLK_LEFT) && vmDescPagina > 0) vmDescPagina--;
+    return;
+  }
   SDL_Keycode ko = ev->key.keysym.sym;
   int ehOk = (ko == SDLK_RETURN || ko == SDLK_KP_ENTER || ko == SDLK_SPACE);
   if (ev->type == SDL_KEYUP && ehOk) { vmConsumir = 0; return; }
@@ -582,6 +619,7 @@ static void menuEvento(const SDL_Event *ev) {
     }
     int modo = vmAcoes[vmFoco], v = modo == VM_DAQUI ? 0 : vmVisto;
     if (modo == VM_FONTES) { vmFontesPed = 1; vmAberto = 0; return; }
+    if (modo == VM_DESCRICAO) { vmDescAberta = 1; vmDescPagina = 0; return; }
     menuFeito(aplicarVisto(modo, v), v);
     return;
   }
