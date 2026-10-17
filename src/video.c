@@ -3605,6 +3605,11 @@ void video_definir_dv(int dv) { dvPedido = dv ? 1 : 0; }
 void video_escolher_audio(int i) {
   char b[192];
   const VideoFaixa *f = video_audio(i);
+  // Solo diagnostica: non esporre URL/token o modificare la scelta.
+  printf("[audio-diag] richiesta=%d corrente=%d codec=%s stream=%d dts=%d dv=%d posizione=%.1f\n",
+         i, audioAtual, f ? f->codec : "assente", f ? f->stream_index : -1,
+         dtsSessao != NULL, dtsModoDv, posSeg);
+  fflush(stdout);
   if (dtsSessao && f) {
     if (f->stream_index < 0) return;
     if (!strcmp(f->codec, "dts") ||
