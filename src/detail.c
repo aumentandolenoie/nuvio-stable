@@ -2491,9 +2491,10 @@ static int nBotoesTodos(void) {
 }
 
 static int acoesAgrupadas(void) {
-  if (detalheRetrato()) return 0;
-  return carro || ajustes_home_layout() == HOME_LAYOUT_DINAMICA ||
-         ajustes_home_layout() == HOME_LAYOUT_MODERNA;
+  // L'azione Trailer deve essere sempre raggiungibile e visibile:
+  // il gruppo a scomparsa nasconderebbe il nuovo pulsante sul layout Moderno.
+  // La riga diretta mantiene separate tutte le azioni e il menu «…».
+  return 0;
 }
 
 static int nBotoes(void) {
