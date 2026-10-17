@@ -7,6 +7,8 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 ### Correzioni
 - Frecce sinistra/destra: Vetrina ora intercetta anche il rilascio del tasto (KEYUP), che prima risvegliava lo schermo e la chiudeva subito dopo la selezione.
 - Invariate le azioni Riproduci, Portami al Film/alla Serie e la normale protezione OLED per gli altri tasti.
+- Il pulsante Visto/Non Visto diventa una pillola larga con icona dell'occhio a sinistra e scritta a destra.
+- Trailer TMDB/YouTube: viene preferita una playlist HLS adattiva, quando verificata accessibile; fallback invariato ai file MP4 progressivi.
 - Il pulsante Trailer è sempre presente sui dettagli di film e serie, anche prima che TMDB termini il caricamento; usa il sistema di trailer configurato nelle impostazioni.
 - Eliminato “Assistir trailer” dal menu «…» per evitare doppioni; i pulsanti principali restano direttamente visibili anche nei layout Moderno/Dinamico.
 
