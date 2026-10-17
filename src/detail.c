@@ -669,17 +669,17 @@ typedef enum { SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO, SEC_REL
 // serie tem a propria tabela porque o enum (que a serie usava como ordem do
 // D-pad) mantem as Notas depois da audiencia.
 static const int ORDEM_FILME[] = {
-  SEC_NOTAS, SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO, SEC_RELACIONADOS,
+  SEC_NOTAS, SEC_TEMPORADAS, SEC_EPISODIOS, SEC_ABAS_INFO, SEC_ELENCO,
   SEC_AUD_ARCO, SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
-  SEC_TRAILERS, SEC_COLECAO, SEC_COMENTARIOS,
+  SEC_TRAILERS, SEC_COLECAO, SEC_RELACIONADOS, SEC_COMENTARIOS,
   SEC_ESTUDIOS, SEC_FRASES, SEC_DETALHES, SEC_PROGTEMP };
 // NUMEROS DA TEMPORADA (Glass UI 1.8, mockup "Notas e graficos"): os tres
 // graficos da serie viraram UM bloco logo depois das Notas. Ele usa a fileira
 // SEC_AUD_ARCO (SEC_NUMEROS); RADAR, DIGITAL e NOTAS_EP ficaram sem colunas.
 static const int ORDEM_SERIE[] = {
   SEC_TEMPORADAS, SEC_EPISODIOS, SEC_PROGTEMP, SEC_NOTAS, SEC_AUD_ARCO, SEC_ABAS_INFO, SEC_ELENCO,
-  SEC_RELACIONADOS, SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
-  SEC_TRAILERS, SEC_COLECAO, SEC_COMENTARIOS,
+  SEC_AUD_RADAR, SEC_AUD_DIGITAL, SEC_NOTAS_EP,
+  SEC_TRAILERS, SEC_COLECAO, SEC_RELACIONADOS, SEC_COMENTARIOS,
   SEC_ESTUDIOS, SEC_FRASES, SEC_DETALHES };
 #define N_ORDEM ((int)(sizeof ORDEM_FILME / sizeof ORDEM_FILME[0]))
 #define SEC_NUMEROS SEC_AUD_ARCO
@@ -1021,14 +1021,6 @@ static void recalcularLayout(void) {
     // porque nome comprido quebra em duas ("Geneva Robertson-Dworet" na propria
     // captura do dono) e empurra o papel para baixo.
     y = baseDaAbaAtiva() + NV_DETP_EL_GAP_TRAKT;
-    // Recommendations keep their own row and focus, directly below cast.
-    topoSec[SEC_RELACIONADOS] = conteudoSec[SEC_RELACIONADOS] = y;
-    if (secaoN(SEC_RELACIONADOS) > 0) {
-      conteudoSec[SEC_RELACIONADOS] += NV_DETF_CAB_H + NV_DETF_CAB_GAP;
-      y = conteudoSec[SEC_RELACIONADOS] + alturaSecao(SEC_RELACIONADOS) + NV_DETF_SEC_GAP;
-      if (y + NV_DETF_PAD_FIM > docFim) docFim = y + NV_DETF_PAD_FIM;
-    }
-
     // AS TRES BANDAS DE AUDIENCIA vem antes dos comentarios, empilhadas pela
     // mesma regra: nascem onde a aba ativa termina e empurram o que vem depois.
     // Altura vinda do ultimo desenho (ver audAlt), porque cada grafico so diz
@@ -1059,6 +1051,14 @@ static void recalcularLayout(void) {
       y = conteudoSec[SEC_TRAILERS] + alturaSecao(SEC_TRAILERS) + NV_DETF_SEC_GAP;
       { float fim = y + NV_DETF_PAD_FIM - NV_DETF_SEC_GAP;
         if (fim > docFim) docFim = fim; }
+    }
+    // Consigli dopo i trailer, come nei dettagli film. La raccolta non
+    // compare nelle serie, quindi il D-pad salta quel gruppo assente.
+    topoSec[SEC_RELACIONADOS] = conteudoSec[SEC_RELACIONADOS] = y;
+    if (secaoN(SEC_RELACIONADOS) > 0) {
+      conteudoSec[SEC_RELACIONADOS] += NV_DETF_CAB_H + NV_DETF_CAB_GAP;
+      y = conteudoSec[SEC_RELACIONADOS] + alturaSecao(SEC_RELACIONADOS) + NV_DETF_SEC_GAP;
+      if (y + NV_DETF_PAD_FIM > docFim) docFim = y + NV_DETF_PAD_FIM;
     }
     topoSec[SEC_COMENTARIOS] = conteudoSec[SEC_COMENTARIOS] = y;
     if (secaoN(SEC_COMENTARIOS) > 0) {
