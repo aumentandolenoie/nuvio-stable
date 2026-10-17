@@ -2674,6 +2674,8 @@ static void executarMais(int dm) {
   }
 }
 
+static int sinFoco, sinLendo, sinPagina;
+
 void detail_evento(const SDL_Event *e) {
   if (sinLendo) {
     if (e->type != SDL_KEYDOWN || e->key.repeat) return;
@@ -4547,8 +4549,6 @@ static TextoGate gateHero;
 // Sinopse: o que foi desenhado por ultimo, para esvanecer entre o antigo e o
 // novo (ingles -> localizado, item raso -> completo) em vez de trocar de uma vez.
 static char   sinVisto[900], sinAnt[900];
-// Read-only full synopsis. The action is reached with UP from the hero buttons.
-static int sinFoco, sinLendo, sinPagina;
 
 static int    sinVistoInit;
 static Uint32 sinTrocaDesde;
