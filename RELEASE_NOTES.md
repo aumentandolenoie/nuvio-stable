@@ -2,6 +2,16 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.21 — Diagnostica della fase di apertura
+
+### Novità
+- Errore di apertura: fase del player LG, eventuale precedente tentativo DTS, ritorno nativo e numero di retry della riconnessione.
+- Lo stato HTTP viene dichiarato ignoto quando il backend LG non fornisce un codice HTTP. Il codice 300 resta identificato correttamente come errore del player, non come risposta HTTP.
+- Nessuna richiesta di rete aggiuntiva e nessuna modifica alle procedure di apertura, conversione DTS, selezione audio o recupero.
+
+### Verifiche
+- Controlli di compilazione e contratti tramite workflow; conferma reale su TV ancora necessaria.
+
 ## 2.0.20 — Diagnostica errori e cambio audio
 
 ### Novità

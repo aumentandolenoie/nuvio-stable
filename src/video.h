@@ -182,6 +182,10 @@ int    video_falhou(void);   // 1 depois de um errorText real na fonte atual
 // o cartao de erro do canal dizer o que o servidor respondeu em vez do
 // generico (#158). Vale ate o proximo video_tocar/video_parar.
 const char *video_erro_texto(void);
+#ifdef NV_WEBOS
+// Diagnostica locale, nessuna nuova richiesta HTTP né URL/token in chiaro.
+const char *video_diagnostico_apertura(void);
+#endif
 #ifdef NV_ANDROID
 // Codigo do erro atual apenas se o renderer e de VIDEO; 0 para audio/desconhecido.
 int video_erro_decoder_codigo(void);
