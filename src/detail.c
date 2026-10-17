@@ -4132,14 +4132,12 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       icone == ACAO_FONTES ? "fontes" : "aj_clapperboard";
     float cr = 0.14f, cg = 0.15f, cb = 0.17f;
     float tinta = 1.0f;
-    float borda = 0.0f;
     if (colorato) {
       if (icone == ACAO_ASSISTIDO) {
         cr = visto ? 0.16f : 0.87f;
         cg = visto ? 0.70f : 0.20f;
         cb = visto ? 0.32f : 0.24f;
       } else (void)ajustes_acento_tinta(&cr, &cg, &cb);
-      borda = 1.0f;
       tinta = focado ? ((0.2126f*cr+0.7152f*cg+0.0722f*cb)>0.53f ? 0.08f : 1.0f) : 1.0f;
       // Bordo colorato, superficie scura appena tinta a riposo; piena in focus.
       gfx_cor(r, NV_RAIO_PILL, cr, cg, cb, a * (focado ? 1.0f : 0.84f));
@@ -4171,7 +4169,6 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       txt_desenhar_alpha(t, left + iconW + gap,
                          r.y + (r.h - t.h)*0.5f, a);
     }
-    (void)borda;
     return;
   }
   if (circular) {
