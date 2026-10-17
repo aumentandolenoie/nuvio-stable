@@ -1183,7 +1183,7 @@ static const Opcao OPCOES[AJ_N] = {
   ESC("Cor da logo",                V_LIGA, 2),   // local: corDaLogoLocal
 
   LER("Perfil"),
-  LER("Sincronização"),
+  ACAO("Sincronização"),
   ACAO("Addons"),
   ACAO("Portal Stalker (MAC)"),
   ACAO("MAC do portal"),
@@ -7374,6 +7374,12 @@ static void eventoTela(const SDL_Event *e) {
     if (focoOp == AJ_GUIA) { guiaAbrir(0); return; }
     if (focoOp == AJ_NOVIDADES20) { pediuNovidades20 = 1; return; }
     if (focoOp == AJ_APOIAR) { apoioAbrir(); return; }
+    if (focoOp == AJ_SYNC) {
+      // OK su Sincronizzazione: nuova lettura dell\'account, senza azzerare
+      // libreria, visti o progressi. Il riepilogo mostra SYNC_RODANDO.
+      if (sessao_logada() && sync_estado() != SYNC_RODANDO) sync_iniciar();
+      return;
+    }
     if (focoOp == AJ_ADDONS) { pediuAddons = 1; return; }
     if (focoOp == AJ_PLUGINS) { pediuPlugins = 1; return; }
     if (focoOp == AJ_FALHA_PROVEDOR_ORDEM || focoOp == AJ_FALHA_ADDON_ORDEM) { faAbrir(focoOp == AJ_FALHA_PROVEDOR_ORDEM); return; }
