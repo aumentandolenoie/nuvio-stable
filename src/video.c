@@ -3489,6 +3489,16 @@ int    video_ativo(void)    { return midia[0] != 0; }
 // proxima da lista.
 int    video_falhou(void)   { return falhou; }
 const char *video_erro_texto(void) { return erroTexto; }
+const char *video_diagnostico_apertura(void) {
+  static char diag[128];
+  // errorCode 300 e del backend LG, non e uno status HTTP. Non fare probe:
+  // richieste Range extra possono consumare URL monouso o cambiare il problema.
+  snprintf(diag, sizeof diag, "fase=%s DTS_provato=%d ritorno_nativo=%d rete_retry=%d HTTP=ignoto",
+           dtsSessao ? "pipeline-DTS" : pronto ? "dopo-load" : "prima-load",
+           dtsTentou, dtsNativePending || (dtsTentou && !dtsSessao),
+           recon.tentativa);
+  return diag;
+}
 int    video_decoder_anunciou(void) { return viuVideo; }
 int    video_audio_nao_suportado(void) { return audioNaoSup; }
 int    video_seek_desistiu(void) { return seekRetry.desistiu; }
