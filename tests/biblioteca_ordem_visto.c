@@ -37,6 +37,12 @@ int main(void) {
   cat_historico_definir_id("tt770001", "movie", 0);
   cat_historico_definir_id("tt770004", "movie", 0);
   ordenar(ORD_VISTO);       ids(s); assert(!strcmp(s, "012345"));
+  // Timestamp real de aggiunta: non confondere con l'ordine del catalogo.
+  assert(contalib_ler_biblioteca("[{\"content_id\":\"tt770003\",\"content_type\":\"movie\",\"added_at\":\"2026-10-18T12:00:00Z\"},{\"content_id\":\"tt770001\",\"content_type\":\"movie\",\"added_at\":\"2026-10-17T12:00:00Z\"}]") == 2);
+  ordenar(ORD_ADICIONADOS); ids(s); assert(!strcmp(s, "310245"));
+  // L'ordinamento e memorizzato, riletto e validato per profilo.
+  ordem = ORD_ANO; gravarPref();
+  ordem = ORD_VISTO; prefPerfil = -1; lerPref(); assert(ordem == ORD_ANO);
   assert(BIB_N_ORD == 5);
   printf("biblioteca_ordem_visto: ok\n");
   return 0;
