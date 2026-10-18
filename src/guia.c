@@ -1424,7 +1424,7 @@ static const char *guideGroups[G_GUIDE_GROUPS] = {
   "Preferiti", "Sport", "Canali TV", "Film e serie TV", "Informazione",
   "Documentari", "Bambini", "Musica", "Altri"
 };
-static int guideGroup, guideLevel;
+static int guideGroup, guideLevel, guideSub;
 static int guideContains(const char *name, const char *needle) {
   if (!name || !needle) return 0;
   for (; *name; name++) {
@@ -1434,8 +1434,10 @@ static int guideContains(const char *name, const char *needle) {
   }
   return 0;
 }
+// Grouping by meaning, not by incidental substring "tv" (which previously
+// put Film - Serie TV under Canali TV). Names from the original catalogs are
+// never altered, so stream URLs, EPG, caches and channel order stay stable.
 static int guideGroupOf(const char *name) {
-  // Group 0 is reserved for quick-access Favorites.
   if (guideContains(name,"serie a") || guideContains(name,"serie b") ||
       guideContains(name,"serie c") || guideContains(name,"sport") ||
       guideContains(name,"calcio") || guideContains(name,"soccer") ||
@@ -1448,9 +1450,6 @@ static int guideGroupOf(const char *name) {
       guideContains(name,"wrestling") || guideContains(name,"boxing") ||
       guideContains(name,"darts") || guideContains(name,"baseball") ||
       guideContains(name,"nfl") || guideContains(name,"eventi")) return 1;
-  if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
-      guideContains(name,"sky") || guideContains(name,"pluto") ||
-      guideContains(name,"general") || guideContains(name,"tv")) return 2;
   if (guideContains(name,"cinema") || guideContains(name,"film") ||
       guideContains(name,"serie tv")) return 3;
   if (guideContains(name,"news") || guideContains(name,"notiz") ||
@@ -1458,32 +1457,124 @@ static int guideGroupOf(const char *name) {
   if (guideContains(name,"document") || guideContains(name,"discovery")) return 5;
   if (guideContains(name,"bambin") || guideContains(name,"kids")) return 6;
   if (guideContains(name,"music")) return 7;
+  if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
+      guideContains(name,"sky") || guideContains(name,"pluto") ||
+      guideContains(name,"general") || guideContains(name,"tv")) return 2;
   return 8;
 }
-static int guideChildLine(int at) {
-  if (guideGroup == 0) return nFavOrd > 0 && at == 0 ? 0 : -1;
-  for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++) {
-    if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
-    if (at-- == 0) return l;
+// Logical subcategories are stable and unique within a macro-group.
+// If multiple source categories map to the same logical name, OK opens
+// a third level listing their original rows. This never drops any channel.
+static const char *guideSubName(int l) {
+  const char *n = linhaNome(l);
+  int group = guideGroupOf(n);
+  if (group == 1) {
+    if (guideContains(n,"serie a")) return "Serie A";
+    if (guideContains(n,"serie b")) return "Serie B";
+    if (guideContains(n,"serie c")) return "Serie C";
+    if (guideContains(n,"premier")) return "Premier League";
+    if (guideContains(n,"bundesliga")) return "Bundesliga";
+    if (guideContains(n,"ligue 1")) return "Ligue 1";
+    if (guideContains(n,"liga")) return "La Liga";
+    if (guideContains(n,"coppe")) return "Coppe";
+    if (guideContains(n,"soccer") || guideContains(n,"calcio")) return "Altri campionati";
+    if (guideContains(n,"formula") || guideContains(n,"f1")) return "Formula 1";
+    if (guideContains(n,"moto")) return "MotoGP";
+    if (guideContains(n,"tennis")) return "Tennis";
+    if (guideContains(n,"basket")) return "Basket";
+    if (guideContains(n,"volley")) return "Pallavolo";
+    if (guideContains(n,"hockey")) return "Hockey";
+    if (guideContains(n,"nfl")) return "Football americano";
+    if (guideContains(n,"wrestling")) return "Wrestling";
+    if (guideContains(n,"boxing")) return "Boxe";
+    if (guideContains(n,"darts")) return "Freccette";
+    if (guideContains(n,"baseball")) return "Baseball";
+    if (guideContains(n,"eventi")) return "Eventi live";
+    return "Canali sportivi";
   }
+  if (group == 3) return "Canali cinema e serie";
+  if (group == 4) return "Canali di informazione";
+  if (group == 5) return "Canali documentari";
+  if (group == 6) return "Canali per bambini";
+  if (group == 7) return "Canali musicali";
+  if (group == 2) {
+    if (guideContains(n,"rai")) return "Rai";
+    if (guideContains(n,"mediaset")) return "Mediaset";
+    if (guideContains(n,"sky")) return "Sky";
+    if (guideContains(n,"pluto")) return "Pluto TV";
+    return "Canali generalisti";
+  }
+  return guideContains(n,"altro") || guideContains(n,"tutti") ? "Altri canali" : n;
+}
+static int guideSubFirst(int pos) {
+  int off = nFavOrd > 0 ? 1 : 0;
+  for (int l = off; l < nLinhas(); l++) {
+    if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
+    const char *sub = guideSubName(l);
+    int seen=0;
+    for (int prev=off; prev<l; prev++)
+      if (guideGroupOf(linhaNome(prev)) == guideGroup &&
+          !strcmp(guideSubName(prev),sub)) {seen=1;break;}
+    if (!seen && pos-- == 0) return l;
+  }
+  return -1;
+}
+static int guideSubMatches(int first) {
+  if (first < 0) return 0;
+  int n=0;
+  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
+    if (guideGroupOf(linhaNome(l))==guideGroup &&
+        !strcmp(guideSubName(l),guideSubName(first))) n++;
+  return n;
+}
+static int guideSourceLine(int pos) {
+  if (guideGroup == 0) return nFavOrd>0 && pos==0 ? 0 : -1;
+  int first=guideSubFirst(guideSub);
+  if (first < 0) return -1;
+  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
+    if (guideGroupOf(linhaNome(l))==guideGroup &&
+        !strcmp(guideSubName(l),guideSubName(first)) && pos--==0) return l;
   return -1;
 }
 static int guideMenuN(void) {
   if (!guideLevel) return G_GUIDE_GROUPS;
-  int n = 0;
-  while (guideChildLine(n) >= 0) n++;
+  if (guideLevel == 2) return guideSubMatches(guideSubFirst(guideSub));
+  if (guideGroup == 0) return nFavOrd > 0 ? 1 : 0;
+  int n=0;
+  while (guideSubFirst(n)>=0) n++;
   return n;
+}
+static int guideMenuLine(int i) {
+  if (guideLevel==2) return guideSourceLine(i);
+  if (guideGroup==0) return nFavOrd>0 && i==0 ? 0:-1;
+  return guideSubFirst(i);
 }
 static const char *guideMenuName(int i) {
-  return guideLevel ? linhaNome(guideChildLine(i)) : guideGroups[i];
+  if (!guideLevel) return guideGroups[i];
+  if (guideLevel==1) {
+    if (guideGroup==0) return "Preferiti";
+    return guideSubName(guideSubFirst(i));
+  }
+  int l=guideSourceLine(i);
+  // The original category remains available at this drill-down depth.
+  return l>=0 ? linhaNome(l) : "";
 }
 static int guideMenuCount(int i) {
-  if (guideLevel) return linhaN(guideChildLine(i));
-  int n = 0;
-  for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++)
-    if (guideGroupOf(linhaNome(l)) == i) n += linhaN(l);
-  if (i == 0) return nFavOrd;
-  return n;
+  if (!guideLevel) {
+    if (i==0) return nFavOrd;
+    int n=0;
+    for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
+      if (guideGroupOf(linhaNome(l))==i) n+=linhaN(l);
+    return n;
+  }
+  if (guideLevel==2) {int l=guideSourceLine(i);return l>=0?linhaN(l):0;}
+  if (guideGroup==0) return nFavOrd;
+  int first=guideSubFirst(i), count=0;
+  if (first<0) return 0;
+  for(int l=nFavOrd>0?1:0;l<nLinhas();l++)
+    if(guideGroupOf(linhaNome(l))==guideGroup &&
+       !strcmp(guideSubName(l),guideSubName(first))) count+=linhaN(l);
+  return count;
 }
 #define G_CAT_OCIOSO_MS 8000u
 static Uint32 catUlt;
@@ -2049,7 +2140,14 @@ static void catConfirmar(void) {
     catFoco = 0; catRol = 0; catVelRol = 0;
     return;
   }
-  int line = guideChildLine(catFoco);
+  if (guideLevel==1 && guideGroup!=0) {
+    int first=guideSubFirst(catFoco);
+    if (guideSubMatches(first)>1) {
+      guideSub=catFoco; guideLevel=2; catFoco=0;catRol=0;catVelRol=0;
+      return;
+    }
+  }
+  int line = guideMenuLine(catFoco);
   if (line < 0) return;
   if (line != focoLin) { focoLin = line; focoCol = 0; }
   focoTopo = 0;
@@ -2351,7 +2449,12 @@ void guia_evento(const SDL_Event *e) {
       return;
     }
     if (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_RIGHT) { catConfirmar(); return; }
-    if (k == SDLK_LEFT) { if (guideLevel) { guideLevel=0; catFoco=guideGroup; catRol=0; } else catFechar(); return; }
+    if (k == SDLK_LEFT) {
+      if (guideLevel==2) {guideLevel=1;catFoco=guideSub;catRol=0;}
+      else if (guideLevel) {guideLevel=0;catFoco=guideGroup;catRol=0;}
+      else catFechar();
+      return;
+    }
     return;
   }
 
@@ -3479,7 +3582,7 @@ static void desenharPainelCategorias(float a) {
   // Titulo, linhas e rodape na MESMA coluna de texto (x0 + 56): antes o titulo
   // e o rodape ficavam a 48 e o texto das linhas a 56, e a borda esquerda do
   // bloco nao fechava.
-  { TxtLinha t = txt_linha(TXT_HEADLINE, guideLevel ? guideGroups[guideGroup] : i18n("Categorie TV"), 242, 243, 247, 255);
+  { TxtLinha t = txt_linha(TXT_HEADLINE, guideLevel==2 ? guideSubName(guideSubFirst(guideSub)) : guideLevel ? guideGroups[guideGroup] : i18n("Categorie TV"), 242, 243, 247, 255);
     txt_desenhar_alpha(t, x0 + 56.0f, 60.0f, ea); }
 
   // O recorte fica G_CAT_FADE/2 alem da area: e so rede de seguranca, porque
@@ -3488,7 +3591,7 @@ static void desenharPainelCategorias(float a) {
               areaH + G_CAT_FADE);
   for (i = 0; i < nl; i++) {
     float y = G_CAT_TOPO + (float)i * G_CAT_ROW - catRol;
-    int foc = i == catFoco, atual = guideLevel ? guideChildLine(i) == focoLin : (linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin))) == i;
+    int foc = i == catFoco, atual = guideLevel ? (guideLevel==2 ? guideSourceLine(i)==focoLin : guideGroup==0 ? linhaEhFav(focoLin) : guideGroupOf(linhaNome(focoLin))==guideGroup && !strcmp(guideSubName(guideSubFirst(i)),guideSubName(focoLin))) : (linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin))) == i;
     GfxRect r = { x0 + 32.0f, y, G_CAT_W - 56.0f, G_CAT_ROW - 8.0f };
     float ft, fb, la;
     char n[16];
@@ -5221,7 +5324,7 @@ void guia_abrir_sessao(void) {
   catAberto = catFoco = dirSeg = okLongo = 0;
   catUlt = dirDesde = dirTick = ultNavCat = okDesde = 0;
   catAnim = catRol = catVelRol = 0.0f;
-  guideGroup = guideLevel = 0;
+  guideGroup = guideLevel = guideSub = 0;
   previewPreso = pedPreview = pedPararPreview = pedRestaurar = pedGuiaCheio = 0;
   previewUltLin = previewUltCol = -1; previewFocoMudou = 0;
   memset(&pedido, 0, sizeof pedido); memset(&pedPreviewItem, 0, sizeof pedPreviewItem);
