@@ -20,6 +20,7 @@ assert "foco = linhaDe(alvo)" not in opener
 assert "aut = automaticaDaFolha();" in opener
 assert "if (vitMenuAberto) { vitrineMenuEvento(k); return; }" in a
 assert "vitMenuAberto=1" in a and "vitrineMenuDesenhar();" in a
+assert "fil_estado(i) == FIL_FORA && !fil_linha_sem_addon(i)" in a
 assert "fil_linha_addon(idx)" in a and "vitMenuOrdem" in a
 assert "vitrineAlternar();" in a and "ajustes_vetrina_catalogo_ativo(fil_chave(idx))" in a
 assert "dados_gravar(\"vetrina-catalogos.txt\", vitSel)" in a
