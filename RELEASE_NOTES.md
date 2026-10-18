@@ -8,6 +8,7 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 - Dalla descrizione selezionata, Giù entra nella prima sezione inferiore disponibile senza bloccare il telecomando; Su torna ai pulsanti.
 - La selezione della descrizione usa un semplice contorno del colore d'accento, senza riempimento azzurro.
 - Aggiunto test di regressione specifico per focus, navigazione e bordo.
+- Aumentata la distanza tra i pulsanti della scheda titolo, così l'ingrandimento del pulsante selezionato non si sovrappone ai vicini; layout verticale invariato.
 
 ## 2.0.31 — Descrizioni complete e Vetrina personalizzata
 
