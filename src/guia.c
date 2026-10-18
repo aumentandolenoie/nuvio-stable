@@ -293,7 +293,7 @@ static char focoPend[80];
 // Catalogos de canal descobertos na home (tipo "channel"/"tv").
 // `nome` e o nome do catalogo no manifesto (ou o titulo da fileira): vira a
 // categoria do canal que nao traz genero nenhum — ver lerPagina.
-typedef struct { char base[NV_ADDON_URL_MAX], tipo[16], id[96], nome[96]; } GFonte;
+typedef struct { char base[NV_ADDON_URL_MAX], tipo[16], id[96], nome[96], genero[64]; } GFonte;
 static GFonte fontes[G_MAX_FONTE]; static int nFontes, fontesOk;
 // Copia de trabalho do fio: as fileiras sao so o caminho rapido. O manifesto
 // de cada addon ativo declara TODOS os catalogos de canal, montados na home
