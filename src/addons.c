@@ -1812,8 +1812,47 @@ static void capacidadesDoManifesto(int i, const char *corpo) {
       js_texto_raiz_em(p, f, "name", c.nome, sizeof c.nome);
       if (c.id[0] && (!strcasecmp(c.tipo, "channel") || !strcasecmp(c.tipo, "tv") ||
                       !strcasecmp(c.tipo, "channels") || !strcasecmp(c.tipo, "live") ||
-                      !strcasecmp(c.tipo, "iptv")))
-        addon[i].canal[addon[i].nCanal++] = c;
+                      !strcasecmp(c.tipo, "iptv"))) {
+        // Stremio catalogs can require a genre parameter. Without it,
+        // /catalog/tv/<id>.json is invalid (StreamViX live, TV and events).
+        // Search-only catalogs must not be queried with empty search strings.
+        const char *extra = js_array(p, f, "extra");
+        int requiredGenre = 0, requiredOther = 0, added = 0;
+        while (extra) {
+          const char *ef = js_fim(extra);
+          char key[32] = "";
+          js_texto(extra, ef, "name", key, sizeof key);
+          // A required field matters only when explicitly true in JSON.
+          int required = 0;
+          const char *req = strstr(extra, "\"isRequired\"");
+          if (req && req < ef) {
+            const char *colon = strchr(req, ':');
+            if (colon && colon < ef) {
+              colon++;
+              while (colon < ef && (*colon == ' ' || *colon == '\t')) colon++;
+              required = colon + 4 <= ef && !strncmp(colon, "true", 4);
+            }
+          }
+          if (required && !strcmp(key, "genre")) {
+            requiredGenre = 1;
+            const char *option = js_array(extra, ef, "options");
+            while (option && addon[i].nCanal < ADD_CANAL_MAX) {
+              char value[64] = "";
+              if (js_cadeia(option, value, sizeof value) && value[0]) {
+                AddCatCanal copy = c;
+                snprintf(copy.genero, sizeof copy.genero, "%s", value);
+                addon[i].canal[addon[i].nCanal++] = copy;
+                added++;
+              }
+              option = js_prox(js_fim(option));
+            }
+          } else if (required) requiredOther = 1;
+          extra = js_prox(ef);
+        }
+        if (!requiredGenre && !requiredOther && addon[i].nCanal < ADD_CANAL_MAX)
+          addon[i].canal[addon[i].nCanal++] = c;
+        (void)added;
+      }
       p = js_prox(f);
     }
     addon[i].canalLido = 1; }
