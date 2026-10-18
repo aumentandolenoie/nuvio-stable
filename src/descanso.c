@@ -108,7 +108,13 @@ static void *descSelFetch(void *arg) {
     if (!NV_COUBE(n,url)) continue;
     char *body=rede_baixar(url,10);
     if (!body) continue;
-    for (const char *p=js_array(body,NULL,"metas"); p && w->n<DESC_SEL_MAX; p=js_prox(js_fim(p))) {
+    // Prevent the first selected catalog from filling all slots.
+    // With one selection keep the entire 48-title budget; otherwise share it.
+    int perCatalog=DESC_SEL_MAX / (w->nCat > 0 ? w->nCat : 1);
+    if (perCatalog < 2) perCatalog=2;
+    int addedHere=0;
+    for (const char *p=js_array(body,NULL,"metas");
+         p && w->n<DESC_SEL_MAX && addedHere<perCatalog; p=js_prox(js_fim(p))) {
       const char *end=js_fim(p);
       CatItem *c=&w->items[w->n];
       memset(c,0,sizeof *c);
@@ -124,7 +130,7 @@ static void *descSelFetch(void *arg) {
       js_texto(p,end,"description",c->sinopse,sizeof c->sinopse);
       if (!c->imdb[0] || !c->titulo[0] || !c->backdrop[0] ||
           descSelDuplicate(w->items,w->n,c)) continue;
-      w->n++;
+      w->n++; addedHere++;
     }
     free(body);
   }
