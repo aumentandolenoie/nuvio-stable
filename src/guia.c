@@ -766,10 +766,13 @@ static const char *categoriaCanal(const char *nome, const char *genero,
   if (contemSemCaixa(n,"coppa") || contemSemCaixa(g,"coppe")) return "Coppe";
   if (contemSemCaixa(n,"calcio") || contemSemCaixa(n,"football") ||
       contemSemCaixa(g,"soccer")) return "Altri campionati";
+  // Preserve unrecognized StreamViX live events in their own visible category.
+  if (contemSemCaixa(g,"eventi") || contemSemCaixa(g,"events") ||
+      contemSemCaixa(catalog,"eventi") || contemSemCaixa(catalog,"events"))
+    return "Eventi live";
   // A generic Sport row never swallows channels with an explicit discipline.
   if (contemSemCaixa(g,"sport") || contemSemCaixa(g,"esport") ||
-      contemSemCaixa(n,"sport") || contemSemCaixa(catalog,"sport") ||
-      contemSemCaixa(catalog,"eventi")) return "Canali sportivi";
+      contemSemCaixa(n,"sport") || contemSemCaixa(catalog,"sport")) return "Canali sportivi";
   if (contemSemCaixa(n,"cinema") || contemSemCaixa(n,"film") ||
       contemSemCaixa(g,"film") || contemSemCaixa(g,"cinema") ||
       contemSemCaixa(g,"serie tv") || contemSemCaixa(g,"série") ||
@@ -1236,7 +1239,7 @@ static void empacotar(void) {
 // structs no cabecalho: uma build que mude GCanal ignora o cache antigo em
 // vez de ler lixo.
 #define GC_MAGIA  0x31474e56u   /* "NVG1" */
-#define GC_VERSAO 2u
+#define GC_VERSAO 3u
 typedef struct {
   unsigned magia, versao, tamCanal, tamFonte, tamSabe;
   int nCanais, nCats, nFontes, nSabe, perfil;
