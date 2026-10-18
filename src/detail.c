@@ -4994,9 +4994,9 @@ static void heroWeb(float a, float desloc) {
       int acaoAtual = acaoEm(nb);
       const CatItem *cat = cat_item(idx);
       const char *rotAcao = acaoAtual == ACAO_LISTA ?
-        ((cat && cat->naLista) ? i18n("In libreria") : i18n("Aggiungi alla libreria")) :
+        ((cat && cat->naLista) ? i18n("Aggiunto alla libreria") : i18n("Aggiungi alla libreria")) :
         acaoAtual == ACAO_ASSISTIDO ?
-        (cat && cat_visto(cat) ? i18n("Visto") : i18n("Non Visto")) :
+        (cat && cat_visto(cat) ? i18n("Visto") : i18n("Non visto")) :
         acaoAtual == ACAO_FONTES ? i18n("Fonti") :
         acaoAtual == ACAO_TRAILER ? i18n("Trailer") : NULL;
       // Only the focused action opens into a text pill; all other actions
