@@ -2091,8 +2091,6 @@ void ajustes_abrir_opcao(int op) {
 // Rotulo da fonte do destaque (fil_hero_fonte). Definida junto da folha de
 // fileiras, mais abaixo.
 static const char *vitrineCatalogoRotulo(void);
-static void vitrinePasso(int dir);
-static void vitrineAlternar(void);
 static void vitrineAlternar(void);
 static const char *heroFonteRotulo(void);
 static void heroFonteCiclar(int dir);
@@ -6553,11 +6551,6 @@ static void vitrineMenuDesenhar(void) {
              vitrineAddon(pos), fil_titulo(idx));
     txt_bloco_corta(TXT_DET_SIN,text,255,255,255,rect.x+18,rect.y+17,rect.w-36,32,1.0f,1);
   }
-}
-static void vitrinePasso(int dir) {
-  int n = vitrineTotal();
-  if (n <= 0) { vitFoco = 0; return; }
-  vitFoco = (vitFoco + dir + n) % n;
 }
 static const char *vitrineCatalogoRotulo(void) {
   static char label[164];
