@@ -57,6 +57,7 @@ jobs:
           python3 tests/guia_categoria_cap.py
           python3 tests/guia_category_labels.py
           python3 tests/descanso_vetrina_selezionati.py
+          python3 tests/descanso_independente.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           # Regression checks for recent watch progress, stale episode checks and CW order.

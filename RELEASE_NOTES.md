@@ -1,3 +1,10 @@
+## 2.0.37 — Vetrina indipendente dalla Home
+
+- I cataloghi movie/series selezionati vengono interrogati direttamente anche se non sono visibili nella Home.
+- Aggiornamento asincrono ogni sei ore durante l'uso del salvaschermo; i nuovi titoli entrano nella rotazione.
+- Su errori di rete l'ultima lista valida rimane disponibile. Nessuna modifica alle file della Home.
+- Lista limitata a 48 titoli, equamente ripartiti tra le selezioni, con protezione per il cambio di profilo.
+
 ## 2.0.36 — Correzione canali StreamViX nella Guida TV
 
 - Aumentato da 48 a 128 il limite delle categorie originali sulla versione LG webOS, evitando che i canali di StreamViX e TVVoo siano scartati quando vengono caricati molti generi.
