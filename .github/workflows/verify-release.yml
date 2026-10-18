@@ -42,6 +42,7 @@ jobs:
           python3 tests/ux_serie_tracce.py
           python3 tests/vetrina_descrizioni.py
           python3 tests/detail_sinopse_foco.py
+          python3 tests/ui_2033.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           bash tests/progresso.sh
