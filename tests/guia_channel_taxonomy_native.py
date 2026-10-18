@@ -18,6 +18,11 @@ tests=[
  ("Rai Sport 1","Rai","TvVoo","Canali sportivi"),
  ("Formula 1","Sport","StreamViX","Formula 1"),
  ("Basket NBA","Sport","TvVoo","Basket"),
+ ("Evento 24","Eventi","StreamViX","Eventi live"),
+ ("Live 7","Sport","StreamViX Eventi","Eventi live"),
+ ("Live 8","Events","StreamViX","Eventi live"),
+ ("Formula 1 Live","Eventi","StreamViX","Formula 1"),
+ ("Serie A Live","Eventi","StreamViX","Serie A"),
 ]
 def esc(x):return '"'+x.replace("\\","\\\\").replace('"','\\"')+'"'
 main="int main(void) {\n"
