@@ -735,7 +735,24 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
   char *corpo;
   const char *p;
   int n = 0, w, semBase = 0;
-  if (skip > 0)
+  if (f->genero[0]) {
+    // Encode UTF-8 bytes in path extra; never interpolate raw spaces or slashes.
+    char encoded[sizeof f->genero * 3];
+    size_t j = 0;
+    for (const unsigned char *p = (const unsigned char *)f->genero; *p && j+4 < sizeof encoded; p++) {
+      unsigned char c = *p;
+      if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') ||
+          (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.') encoded[j++] = (char)c;
+      else { snprintf(encoded+j, sizeof encoded-j, "%%%02X", c); j += 3; }
+    }
+    encoded[j] = 0;
+    if (skip > 0)
+      w = nv_addon_url(url, sizeof url, f->base, "/catalog/%s/%s/genre=%s&skip=%d.json",
+                       f->tipo, f->id, encoded, skip);
+    else
+      w = nv_addon_url(url, sizeof url, f->base, "/catalog/%s/%s/genre=%s.json",
+                       f->tipo, f->id, encoded);
+  } else if (skip > 0)
     w = nv_addon_url(url, sizeof url, f->base, "/catalog/%s/%s/skip=%d.json",
                      f->tipo, f->id, skip);
   else
@@ -867,15 +884,22 @@ static void sondaManifestos(void) {
         if (sb) sb->canal = nc > 0;
         if (!ativo) continue;
         for (k = 0; k < nc && sNFontes < G_MAX_FONTE; k++) {
-          int ja = fonteJa(base, cc[k].id);
+          int ja = -1;
+          for (int j = 0; j < sNFontes; j++)
+            if (!strcmp(sFontes[j].base, base) && !strcmp(sFontes[j].id, cc[k].id) &&
+                !strcmp(sFontes[j].genero, cc[k].genero)) { ja = j; break; }
           if (ja < 0) {
             ja = sNFontes++;
             snprintf(sFontes[ja].base, sizeof sFontes[ja].base, "%s", base);
             snprintf(sFontes[ja].tipo, sizeof sFontes[ja].tipo, "%s", cc[k].tipo);
             snprintf(sFontes[ja].id,   sizeof sFontes[ja].id,   "%s", cc[k].id);
+            snprintf(sFontes[ja].genero, sizeof sFontes[ja].genero, "%s", cc[k].genero);
             sFontes[ja].nome[0] = 0;
           }
-          if (cc[k].nome[0]) snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].nome);
+          if (cc[k].genero[0])
+            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].genero);
+          else if (cc[k].nome[0])
+            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].nome);
         }
         continue;
       } }
