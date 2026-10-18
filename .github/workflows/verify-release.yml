@@ -41,6 +41,7 @@ jobs:
           python3 tools/stable-release-notes.py --check
           python3 tests/ux_serie_tracce.py
           python3 tests/vetrina_descrizioni.py
+          python3 tests/detail_sinopse_foco.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           bash tests/progresso.sh
