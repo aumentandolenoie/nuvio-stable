@@ -84,6 +84,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <time.h>
@@ -2001,7 +2002,7 @@ static void saltarCat(int dir) {
 // --- painel de categorias -------------------------------------------------------
 static void catAbrir(int modo, int dir) {
   if (nLinhas() < 1) return;
-  if (!catAberto) { guideLevel = 0; catFoco = guideGroupOf(linhaNome(focoLin)); }
+  if (!catAberto) { guideLevel = 0; catFoco = guideGroupOf(linhaNome(focoLin)); catRol = 0; catVelRol = 0; }
 #ifdef NV_TOUCH_UI
   if (!catAberto) toquerol_limpar(&toqueCat);
 #endif
@@ -5199,6 +5200,7 @@ void guia_abrir_sessao(void) {
   catAberto = catFoco = dirSeg = okLongo = 0;
   catUlt = dirDesde = dirTick = ultNavCat = okDesde = 0;
   catAnim = catRol = catVelRol = 0.0f;
+  guideGroup = guideLevel = 0;
   previewPreso = pedPreview = pedPararPreview = pedRestaurar = pedGuiaCheio = 0;
   previewUltLin = previewUltCol = -1; previewFocoMudou = 0;
   memset(&pedido, 0, sizeof pedido); memset(&pedPreviewItem, 0, sizeof pedPreviewItem);
