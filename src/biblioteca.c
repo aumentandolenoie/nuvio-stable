@@ -277,7 +277,7 @@ enum { TIPO_TODOS, TIPO_FILME, TIPO_SERIE, BIB_N_TIPOS };
 static const char *ROT_TIPO[BIB_N_TIPOS] = { "Todos", "Filmes", "Séries" };
 // Seletor "Ordenar".
 enum { ORD_ADICIONADOS, ORD_TITULO, ORD_ANO, ORD_VISTO, ORD_NAO_VISTO, BIB_N_ORD };
-static const char *ROT_ORD[BIB_N_ORD] = { "Ordem da lista", "Título: A a Z", "Ano: mais recentes",
+static const char *ROT_ORD[BIB_N_ORD] = { "Aggiunti di recente", "Título: A a Z", "Ano: mais recentes",
                                           "Assistidos primeiro", "Não assistidos primeiro" };
 // Seletor "Exibição".
 enum { VIS_CARTAZ, VIS_LISTA, BIB_N_VIS };
@@ -365,17 +365,20 @@ static void lerPref(void) {
   if (p == prefPerfil) return;
   prefPerfil = p;
   exibicao = VIS_CARTAZ;
+  ordem = ORD_ADICIONADOS;
   b = dados_ler(arquivoPref());
   if (!b) return;
   { const char *s = strstr(b, "exibicao\t");
     if (s) exibicao = atoi(s + 9) ? VIS_LISTA : VIS_CARTAZ; }
+  { const char *s = strstr(b, "ordem\t");
+    if (s) { int v = atoi(s + 6); if (v >= 0 && v < BIB_N_ORD) ordem = v; } }
   free(b);
 }
 static void gravarPref(void) {
   char txt[160];
   snprintf(txt, sizeof txt,
-           "# Exibicao da Biblioteca neste perfil. 0 = cartazes, 1 = lista.\n"
-           "exibicao\t%d\n", exibicao);
+           "# Preferencias da Biblioteca neste perfil.\n"
+           "exibicao\t%d\nordem\t%d\n", exibicao, ordem);
   dados_gravar(arquivoPref(), txt);
 }
 
@@ -642,6 +645,26 @@ static int vistoFiltro(int v) {
     snprintf(tmp.tipo, sizeof tmp.tipo, "%s", s->tipo);
     return cat_visto(&tmp); }
 }
+// Data de adicao mais recente entre aparelho e conta. Fontes sem timestamp
+// (por exemplo, itens somente Trakt) conservam a ordem relativa originale.
+static long long adicionadoFiltro(int v) {
+  const char *id;
+  long long ms = 0;
+  if (v >= 0) { const CatItem *c = cat_item(v); id = c ? c->imdb : ""; }
+  else { const SalvoItem *s = salvos_item(-v - 1); id = s ? s->id : ""; }
+  if (!id[0]) return 0;
+  for (int i = 0; i < salvos_n(); i++) {
+    const SalvoItem *s = salvos_item(i);
+    if (s && salvos_mesmo_titulo(id, s->id) && s->quandoS > 0
+        && s->quandoS * 1000LL > ms) ms = s->quandoS * 1000LL;
+  }
+  for (int i = 0; i < contalib_n(); i++) {
+    const ContaLibItem *c = contalib_item(i);
+    if (c && salvos_mesmo_titulo(id, c->id) && c->addedMs > ms)
+      ms = c->addedMs;
+  }
+  return ms;
+}
 static int ehSerieSalvo(const SalvoItem *s) {
   return s && !strcmp(s->tipo, "series");
 }
@@ -753,7 +776,19 @@ static void reconstruir(void) {
   }
 
   // Ordenacao por insercao — sao poucas dezenas de itens, uma vez por troca.
-  if (ordem == ORD_VISTO || ordem == ORD_NAO_VISTO) {
+  if (ordem == ORD_ADICIONADOS) {
+    // Ordina piccoli indici e non CatItem; stabile anche senza data nota.
+    static long long datas[CAT_MAX + SALVOS_MAX];
+    for (int i = 0; i < nFiltro; i++) datas[i] = adicionadoFiltro(filtro[i]);
+    for (int i = 1; i < nFiltro; i++) {
+      int v = filtro[i], j = i - 1;
+      long long d = datas[i];
+      while (j >= 0 && datas[j] < d) {
+        filtro[j + 1] = filtro[j]; datas[j + 1] = datas[j]; j--;
+      }
+      filtro[j + 1] = v; datas[j + 1] = d;
+    }
+  } else if (ordem == ORD_VISTO || ordem == ORD_NAO_VISTO) {
     // Duas faixas, ESTAVEL: a ordem de adicao segue dentro de cada uma.
     static int tmpF[CAT_MAX + SALVOS_MAX];
     int quer = ordem == ORD_VISTO, k = 0;
@@ -816,7 +851,7 @@ int biblioteca_iniciar(void) {
   prefPerfil = -1;
   lerPref();
   lst_iniciar();
-  modo = MODO_SALVOS; tipo = TIPO_TODOS; ordem = ORD_ADICIONADOS;
+  modo = MODO_SALVOS; tipo = TIPO_TODOS;
   pickSel = 0; temAberta = 0; acaoSel = 0; recado[0] = 0; recadoAte = 0.0f;
   buscaAberta = 0;
   memset(animModo, 0, sizeof animModo);
@@ -1159,7 +1194,7 @@ void biblioteca_evento(const SDL_Event *e) {
         }
       } else {
         if (pickSel == 0)      { tipo = (tipo + 1) % BIB_N_TIPOS;   reconstruir(); }
-        else if (pickSel == 1) { ordem = (ordem + 1) % BIB_N_ORD;   reconstruir(); }
+        else if (pickSel == 1) { ordem = (ordem + 1) % BIB_N_ORD; gravarPref(); reconstruir(); }
         else                     alternarExibicao();
       }
       foco.fileira = BIB_FIL_PICK; foco.coluna = pickSel;
