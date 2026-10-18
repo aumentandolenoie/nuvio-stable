@@ -1396,9 +1396,9 @@ static int    catAberto, catFoco;
 // sem tecla por G_CAT_OCIOSO_MS ela fecha sem mudar nada.
 // Hierarchical category drawer. It indexes the already-loaded categories;
 // opening a folder never issues a new network request or modifies channel IDs.
-#define G_GUIDE_GROUPS 8
+#define G_GUIDE_GROUPS 9
 static const char *guideGroups[G_GUIDE_GROUPS] = {
-  "Sport", "Canali TV", "Film e serie TV", "Informazione",
+  "Preferiti", "Sport", "Canali TV", "Film e serie TV", "Informazione",
   "Documentari", "Bambini", "Musica", "Altri"
 };
 static int guideGroup, guideLevel;
@@ -1412,6 +1412,7 @@ static int guideContains(const char *name, const char *needle) {
   return 0;
 }
 static int guideGroupOf(const char *name) {
+  // Group 0 is reserved for quick-access Favorites.
   if (guideContains(name,"serie a") || guideContains(name,"serie b") ||
       guideContains(name,"serie c") || guideContains(name,"sport") ||
       guideContains(name,"calcio") || guideContains(name,"soccer") ||
@@ -1423,24 +1424,21 @@ static int guideGroupOf(const char *name) {
       guideContains(name,"volley") || guideContains(name,"hockey") ||
       guideContains(name,"wrestling") || guideContains(name,"boxing") ||
       guideContains(name,"darts") || guideContains(name,"baseball") ||
-      guideContains(name,"nfl") || guideContains(name,"eventi")) return 0;
+      guideContains(name,"nfl") || guideContains(name,"eventi")) return 1;
   if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
       guideContains(name,"sky") || guideContains(name,"pluto") ||
-      guideContains(name,"general") || guideContains(name,"tv")) return 1;
+      guideContains(name,"general") || guideContains(name,"tv")) return 2;
   if (guideContains(name,"cinema") || guideContains(name,"film") ||
-      guideContains(name,"serie tv")) return 2;
+      guideContains(name,"serie tv")) return 3;
   if (guideContains(name,"news") || guideContains(name,"notiz") ||
-      guideContains(name,"inform")) return 3;
-  if (guideContains(name,"document") || guideContains(name,"discovery")) return 4;
-  if (guideContains(name,"bambin") || guideContains(name,"kids")) return 5;
-  if (guideContains(name,"music")) return 6;
-  return 7;
+      guideContains(name,"inform")) return 4;
+  if (guideContains(name,"document") || guideContains(name,"discovery")) return 5;
+  if (guideContains(name,"bambin") || guideContains(name,"kids")) return 6;
+  if (guideContains(name,"music")) return 7;
+  return 8;
 }
 static int guideChildLine(int at) {
-  if (nFavOrd > 0 && guideGroup == 0) {
-    if (at == 0) return 0;
-    at--;
-  }
+  if (guideGroup == 0) return nFavOrd > 0 && at == 0 ? 0 : -1;
   for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++) {
     if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
     if (at-- == 0) return l;
@@ -1461,7 +1459,7 @@ static int guideMenuCount(int i) {
   int n = 0;
   for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++)
     if (guideGroupOf(linhaNome(l)) == i) n += linhaN(l);
-  if (i == 0 && nFavOrd) n += nFavOrd;
+  if (i == 0) return nFavOrd;
   return n;
 }
 #define G_CAT_OCIOSO_MS 8000u
@@ -2002,7 +2000,7 @@ static void saltarCat(int dir) {
 // --- painel de categorias -------------------------------------------------------
 static void catAbrir(int modo, int dir) {
   if (nLinhas() < 1) return;
-  if (!catAberto) { guideLevel = 0; catFoco = guideGroupOf(linhaNome(focoLin)); catRol = 0; catVelRol = 0; }
+  if (!catAberto) { guideLevel = 0; catFoco = linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin)); catRol = 0; catVelRol = 0; }
 #ifdef NV_TOUCH_UI
   if (!catAberto) toquerol_limpar(&toqueCat);
 #endif
@@ -3467,7 +3465,7 @@ static void desenharPainelCategorias(float a) {
               areaH + G_CAT_FADE);
   for (i = 0; i < nl; i++) {
     float y = G_CAT_TOPO + (float)i * G_CAT_ROW - catRol;
-    int foc = i == catFoco, atual = guideLevel ? guideChildLine(i) == focoLin : guideGroupOf(linhaNome(focoLin)) == i;
+    int foc = i == catFoco, atual = guideLevel ? guideChildLine(i) == focoLin : (linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin))) == i;
     GfxRect r = { x0 + 32.0f, y, G_CAT_W - 56.0f, G_CAT_ROW - 8.0f };
     float ft, fb, la;
     char n[16];
