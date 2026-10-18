@@ -266,6 +266,7 @@ typedef struct {
   // mundo que recebe a base de um canal (lembrete, fontecache, spotlight,
   // diagnostico da Live TV) herda este teto, e por isso continua em 600.
   char base[600];
+  uint64_t origemHash; // Long addon bases: preserve identity without +4 MB arrays
   int  cat;      // indice em cats[]
   int  epg;      // -1 = ainda nao resolvido; -2 = sem grade real
   char epgId[64];  // id do canal no XMLTV do provedor (Xtream), quando ha
@@ -273,6 +274,27 @@ typedef struct {
 } GCanal;
 
 // Publicados (so o fio de desenho le).
+// A configured addon may have a base URL longer than GCanal.base[600].
+// Retain a 64-bit identity, resolve it against current enabled addon bases
+// only when playing/prefetching; do not duplicate 2048-byte URLs per channel.
+static uint64_t guiaHashBase(const char *base) {
+  uint64_t h = UINT64_C(14695981039346656037);
+  if (!base || !base[0]) return 0;
+  for (const unsigned char *p = (const unsigned char *)base; *p; p++)
+    { h ^= *p; h *= UINT64_C(1099511628211); }
+  return h;
+}
+static const char *guiaBaseCanal(const GCanal *c) {
+  if (!c) return "";
+  if (c->base[0]) return c->base;
+  if (c->origemHash)
+    for (int i = 0; i < addons_n(); i++) {
+      const char *base = addons_base(i);
+      if (base && base[0] && guiaHashBase(base) == c->origemHash)
+        return base;
+    }
+  return "";
+}
 static GCanal canais[G_MAX_CANAL];   static int nCanais;
 static char   cats[G_MAX_CAT][64];   static int nCats;
 static int    catIni[G_MAX_CAT], catN[G_MAX_CAT];
@@ -798,6 +820,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
       }
       c.cat = sCatDe(gen[0] ? gen : f->nome[0] ? f->nome : "Outros");
       // Base que nao cabe fica VAZIA, nunca cortada (ver GCanal.base).
+      c.origemHash = guiaHashBase(f->base);
       if (strlen(f->base) < sizeof c.base) snprintf(c.base, sizeof c.base, "%s", f->base);
       else { c.base[0] = 0; semBase++; }
       if (c.cat >= 0) { sCanais[sNCanais++] = c; (*novos)++; }
@@ -1598,8 +1621,8 @@ static Uint32 overlayDesde;
 static void engatilharVizinhos(void) {
   GCanal *antes  = linhaItem(focoLin, focoCol - 1);
   GCanal *depois = linhaItem(focoLin, focoCol + 1);
-  fontecache_engatilhar(antes  ? antes->id  : NULL, antes  ? antes->base  : NULL,
-                        depois ? depois->id : NULL, depois ? depois->base : NULL);
+  fontecache_engatilhar(antes  ? antes->id  : NULL, antes  ? guiaBaseCanal(antes)  : NULL,
+                        depois ? depois->id : NULL, depois ? guiaBaseCanal(depois) : NULL);
 }
 
 static void focoValido(void) {
@@ -1661,7 +1684,7 @@ int guia_canais_para_teste(GuiaVariante *out, char bases[][600], int max, char *
     snprintf(out[n].id, sizeof out[n].id, "%s", g->id);
     snprintf(out[n].nome, sizeof out[n].nome, "%s", g->nome);
     out[n].altura = nv_res_do_texto(g->nome);
-    if (bases) snprintf(bases[n], 600, "%s", g->base);
+    if (bases) snprintf(bases[n], 600, "%s", guiaBaseCanal(g));
     n++;
   }
   return n;
@@ -1669,11 +1692,11 @@ int guia_canais_para_teste(GuiaVariante *out, char bases[][600], int max, char *
 static int pedLivetvDiag;
 int guia_pediu_livetv_diag(void) { int v = pedLivetvDiag; pedLivetvDiag = 0; return v; }
 
-static char pedidoBase[600];
+static char pedidoBase[NV_ADDON_URL_MAX];
 static void previewPedir(GCanal *c) {
   if (!c || !c->id[0]) return;
   canalParaItem(c, &pedPreviewItem);
-  snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base);
+  snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c));
   snprintf(previewId, sizeof previewId, "%s", c->id);
   pedPreview = 1;
 }
@@ -1933,7 +1956,7 @@ static int zapAlvo(const char *idAtual, int dir, CatItem *saida, int aplicar) {
   alvo = aovivo_ordem(nCanais, alvo, dir);
   canalParaItem(&canais[alvo], saida);
   // A origem so muda quando o zap VAI tocar; o banner do zapping so espia.
-  if (aplicar) snprintf(pedidoBase, sizeof pedidoBase, "%s", canais[alvo].base);
+  if (aplicar) snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(&canais[alvo]));
   return 1;
 }
 int guia_zap(const char *idAtual, int dir, CatItem *saida) {
