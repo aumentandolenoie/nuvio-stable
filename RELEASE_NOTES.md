@@ -1,3 +1,9 @@
+## 2.0.41 — Ordinamento Libreria per aggiunta recente
+
+- Aggiunti di recente è il nuovo ordinamento predefinito della Libreria, basato sulle date disponibili di aggiunta locale e sincronizzata.
+- L'ordinamento scelto viene conservato per profilo anche dopo il riavvio; gli altri ordinamenti restano disponibili.
+- Aggiunti test di regressione per ordinamento e preferenze. Nessuna modifica al player.
+
 ## 2.0.40 — Eventi live StreamViX visibili nella Guida TV
 
 - Gli eventi StreamViX privi di uno sport riconoscibile compaiono in Sport → Eventi live invece che tra i canali sportivi generici.
