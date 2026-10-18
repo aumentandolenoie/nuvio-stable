@@ -734,9 +734,12 @@ static const char *categoriaCanal(const char *nome, const char *genero,
   const char *n=nome ? nome : "", *g=genero ? genero : "";
   const char *catalog=catalogo ? catalogo : "";
   // Specific disciplines are recognized first, even in generic Sport catalogs.
-  if (contemSemCaixa(n,"formula 1") || contemSemCaixa(n,"f1 tv") ||
+  if (contemSemCaixa(n,"formula 1") || contemSemCaixa(n,"formula one") ||
+      contemSemCaixa(n,"f1 tv") ||
       contemSemCaixa(n,"sport f1") || contemSemCaixa(n,"f1 live") ||
-      contemSemCaixa(n,"f1 ") || !strcasecmp(n,"f1") || contemSemCaixa(g,"formula 1") ||
+      contemSemCaixa(n,"f1 ") || !strcasecmp(n,"f1") ||
+      (strlen(n)>=2 && !strcasecmp(n+strlen(n)-2,"f1")) ||
+      contemSemCaixa(g,"formula 1") ||
       !strcasecmp(g,"f1")) return "Formula 1";
   if (contemSemCaixa(n,"motogp") || contemSemCaixa(n,"moto gp") ||
       contemSemCaixa(g,"motogp")) return "MotoGP";
@@ -767,15 +770,19 @@ static const char *categoriaCanal(const char *nome, const char *genero,
   if (contemSemCaixa(g,"sport") || contemSemCaixa(g,"esport") ||
       contemSemCaixa(n,"sport") || contemSemCaixa(catalog,"sport") ||
       contemSemCaixa(catalog,"eventi")) return "Canali sportivi";
-  if (contemSemCaixa(g,"film") || contemSemCaixa(g,"cinema") ||
+  if (contemSemCaixa(n,"cinema") || contemSemCaixa(n,"film") ||
+      contemSemCaixa(g,"film") || contemSemCaixa(g,"cinema") ||
       contemSemCaixa(g,"serie tv") || contemSemCaixa(g,"série") ||
       contemSemCaixa(catalog,"cinema") ||
       contemSemCaixa(n,"movie")) return "Canali cinema e serie";
   if (contemSemCaixa(g,"news") || contemSemCaixa(g,"notiz") ||
+      contemSemCaixa(n,"notiz") ||
       contemSemCaixa(n,"news")) return "Canali di informazione";
   if (contemSemCaixa(g,"document") || contemSemCaixa(g,"discovery") ||
+      contemSemCaixa(n,"discovery") ||
       contemSemCaixa(n,"document")) return "Canali documentari";
   if (contemSemCaixa(g,"bambin") || contemSemCaixa(g,"kids") ||
+      contemSemCaixa(n,"cartoon") ||
       contemSemCaixa(n,"kids")) return "Canali per bambini";
   if (contemSemCaixa(g,"music") || contemSemCaixa(n,"music") ||
       contemSemCaixa(n,"mtv")) return "Canali musicali";
