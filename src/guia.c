@@ -988,10 +988,14 @@ static void *fioGuia(void *u) {
     int restantes = sNFontes - i;
     int cota = (G_MAX_CANAL - sNCanais) / (restantes > 0 ? restantes : 1);
     int lidos = 0;
-    if (cota < G_COTA_MIN) cota = G_COTA_MIN;
-    // A required-genre catalog is a facet, not an entire provider. Limit each
-    // facet so dozens of StreamViX genres cannot crowd out other live addons.
-    if (sFontes[i].genero[0] && cota > 48) cota = 48;
+    // Each required-genre facet receives a fair share of remaining capacity.
+    // Applying G_COTA_MIN to every one of ~40 StreamViX genres would exhaust
+    // the whole guide after only a few, hiding the later sports categories.
+    // Existing catalog-only addons keep their historical minimum quota.
+    if (sFontes[i].genero[0]) {
+      if (cota < 1) cota = 1;
+      if (cota > 48) cota = 48;
+    } else if (cota < G_COTA_MIN) cota = G_COTA_MIN;
     for (int skip = 0; cargaAtual() && sNCanais < G_MAX_CANAL && lidos < cota; skip += G_PAGINA) {
       int novos = 0;
       int n = lerPagina(&sFontes[i], skip, cota - lidos, &novos);
