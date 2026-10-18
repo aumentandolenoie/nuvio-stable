@@ -2093,6 +2093,7 @@ void ajustes_abrir_opcao(int op) {
 static const char *vitrineCatalogoRotulo(void);
 static void vitrinePasso(int dir);
 static void vitrineAlternar(void);
+static void vitrineAlternar(void);
 static const char *heroFonteRotulo(void);
 static void heroFonteCiclar(int dir);
 
@@ -5487,7 +5488,7 @@ static const char *textoLeitura(int op) {
     return extras_mdblist_tem_chave() ? i18n("definida") : i18n("ausente");
   }
   if (op == AJ_HERO_CATALOGOS) return heroFonteRotulo();
-  if (op == AJ_VITRINE_CATALOGOS) return vitrineCatalogoRotulo();
+  if (op == AJ_VITRINE_CATALOGOS) return i18n("Scegli cataloghi ›");
   if (op == AJ_ESPACO) {
     // CURTO O BASTANTE PARA CABER NA COLUNA: "201.0 MB em 209 imagens" era
     // cortado em "209..." na TV, e o numero que sobrava era o menos util. O
@@ -6447,6 +6448,8 @@ static char filLetra(int i) {
 #define VIT_SEL_MAX 8192
 static char vitSel[VIT_SEL_MAX];
 static int vitSelLido, vitFoco;
+static int vitMenuAberto, vitMenuFoco, vitMenuN;
+static int vitMenuOrdem[FIL_MAX];
 static void vitrineLer(void) {
   if (!vitSelLido) {
     char *s = dados_ler("vetrina-catalogos.txt");
@@ -6472,6 +6475,84 @@ static int vitrineIndice(int pos) {
 }
 static int vitrineTotal(void) {
   int n = 0; while (vitrineIndice(n) >= 0) n++; return n;
+}
+// A dedicated modal for Vetrina: catalogs grouped by installed add-on name.
+// Only the presentation order changes; saved keys are stable and per-device.
+static const char *vitrineAddon(int pos) {
+  int idx = vitrineIndice(pos);
+  const char *a = idx >= 0 ? fil_linha_addon(idx) : NULL;
+  return a && a[0] ? a : i18n("Altri cataloghi");
+}
+static void vitrineMenuMontar(void) {
+  int n = vitrineTotal();
+  if (n > FIL_MAX) n = FIL_MAX;
+  vitMenuN = n;
+  for (int i = 0; i < n; i++) vitMenuOrdem[i] = i;
+  for (int i = 1; i < n; i++) {
+    int pos = vitMenuOrdem[i], j = i;
+    while (j > 0 && strcmp(vitrineAddon(vitMenuOrdem[j-1]), vitrineAddon(pos)) > 0) {
+      vitMenuOrdem[j] = vitMenuOrdem[j-1]; j--;
+    }
+    vitMenuOrdem[j] = pos;
+  }
+  if (vitMenuFoco >= n) vitMenuFoco = n ? n - 1 : 0;
+}
+static void vitrineMenuEvento(SDL_Keycode k) {
+  if (k == SDLK_ESCAPE || k == SDLK_AC_BACK || k == SDLK_BACKSPACE || k == SDLK_DELETE) {
+    vitMenuAberto = 0; return;
+  }
+  vitrineMenuMontar();
+  if (vitMenuN <= 0) return;
+  if (k == SDLK_UP && vitMenuFoco > 0) vitMenuFoco--;
+  else if (k == SDLK_DOWN && vitMenuFoco + 1 < vitMenuN) vitMenuFoco++;
+  else if (k == SDLK_LEFT || k == SDLK_RIGHT) {
+    const char *a = vitrineAddon(vitMenuOrdem[vitMenuFoco]);
+    int delta = k == SDLK_RIGHT ? 1 : -1, i = vitMenuFoco + delta;
+    while (i >= 0 && i < vitMenuN &&
+           !strcmp(a, vitrineAddon(vitMenuOrdem[i]))) i += delta;
+    if (i >= 0 && i < vitMenuN) vitMenuFoco = i;
+  } else if (k == SDLK_RETURN || k == SDLK_KP_ENTER) {
+    vitFoco = vitMenuOrdem[vitMenuFoco];
+    vitrineAlternar();
+  }
+}
+static void vitrineMenuDesenhar(void) {
+  vitrineMenuMontar();
+  gfx_sem_recorte();
+  gfx_cor((GfxRect){0,0,NV_TELA_W,NV_TELA_H},0,0,0,0,0.88f);
+  GfxRect panel = {180,96,NV_TELA_W-360,NV_TELA_H-192};
+  gfx_cor(panel,0.035f,0.12f,0.13f,0.17f,0.98f);
+  txt_bloco_corta(TXT_DET_SIN,i18n("Cataloghi della vetrina"),255,255,255,
+                  panel.x+42,panel.y+26,panel.w-84,38,1.0f,2);
+  txt_bloco_corta(TXT_DET_SIN,i18n("Per addon · OK seleziona · Sinistra/Destra cambia addon · Indietro chiude"),
+                  205,205,205,panel.x+42,panel.y+80,panel.w-84,26,1.0f,2);
+  if (vitMenuN <= 0) {
+    txt_bloco_corta(TXT_DET_SIN,i18n("Nessun catalogo disponibile"),220,220,220,
+                    panel.x+42,panel.y+180,panel.w-84,36,1.0f,2);
+    return;
+  }
+  const int vis = 8;
+  int first = vitMenuFoco - vis/2;
+  if (first < 0) first = 0;
+  if (first > vitMenuN-vis) first = vitMenuN-vis;
+  if (first < 0) first = 0;
+  for (int row = 0; row < vis && first+row < vitMenuN; row++) {
+    int pos = vitMenuOrdem[first+row], idx = vitrineIndice(pos);
+    if (idx < 0) continue;
+    float y = panel.y + 146.0f + row * 77.0f;
+    int focused = first+row == vitMenuFoco;
+    GfxRect rect = {panel.x+32,y,panel.w-64,69};
+    if (focused) {
+      float cr,cg,cb;
+      ajustes_acento(&cr,&cg,&cb);
+      gfx_anel(rect,0.14f,2.5f,cr,cg,cb,1.0f);
+    }
+    char text[280];
+    snprintf(text,sizeof text,"%s  %s  ·  %s",
+             ajustes_vetrina_catalogo_ativo(fil_chave(idx)) ? "[x]" : "[ ]",
+             vitrineAddon(pos), fil_titulo(idx));
+    txt_bloco_corta(TXT_DET_SIN,text,255,255,255,rect.x+18,rect.y+17,rect.w-36,32,1.0f,1);
+  }
 }
 static void vitrinePasso(int dir) {
   int n = vitrineTotal();
@@ -7405,9 +7486,7 @@ static void eventoTela(const SDL_Event *e) {
   if (frAberta) { frEvento(k); return; }
   // A folha de fileiras e modal, como a do vinculo acima.
   if (filAberta) { eventoFileiras(k); return; }
-  if (focoOp == AJ_VITRINE_CATALOGOS && !inativa(focoOp) && (k == SDLK_LEFT || k == SDLK_RIGHT)) {
-    vitrinePasso(k == SDLK_RIGHT ? 1 : -1); return;
-  }
+  if (vitMenuAberto) { vitrineMenuEvento(k); return; }
   if (uxEvento(k)) return;
 
   if (k == SDLK_RETURN || k == SDLK_KP_ENTER) {
@@ -7464,7 +7543,7 @@ static void eventoTela(const SDL_Event *e) {
     if (focoOp == AJ_FONTE_REGEX_PADRAO) { frRegexAbrir(); return; }
     if (focoOp == AJ_DIAGNOSTICO) { pediuDiagnostico = 1; return; }
     if (focoOp == AJ_HERO_CATALOGOS) { if (!inativa(focoOp)) heroFonteCiclar(+1); return; }
-    if (focoOp == AJ_VITRINE_CATALOGOS) { if (!inativa(focoOp)) vitrineAlternar(); return; }
+    if (focoOp == AJ_VITRINE_CATALOGOS) { if (!inativa(focoOp)) { vitMenuAberto=1; vitMenuFoco=0; vitrineMenuMontar(); } return; }
     if (focoOp == AJ_VELOCIDADE) { pediuVelocidade = 1; return; }
     if (focoOp == AJ_LIVETV_DIAG) { pediuLivetvDiag = 1; return; }
     if (focoOp == AJ_STALKER_PORTAL || focoOp == AJ_STALKER_MAC) {
@@ -8364,6 +8443,7 @@ static void ajDesenharTudo(Uint32 agora) {
     ajToqueCamada();
 #endif
     ESCALA_REAL_INI(); desenhaFileiras(); ESCALA_REAL_FIM(); }
+  if (vitMenuAberto) { ponteiro_camada(); vitrineMenuDesenhar(); }
   if (riscoFolha) desenhaRiscoFolha();
   if (frAberta >= 4) desenhaFolhaFalha();
   else if (frAberta == 3) desenhaFolhaOrdem();
