@@ -51,6 +51,7 @@ jobs:
           python3 tests/vetrina_descrizioni.py
           python3 tests/detail_sinopse_foco.py
           python3 tests/ui_2033.py
+          python3 tests/guia_genre.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           # Regression checks for recent watch progress, stale episode checks and CW order.
