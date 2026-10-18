@@ -21,7 +21,7 @@ actions=s[s.index("def "):] if False else Path("src/detail.c").read_text()
 start=actions.index("float cyBtn = yAcoes + NV_DETW2_BTN_H * 0.5f;")
 end=actions.index("// --- ILHA DE AMIGOS",start)
 row=actions[start:end]
-assert "float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 32.0f);" in row
+assert "float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 18.0f);" in row
 assert "bx += rp.w + gapAcoes;" in row
 assert "bx += largura + gapAcoes;" in row
 assert "NV_DETW2_CIRC+gapAcoes" in row
