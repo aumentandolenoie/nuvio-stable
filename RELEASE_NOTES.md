@@ -2,6 +2,19 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.33 — Pulsanti compatti, fonti e cataloghi Vetrina
+
+### Pagina del titolo
+- Riproduci resta sempre visibile; le altre azioni mostrano soltanto l'icona a riposo, si espandono con etichetta quando selezionate e si richiudono cambiando focus.
+- Spaziatura orizzontale leggermente ridotta; il margine continua a proteggere dall'ingrandimento al focus.
+
+### Fonti
+- Quando si apre la scelta manuale, il focus e lo scorrimento partono sempre dalla prima fonte visibile, senza cambiare ranking o politica di autoplay.
+
+### Vetrina
+- «Cataloghi della vetrina» apre un pannello dedicato, con cataloghi raggruppati per add-on e selezione multipla tramite OK.
+- Su/Giù navigano, Sinistra/Destra passano al gruppo successivo o precedente, Indietro chiude; le scelte continuano ad essere persistite tramite identificativi stabili.
+
 ## 2.0.32 — Correzione navigazione descrizione
 
 ### Scheda titolo
