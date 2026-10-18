@@ -205,6 +205,13 @@ static void descSelStep(unsigned now, int wanted) {
   }
   if (!strcmp(signature,descSelSignature) && descSelLast &&
       (unsigned)(now-descSelLast)<(descSelN ? DESC_SEL_REFRESH_MS : 10u * 60u * 1000u)) { free(w); return; }
+  // A changed selection may not show cards from an old, now-unselected
+  // catalog while the new download runs. Refresh of the SAME selection
+  // preserves its previous snapshot during network failures.
+  if (strcmp(signature,descSelSignature)) {
+    free(descSelItems); descSelItems=NULL; descSelN=0;
+    descSelGeneration++;
+  }
   snprintf(descSelSignature,sizeof descSelSignature,"%s",signature);
   descSelLast=now?now:1;
   if (!w->nCat) {
