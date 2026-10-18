@@ -14,6 +14,7 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 ### Vetrina
 - «Cataloghi della vetrina» apre un pannello dedicato, con cataloghi raggruppati per add-on e selezione multipla tramite OK.
 - Su/Giù navigano, Sinistra/Destra passano al gruppo successivo o precedente, Indietro chiude; le scelte continuano ad essere persistite tramite identificativi stabili.
+- I cataloghi degli add-on disattivati sono nascosti sia da «Non nella Home» sia dalla selezione Vetrina, senza cancellare preferenze né ordine salvato.
 
 ## 2.0.32 — Correzione navigazione descrizione
 
