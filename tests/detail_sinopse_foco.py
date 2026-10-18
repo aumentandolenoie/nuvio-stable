@@ -15,3 +15,14 @@ draw=s[start:end]
 assert "gfx_anel(" in draw and "focoAcento(&cr, &cg, &cb)" in draw
 assert "gfx_cor(" not in draw and "0.02f, 0.2f, 0.35f" not in draw
 print("PASS: synopsis DOWN navigation, UP return and accent-only focus outline")
+
+# Focus enlargement needs clearance between adjacent hero action pills.
+actions=s[s.index("def "):] if False else Path("src/detail.c").read_text()
+start=actions.index("float cyBtn = yAcoes + NV_DETW2_BTN_H * 0.5f;")
+end=actions.index("// --- ILHA DE AMIGOS",start)
+row=actions[start:end]
+assert "float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 32.0f);" in row
+assert "bx += rp.w + gapAcoes;" in row
+assert "bx += largura + gapAcoes;" in row
+assert "NV_DETW2_CIRC+gapAcoes" in row
+print("PASS: action pills retain focus-growth clearance, including expanded group")
