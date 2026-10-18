@@ -1,4 +1,5 @@
 #include "fontecache.h"
+#include "addonurl.h"
 #include "addons.h"
 #include "player.h"
 #include "perfisessao.h"
@@ -53,8 +54,8 @@ static char   pend[2][64];
 // A base do addon que publicou cada vizinho, para o prefetch perguntar SO a
 // ele (mesma regra de alvoBase em addons.c; sem ela cada prefetch ia a todos
 // os addons de fonte). Vazia = todos.
-static char   pendBase[2][600];
-static char   emCursoBase[600];
+static char   pendBase[2][NV_ADDON_URL_MAX];
+static char   emCursoBase[NV_ADDON_URL_MAX];
 static Uint32 pedidoEm;
 
 // O prefetch em curso. `emCurso` e o id na rede; `cancelar` e lido pelo fio de

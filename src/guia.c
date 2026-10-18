@@ -84,6 +84,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <ctype.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <time.h>
@@ -265,6 +266,7 @@ typedef struct {
   // mundo que recebe a base de um canal (lembrete, fontecache, spotlight,
   // diagnostico da Live TV) herda este teto, e por isso continua em 600.
   char base[600];
+  uint64_t origemHash; // Long addon bases: preserve identity without +4 MB arrays
   int  cat;      // indice em cats[]
   int  epg;      // -1 = ainda nao resolvido; -2 = sem grade real
   char epgId[64];  // id do canal no XMLTV do provedor (Xtream), quando ha
@@ -272,6 +274,27 @@ typedef struct {
 } GCanal;
 
 // Publicados (so o fio de desenho le).
+// A configured addon may have a base URL longer than GCanal.base[600].
+// Retain a 64-bit identity, resolve it against current enabled addon bases
+// only when playing/prefetching; do not duplicate 2048-byte URLs per channel.
+static uint64_t guiaHashBase(const char *base) {
+  uint64_t h = UINT64_C(14695981039346656037);
+  if (!base || !base[0]) return 0;
+  for (const unsigned char *p = (const unsigned char *)base; *p; p++)
+    { h ^= *p; h *= UINT64_C(1099511628211); }
+  return h;
+}
+static const char *guiaBaseCanal(const GCanal *c) {
+  if (!c) return "";
+  if (c->base[0]) return c->base;
+  if (c->origemHash)
+    for (int i = 0; i < addons_n(); i++) {
+      const char *base = addons_base(i);
+      if (base && base[0] && guiaHashBase(base) == c->origemHash)
+        return base;
+    }
+  return "";
+}
 static GCanal canais[G_MAX_CANAL];   static int nCanais;
 static char   cats[G_MAX_CAT][64];   static int nCats;
 static int    catIni[G_MAX_CAT], catN[G_MAX_CAT];
@@ -797,6 +820,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
       }
       c.cat = sCatDe(gen[0] ? gen : f->nome[0] ? f->nome : "Outros");
       // Base que nao cabe fica VAZIA, nunca cortada (ver GCanal.base).
+      c.origemHash = guiaHashBase(f->base);
       if (strlen(f->base) < sizeof c.base) snprintf(c.base, sizeof c.base, "%s", f->base);
       else { c.base[0] = 0; semBase++; }
       if (c.cat >= 0) { sCanais[sNCanais++] = c; (*novos)++; }
@@ -1393,6 +1417,74 @@ static int    catAberto, catFoco;
 // (modo 1), ao soltar ela vira a lista navegavel (modo 2) em vez de entrar
 // sozinha. Cima/baixo andam, OK ou direita entram, esquerda/Voltar fecham;
 // sem tecla por G_CAT_OCIOSO_MS ela fecha sem mudar nada.
+// Hierarchical category drawer. It indexes the already-loaded categories;
+// opening a folder never issues a new network request or modifies channel IDs.
+#define G_GUIDE_GROUPS 9
+static const char *guideGroups[G_GUIDE_GROUPS] = {
+  "Preferiti", "Sport", "Canali TV", "Film e serie TV", "Informazione",
+  "Documentari", "Bambini", "Musica", "Altri"
+};
+static int guideGroup, guideLevel;
+static int guideContains(const char *name, const char *needle) {
+  if (!name || !needle) return 0;
+  for (; *name; name++) {
+    const char *a=name,*b=needle;
+    while (*a && *b && tolower((unsigned char)*a)==tolower((unsigned char)*b)) {a++;b++;}
+    if (!*b) return 1;
+  }
+  return 0;
+}
+static int guideGroupOf(const char *name) {
+  // Group 0 is reserved for quick-access Favorites.
+  if (guideContains(name,"serie a") || guideContains(name,"serie b") ||
+      guideContains(name,"serie c") || guideContains(name,"sport") ||
+      guideContains(name,"calcio") || guideContains(name,"soccer") ||
+      guideContains(name,"premier") || guideContains(name,"liga") ||
+      guideContains(name,"bundesliga") || guideContains(name,"ligue 1") ||
+      guideContains(name,"coppe") || guideContains(name,"tennis") ||
+      guideContains(name,"formula") || guideContains(name,"f1") ||
+      guideContains(name,"moto") || guideContains(name,"basket") ||
+      guideContains(name,"volley") || guideContains(name,"hockey") ||
+      guideContains(name,"wrestling") || guideContains(name,"boxing") ||
+      guideContains(name,"darts") || guideContains(name,"baseball") ||
+      guideContains(name,"nfl") || guideContains(name,"eventi")) return 1;
+  if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
+      guideContains(name,"sky") || guideContains(name,"pluto") ||
+      guideContains(name,"general") || guideContains(name,"tv")) return 2;
+  if (guideContains(name,"cinema") || guideContains(name,"film") ||
+      guideContains(name,"serie tv")) return 3;
+  if (guideContains(name,"news") || guideContains(name,"notiz") ||
+      guideContains(name,"inform")) return 4;
+  if (guideContains(name,"document") || guideContains(name,"discovery")) return 5;
+  if (guideContains(name,"bambin") || guideContains(name,"kids")) return 6;
+  if (guideContains(name,"music")) return 7;
+  return 8;
+}
+static int guideChildLine(int at) {
+  if (guideGroup == 0) return nFavOrd > 0 && at == 0 ? 0 : -1;
+  for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++) {
+    if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
+    if (at-- == 0) return l;
+  }
+  return -1;
+}
+static int guideMenuN(void) {
+  if (!guideLevel) return G_GUIDE_GROUPS;
+  int n = 0;
+  while (guideChildLine(n) >= 0) n++;
+  return n;
+}
+static const char *guideMenuName(int i) {
+  return guideLevel ? linhaNome(guideChildLine(i)) : guideGroups[i];
+}
+static int guideMenuCount(int i) {
+  if (guideLevel) return linhaN(guideChildLine(i));
+  int n = 0;
+  for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++)
+    if (guideGroupOf(linhaNome(l)) == i) n += linhaN(l);
+  if (i == 0) return nFavOrd;
+  return n;
+}
 #define G_CAT_OCIOSO_MS 8000u
 static Uint32 catUlt;
 static float  catAnim, catRol, catVelRol;
@@ -1529,8 +1621,8 @@ static Uint32 overlayDesde;
 static void engatilharVizinhos(void) {
   GCanal *antes  = linhaItem(focoLin, focoCol - 1);
   GCanal *depois = linhaItem(focoLin, focoCol + 1);
-  fontecache_engatilhar(antes  ? antes->id  : NULL, antes  ? antes->base  : NULL,
-                        depois ? depois->id : NULL, depois ? depois->base : NULL);
+  fontecache_engatilhar(antes  ? antes->id  : NULL, antes  ? guiaBaseCanal(antes)  : NULL,
+                        depois ? depois->id : NULL, depois ? guiaBaseCanal(depois) : NULL);
 }
 
 static void focoValido(void) {
@@ -1592,7 +1684,7 @@ int guia_canais_para_teste(GuiaVariante *out, char bases[][600], int max, char *
     snprintf(out[n].id, sizeof out[n].id, "%s", g->id);
     snprintf(out[n].nome, sizeof out[n].nome, "%s", g->nome);
     out[n].altura = nv_res_do_texto(g->nome);
-    if (bases) snprintf(bases[n], 600, "%s", g->base);
+    if (bases) snprintf(bases[n], 600, "%s", guiaBaseCanal(g));
     n++;
   }
   return n;
@@ -1600,11 +1692,11 @@ int guia_canais_para_teste(GuiaVariante *out, char bases[][600], int max, char *
 static int pedLivetvDiag;
 int guia_pediu_livetv_diag(void) { int v = pedLivetvDiag; pedLivetvDiag = 0; return v; }
 
-static char pedidoBase[600];
+static char pedidoBase[NV_ADDON_URL_MAX];
 static void previewPedir(GCanal *c) {
   if (!c || !c->id[0]) return;
   canalParaItem(c, &pedPreviewItem);
-  snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base);
+  snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c));
   snprintf(previewId, sizeof previewId, "%s", c->id);
   pedPreview = 1;
 }
@@ -1820,7 +1912,7 @@ static void acaoOk(void) {
 // quando a lista ja esta carregada; senao so a identidade guardada.
 int guia_item_do_canal(const char *id, const char *nome, const char *base, CatItem *it) {
   GCanal *c = canalPorId(id);
-  if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base); return 1; }
+  if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c)); return 1; }
   if (!id || !id[0]) return 0;
   memset(it, 0, sizeof *it);
   snprintf(it->imdb, sizeof it->imdb, "%s", id);
@@ -1843,7 +1935,7 @@ static void pedirCanal(GCanal *c) {
   }
   pedPreview = 0; previewId[0] = 0; previewPreso = 0;
   canalParaItem(c, &pedido);
-  snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base);
+  snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c));
   pediuCanal = 1;
   // No overlay o OK TROCA o canal e volta ao video: ficar aberto por cima da
   // troca deixaria a pessoa assistindo atras de uma grade que ela ja usou.
@@ -1864,7 +1956,7 @@ static int zapAlvo(const char *idAtual, int dir, CatItem *saida, int aplicar) {
   alvo = aovivo_ordem(nCanais, alvo, dir);
   canalParaItem(&canais[alvo], saida);
   // A origem so muda quando o zap VAI tocar; o banner do zapping so espia.
-  if (aplicar) snprintf(pedidoBase, sizeof pedidoBase, "%s", canais[alvo].base);
+  if (aplicar) snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(&canais[alvo]));
   return 1;
 }
 int guia_zap(const char *idAtual, int dir, CatItem *saida) {
@@ -1931,7 +2023,7 @@ static void saltarCat(int dir) {
 // --- painel de categorias -------------------------------------------------------
 static void catAbrir(int modo, int dir) {
   if (nLinhas() < 1) return;
-  if (!catAberto) catFoco = focoLin;
+  if (!catAberto) { guideLevel = 0; catFoco = linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin)); catRol = 0; catVelRol = 0; }
 #ifdef NV_TOUCH_UI
   if (!catAberto) toquerol_limpar(&toqueCat);
 #endif
@@ -1940,18 +2032,26 @@ static void catAbrir(int modo, int dir) {
   if (dir) {
     catFoco += dir;
     if (catFoco < 0) catFoco = 0;
-    if (catFoco >= nLinhas()) catFoco = nLinhas() - 1;
+    if (catFoco >= guideMenuN()) catFoco = guideMenuN() - 1;
   }
 }
 static void catMover(int dir) {
   catFoco += dir;
   if (catFoco < 0) catFoco = 0;
-  if (catFoco >= nLinhas()) catFoco = nLinhas() - 1;
+  if (catFoco >= guideMenuN()) catFoco = guideMenuN() - 1;
 }
-static void catFechar(void) { catAberto = 0; dirSeg = 0; }
+static void catFechar(void) { catAberto = 0; dirSeg = 0; guideLevel = 0; }
 // Entra na categoria escolhida: primeiro canal dela, foco de volta na grade.
 static void catConfirmar(void) {
-  if (catFoco != focoLin) { focoLin = catFoco; focoCol = 0; }
+  if (!guideLevel) {
+    guideGroup = catFoco;
+    guideLevel = 1;
+    catFoco = 0; catRol = 0; catVelRol = 0;
+    return;
+  }
+  int line = guideChildLine(catFoco);
+  if (line < 0) return;
+  if (line != focoLin) { focoLin = line; focoCol = 0; }
   focoTopo = 0;
   catFechar();
   focoValido();
@@ -2251,7 +2351,7 @@ void guia_evento(const SDL_Event *e) {
       return;
     }
     if (k == SDLK_RETURN || k == SDLK_KP_ENTER || k == SDLK_RIGHT) { catConfirmar(); return; }
-    if (k == SDLK_LEFT) { catFechar(); return; }
+    if (k == SDLK_LEFT) { if (guideLevel) { guideLevel=0; catFoco=guideGroup; catRol=0; } else catFechar(); return; }
     return;
   }
 
@@ -2678,7 +2778,7 @@ void guia_atualizar(float dt, Uint32 agora) {
   if (catAberto || catAnim > 0.01f) {
     float areaH = G_CAT_BASE - G_CAT_TOPO;
     float alvo = (float)catFoco * G_CAT_ROW - (areaH - G_CAT_ROW) * 0.5f;
-    float maxY = (float)nLinhas() * G_CAT_ROW - areaH;
+    float maxY = (float)guideMenuN() * G_CAT_ROW - areaH;
     if (maxY < 0.0f) maxY = 0.0f;
     if (alvo > maxY) alvo = maxY;
     if (alvo < 0.0f) alvo = 0.0f;
@@ -3354,7 +3454,7 @@ static void desenharPainelCategorias(float a) {
   float x0 = -G_CAT_W * 0.18f * (1.0f - e);   // desliza ~80 px enquanto aparece
   float ea = e * a;
   float areaH = G_CAT_BASE - G_CAT_TOPO, maxY, acima, abaixo;
-  int nl = nLinhas(), i, tf = 243;
+  int nl = guideMenuN(), i, tf = 243;
   if (e < 0.01f || nl < 1) return;
   if (catAberto) ponteiro_camada();
 #ifdef NV_TOUCH_UI
@@ -3379,7 +3479,7 @@ static void desenharPainelCategorias(float a) {
   // Titulo, linhas e rodape na MESMA coluna de texto (x0 + 56): antes o titulo
   // e o rodape ficavam a 48 e o texto das linhas a 56, e a borda esquerda do
   // bloco nao fechava.
-  { TxtLinha t = txt_linha(TXT_HEADLINE, i18n("Categorias"), 242, 243, 247, 255);
+  { TxtLinha t = txt_linha(TXT_HEADLINE, guideLevel ? guideGroups[guideGroup] : i18n("Categorie TV"), 242, 243, 247, 255);
     txt_desenhar_alpha(t, x0 + 56.0f, 60.0f, ea); }
 
   // O recorte fica G_CAT_FADE/2 alem da area: e so rede de seguranca, porque
@@ -3388,7 +3488,7 @@ static void desenharPainelCategorias(float a) {
               areaH + G_CAT_FADE);
   for (i = 0; i < nl; i++) {
     float y = G_CAT_TOPO + (float)i * G_CAT_ROW - catRol;
-    int foc = i == catFoco, atual = i == focoLin;
+    int foc = i == catFoco, atual = guideLevel ? guideChildLine(i) == focoLin : (linhaEhFav(focoLin) ? 0 : guideGroupOf(linhaNome(focoLin))) == i;
     GfxRect r = { x0 + 32.0f, y, G_CAT_W - 56.0f, G_CAT_ROW - 8.0f };
     float ft, fb, la;
     char n[16];
@@ -3400,7 +3500,7 @@ static void desenharPainelCategorias(float a) {
     if (la < 0.01f) continue;
     if (catAberto && e > 0.99f)
       ponteiro_alvo_faixa(r.x, r.y, r.w, r.h, G_CAT_TOPO, G_CAT_BASE, ponteiroCategoria, NULL, i, 0);
-    snprintf(n, sizeof n, "%d", linhaN(i));
+    snprintf(n, sizeof n, "%d", guideMenuCount(i));
     if (foc) plrui_linha_foco(r, 20.0f, la);
     else if (atual) gfx_cor(r, 12.0f / r.h, 1, 1, 1, 0.06f * la);
     // A barra da secao atual: 4x22 com raio de 2 px. Com raio 0,5 (da altura)
@@ -3413,7 +3513,7 @@ static void desenharPainelCategorias(float a) {
     txt_desenhar_alpha(tc, r.x + r.w - 16.0f - (float)tc.w, r.y + (r.h - (float)tc.h) * 0.5f, la);
     { float nw = r.w - 24.0f - 16.0f - (float)tc.w - 16.0f;
       int cn = atual ? 245 : 205;
-      tn = foc ? txt_linha_corta(TXT_BODY, linhaNome(i), tf, tf, tf, 255, nw)
+      tn = foc ? txt_linha_corta(TXT_BODY, guideMenuName(i), tf, tf, tf, 255, nw)
                : txt_linha_corta(TXT_BODY, linhaNome(i), cn, cn + 1, cn + 5 > 255 ? 255 : cn + 5, 255, nw);
       txt_desenhar_alpha(tn, r.x + 24.0f, r.y + (r.h - (float)tn.h) * 0.5f, la); }
   }
@@ -3616,7 +3716,7 @@ static void desenharCardVisivel(GCanal *c, float x, float y, int l, int i,
 #endif
 static void ponteiroCategoria(int i, int b) {
   (void)b;
-  if (!catAberto || i < 0 || i >= nLinhas()) return;
+  if (!catAberto || i < 0 || i >= guideMenuN()) return;
 #ifdef NV_TOUCH_UI
   toquerol_limpar(&toqueCat);
 #endif
@@ -4679,7 +4779,7 @@ static void toqueGuiaRetomar(void) {
   }
   if (catAberto) {
     if (toqueCat.livre) catFoco = (int)((catRol + toqueCat.regiao.h * 0.35f) / G_CAT_ROW);
-    if (catFoco >= nLinhas()) catFoco = nLinhas() - 1;
+    if (catFoco >= guideMenuN()) catFoco = guideMenuN() - 1;
     if (catFoco < 0) catFoco = 0;
     toquerol_limpar(&toqueCat); return;
   }
@@ -5121,6 +5221,7 @@ void guia_abrir_sessao(void) {
   catAberto = catFoco = dirSeg = okLongo = 0;
   catUlt = dirDesde = dirTick = ultNavCat = okDesde = 0;
   catAnim = catRol = catVelRol = 0.0f;
+  guideGroup = guideLevel = 0;
   previewPreso = pedPreview = pedPararPreview = pedRestaurar = pedGuiaCheio = 0;
   previewUltLin = previewUltCol = -1; previewFocoMudou = 0;
   memset(&pedido, 0, sizeof pedido); memset(&pedPreviewItem, 0, sizeof pedPreviewItem);
