@@ -1,3 +1,10 @@
+## 2.0.39 — Guida TV indicizzata per singolo canale
+
+- Sport → Formula 1 mostra direttamente insieme i canali F1 di TVVoo e StreamViX, anche se i rispettivi cataloghi li dichiarano sotto generi diversi.
+- Lo stesso raggruppamento semantico per singolo canale vale per MotoGP, campionati, tennis, basket e le altre categorie; gli add-on non sono livelli di navigazione obbligatori.
+- Nessun cambiamento alle URL, ai dati EPG o al player. La vecchia cache delle categorie viene invalidata per riclassificare tutti i canali.
+- Test di regressione per i nomi canonici e la distribuzione delle fonti nei gruppi.
+
 ## 2.0.38 — Categorie Guida TV semplificate
 
 - I canali sono indicizzati per significato: Cinema e serie TV non compare più sotto Canali TV, Sport non mostra più duplicati chiamati Sport.
