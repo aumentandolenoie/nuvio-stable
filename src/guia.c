@@ -1912,7 +1912,7 @@ static void acaoOk(void) {
 // quando a lista ja esta carregada; senao so a identidade guardada.
 int guia_item_do_canal(const char *id, const char *nome, const char *base, CatItem *it) {
   GCanal *c = canalPorId(id);
-  if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base); return 1; }
+  if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c)); return 1; }
   if (!id || !id[0]) return 0;
   memset(it, 0, sizeof *it);
   snprintf(it->imdb, sizeof it->imdb, "%s", id);
@@ -1935,7 +1935,7 @@ static void pedirCanal(GCanal *c) {
   }
   pedPreview = 0; previewId[0] = 0; previewPreso = 0;
   canalParaItem(c, &pedido);
-  snprintf(pedidoBase, sizeof pedidoBase, "%s", c->base);
+  snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c));
   pediuCanal = 1;
   // No overlay o OK TROCA o canal e volta ao video: ficar aberto por cima da
   // troca deixaria a pessoa assistindo atras de uma grade que ela ja usou.
