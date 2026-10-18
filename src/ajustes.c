@@ -6419,7 +6419,11 @@ static void filMontarLista(void) {
       filLista[filListaN++] = i;
     }
   } else {
-    for (i = 0; i < n; i++) if (fil_estado(i) == FIL_FORA) filLista[filListaN++] = i;
+    for (i = 0; i < n; i++)
+      // Keep disabled add-on rows in persisted preferences, but do not offer
+      // their catalogs for manual Home activation until enabled again.
+      if (fil_estado(i) == FIL_FORA && !fil_linha_sem_addon(i))
+        filLista[filListaN++] = i;
     qsort(filLista, (size_t)filListaN, sizeof *filLista, filCmpFora);
   }
   { int max = filListaN + (filAba == 1 ? 1 : 0);
