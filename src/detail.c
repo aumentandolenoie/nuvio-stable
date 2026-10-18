@@ -2691,8 +2691,26 @@ void detail_evento(const SDL_Event *e) {
       if (sinopseDe(idx) && sinopseDe(idx)[0]) { sinLendo = 1; sinPagina = 0; }
       return;
     }
-    if (sk == SDLK_DOWN || sk == SDLK_ESCAPE || sk == SDLK_AC_BACK || sk == SDLK_BACKSPACE) { sinFoco = 0; if (sk != SDLK_DOWN) return; }
-    else if (sk == SDLK_UP || sk == SDLK_LEFT || sk == SDLK_RIGHT) { sinFoco = 0; return; }
+    if (sk == SDLK_DOWN) {
+      // Move directly to the first focusable lower section: forwarding DOWN
+      // through level 0 would focus the synopsis again and trap navigation.
+      sinFoco = 0;
+      for (int o = 0; o < N_ORDEM; o++) {
+        int r = ordemSecoes()[o];
+        if (secaoColunas(r) <= 0) continue;
+        int alvo = foco.colunaLembrada[r];
+        if (alvo >= secaoColunas(r)) alvo = secaoColunas(r) - 1;
+        if (alvo < 0) alvo = 0;
+        foco.fileira = r; foco.coluna = alvo; nivel = 1;
+        break;
+      }
+      return;
+    }
+    if (sk == SDLK_UP || sk == SDLK_ESCAPE || sk == SDLK_AC_BACK ||
+        sk == SDLK_BACKSPACE || sk == SDLK_LEFT || sk == SDLK_RIGHT) {
+      sinFoco = 0;
+      return;
+    }
   }
   if (corpoSobArte()) {
     if (trocaarte_aberto()) trocaarte_evento(e);
@@ -5098,7 +5116,11 @@ static void heroWeb(float a, float desloc) {
       else esqueletoSinopse(NV_DETW2_X, ySin, a * (1.0f - f));
     }
     if (sinFoco && sin) {
-      gfx_cor((GfxRect){NV_DETW2_X-9.0f, ySin-5.0f, larguraTextoHero()+18.0f, hSinVis+15.0f}, 0.02f, 0.2f, 0.35f, 0.52f, a*0.7f);
+      float cr, cg, cb;
+      (void)focoAcento(&cr, &cg, &cb);
+      gfx_anel((GfxRect){NV_DETW2_X-9.0f, ySin-5.0f,
+                         larguraTextoHero()+18.0f, hSinVis+15.0f},
+               0.06f, 2.5f, cr, cg, cb, a);
     }
     if (sin) txt_bloco_corta(TXT_DET_SIN, sin, 255, 255, 255, NV_DETW2_X, ySin,
                        larguraTextoHero(), NV_DETW2_LD_SIN, a * f,
