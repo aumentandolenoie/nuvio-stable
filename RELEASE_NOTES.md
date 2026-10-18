@@ -4,8 +4,8 @@ Le note descrivono le differenze della singola versione rispetto alla precedente
 
 ## 2.0.35 — Guida TV organizzata per categorie
 
-- Menu categorie a due livelli: Sport, Canali TV, Film e serie TV, Informazione, Documentari, Bambini, Musica e Altri.
-- Ogni gruppo apre le categorie originali provenienti da StreamViX, TVVoo e dagli altri servizi. Preferiti raggiungibili da Sport; i canali esistenti mantengono sorgenti, EPG e riproduzione.
+- Menu categorie a due livelli: Preferiti, Sport, Canali TV, Film e serie TV, Informazione, Documentari, Bambini, Musica e Altri.
+- Ogni gruppo apre le categorie originali provenienti da StreamViX, TVVoo e dagli altri servizi. Preferiti accessibili direttamente; i canali esistenti mantengono sorgenti, EPG e riproduzione.
 - Navigazione con OK/Destra per entrare e Sinistra per tornare alle macro-categorie, senza nuove richieste di rete.
 
 ## 2.0.34 — Supporto StreamViX nella Guida TV
