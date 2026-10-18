@@ -2,6 +2,12 @@
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
 
+## 2.0.34 — Supporto StreamViX nella Guida TV
+
+- Cataloghi TV con generi obbligatori, come StreamViX TV, Live ed Eventi.
+- Esclusi dalla scansione automatica i cataloghi che richiedono un testo di ricerca.
+- Richieste URL codificate, limiti per genere e compatibilità con TVVoo.
+
 ## 2.0.33 — Pulsanti compatti, fonti e cataloghi Vetrina
 
 ### Pagina del titolo
