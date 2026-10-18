@@ -46,6 +46,9 @@ jobs:
           python3 tests/guia_genre.py
           python3 tests/guia_gerarchia.py
           python3 tests/guia_long_origin.py
+          python3 tests/guia_categoria_cap.py
+          python3 tests/guia_category_labels.py
+          python3 tests/descanso_vetrina_selezionati.py
           bash tests/cwfonte6h.sh
           bash tests/audio_reserva.sh
           bash tests/progresso.sh

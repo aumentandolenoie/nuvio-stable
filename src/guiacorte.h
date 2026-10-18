@@ -9,7 +9,7 @@
 #define NV_GUIACORTE_H
 #include <stdio.h>
 
-// TV: 900 canais / 48 categorias (GCanal tem ~2,4 KB e o guia mantem tres
+// TV: 900 canais / 128 categorias (GCanal tem ~2,4 KB e o guia mantem tres
 // vetores dele: 900 x 2,4 KB x 3 = ~6,5 MB, numa TV de 2016 que ainda guarda
 // cache de texturas). Android TV: 3000 / 128. Os vetores sao estaticos (BSS) e
 // o Linux so aloca a pagina que e tocada: custa ~2,4 KB x canais lidos x 3,
@@ -20,7 +20,7 @@
 #define GUIACORTE_MAX_CAT    128
 #else
 #define GUIACORTE_MAX_CANAL  900
-#define GUIACORTE_MAX_CAT     48
+#define GUIACORTE_MAX_CAT    128
 #endif
 
 typedef struct {

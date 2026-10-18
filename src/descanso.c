@@ -86,6 +86,16 @@ static void montarFila(unsigned semente) {
     for (i = 0; i < n; i++) if (itemServe(i, fonte)) conta++;
     if (conta < 3) fonte = DESC_FONTE_CATALOGO;
   }
+  // Selected catalogues may not yet have a published home row (sync is still
+  // loading), may be hidden, or may contain only items without a backdrop.
+  // Never silently turn an explicitly configured Vetrina into a clock:
+  // use the full catalog as a temporary fallback until a selected row is
+  // usable. A later catalog revision rebuilds this queue automatically.
+  if (fonte == DESC_FONTE_ESCOLHIDOS) {
+    int eligible = 0;
+    for (i = 0; i < n; i++) if (itemServe(i, fonte)) { eligible = 1; break; }
+    if (!eligible) fonte = DESC_FONTE_CATALOGO;
+  }
   // Reservoir sampling: any eligible title has the same probability of
   // entering the 48-item session, including catalogues loaded later.
   { unsigned vistos = 0;
