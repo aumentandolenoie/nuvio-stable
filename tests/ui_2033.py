@@ -19,9 +19,8 @@ assert "rolagem = 0; velRol = 0;" in opener
 assert "foco = linhaDe(alvo)" not in opener
 assert "aut = automaticaDaFolha();" in opener
 assert "if (vitMenuAberto) { vitrineMenuEvento(k); return; }" in a
-assert "vitrineMenuAberto" not in a or True
 assert "vitMenuAberto=1" in a and "vitrineMenuDesenhar();" in a
-assert "fil_linha_addon(idx)" in a and "vitrineMenuOrdem" in a
+assert "fil_linha_addon(idx)" in a and "vitMenuOrdem" in a
 assert "vitrineAlternar();" in a and "ajustes_vetrina_catalogo_ativo(fil_chave(idx))" in a
 assert "dados_gravar(\"vetrina-catalogos.txt\", vitSel)" in a
 assert "## 2.0.33" in notes
