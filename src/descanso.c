@@ -86,7 +86,8 @@ typedef struct {
 static pthread_mutex_t descSelMutex = PTHREAD_MUTEX_INITIALIZER;
 static CatItem *descSelItems, *descSelPending;
 static int descSelN, descSelPendingN, descSelBusy;
-static unsigned descSelLast, descSelLastRevision;
+static unsigned descSelLast;
+static NvPerfilSessao descSelSession;
 static char descSelSignature[4096];
 static int descSelMode;
 static unsigned descSelGeneration;
@@ -140,6 +141,11 @@ static void *descSelFetch(void *arg) {
   return NULL;
 }
 static void descSelStep(unsigned now, int wanted) {
+  if (!nv_perfil_sessao_atual(descSelSession)) {
+    free(descSelItems); descSelItems=NULL; descSelN=0;
+    descSelSignature[0]=0; descSelLast=0; descSelGeneration++;
+    descSelSession=nv_perfil_sessao_ler();
+  }
   pthread_mutex_lock(&descSelMutex);
   if (descSelPending) {
     // Never replace a working snapshot with an empty/error response.
@@ -151,8 +157,9 @@ static void descSelStep(unsigned now, int wanted) {
     } else free(descSelPending);
     descSelPending=NULL;
   }
+  int busy=descSelBusy;
   pthread_mutex_unlock(&descSelMutex);
-  if (!wanted || descSelBusy) return;
+  if (!wanted || busy) return;
   // The signature includes the actual selected keys, not only their count:
   // switching a selection refreshes immediately.
   char signature[sizeof descSelSignature]="";
@@ -186,7 +193,11 @@ static void descSelStep(unsigned now, int wanted) {
       (unsigned)(now-descSelLast)<DESC_SEL_REFRESH_MS) { free(w); return; }
   snprintf(descSelSignature,sizeof descSelSignature,"%s",signature);
   descSelLast=now?now:1;
-  if (!w->nCat) {free(w);return;}
+  if (!w->nCat) {
+    free(descSelItems); descSelItems=NULL; descSelN=0;
+    descSelGeneration++;
+    free(w);return;
+  }
   w->items=calloc(DESC_SEL_MAX,sizeof(CatItem));
   if (!w->items) {free(w);return;}
   w->session=nv_perfil_sessao_ler();
@@ -317,7 +328,7 @@ void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte)
   if (dt > 0.1f) dt = 0.1f;
   estiloAt = estilo; fonteAt = fonte;
   if (!ativo) { ativoAnt = 0; atual = -1; texArte = texLogo = texProx = 0; return; }
-  if (fonte == DESC_FONTE_ESCOLHIDOS) descSelStep(agora, 1);
+  if (ativo && fonte == DESC_FONTE_ESCOLHIDOS) descSelStep(agora, 1);
   if (!ativoAnt) entrar(agora);
   ativoAnt = 1;
   tempoAtivo += dt;
