@@ -1,3 +1,9 @@
+## 2.0.36 — Correzione canali StreamViX nella Guida TV
+
+- Aumentato da 48 a 128 il limite delle categorie originali sulla versione LG webOS, evitando che i canali di StreamViX e TVVoo siano scartati quando vengono caricati molti generi.
+- Nessuna modifica alla riproduzione, alle richieste degli add-on o alla nuova navigazione gerarchica.
+- Test di regressione incluso nei workflow di verifica e compilazione.
+
 # Nuvio Stable — note di rilascio
 
 Le note descrivono le differenze della singola versione rispetto alla precedente. Le versioni storiche sono state ricostruite dai commit pubblicati; non implicano prove manuali su TV quando non documentate.
