@@ -2,6 +2,7 @@
 
 - Aumentato da 48 a 128 il limite delle categorie originali sulla versione LG webOS, evitando che i canali di StreamViX e TVVoo siano scartati quando vengono caricati molti generi.
 - Corretto il testo delle categorie e sottocategorie: rimane identico con e senza focus; istruzioni del pannello adattate al livello selezionato.
+- Salvaschermo Vetrina: con cataloghi personali selezionati ma senza titoli utilizzabili, mostra temporaneamente titoli dal catalogo generale invece dell'orologio; torna ai selezionati quando arrivano.
 - Nessuna modifica alla riproduzione o alle richieste degli add-on.
 - Test di regressione incluso nei workflow di verifica e compilazione.
 
