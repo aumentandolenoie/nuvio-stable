@@ -1556,8 +1556,22 @@ static const char *guideMenuName(int i) {
     return guideSubName(guideSubFirst(i));
   }
   int l=guideSourceLine(i);
-  // The original category remains available at this drill-down depth.
-  return l>=0 ? linhaNome(l) : "";
+  // Disambiguate duplicate raw labels by the addon they came from.
+  // A single static buffer is safe: the label is drawn before the next one.
+  static char sourceLabel[192];
+  if (l<0) return "";
+  GCanal *channel=linhaItem(l,0);
+  const char *base=guiaBaseCanal(channel);
+  for (int a=0; base[0] && a<addons_n(); a++)
+    if (!strcmp(addons_base(a),base)) {
+      const char *provider=addons_nome(a);
+      snprintf(sourceLabel,sizeof sourceLabel,"%s · %s",
+               provider && *provider ? provider : "Addon",linhaNome(l));
+      return sourceLabel;
+    }
+  snprintf(sourceLabel,sizeof sourceLabel,"%s · %d",
+           linhaNome(l),i+1);
+  return sourceLabel;
 }
 static int guideMenuCount(int i) {
   if (!guideLevel) {
