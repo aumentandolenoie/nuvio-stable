@@ -16,6 +16,14 @@
 #include "ajustes.h"
 #include "idioma.h"
 #include "app.h"
+#include "fileiras.h"
+#include "addons.h"
+#include "rede.h"
+#include "js.h"
+#include "addonurl.h"
+#include "perfisessao.h"
+#include <pthread.h>
+#include <stdlib.h>
 #endif
 
 int descanso_item_serve(int temFundo, int temTitulo, int naLista, int progresso,
@@ -60,6 +68,140 @@ static GLuint texArte, texLogo, texProx;
 static int   pedidoAbrir = -1;
 static char  proxLinha[256];       // "Proxima estreia" do relogio, montada ao entrar
 
+
+// Independent selected-catalog refresh. Worker only publishes a complete new
+// snapshot; it never touches the Home catalog nor its row windows.
+#define DESC_SEL_MAX 48
+#define DESC_SEL_CATS 24
+#define DESC_SEL_REFRESH_MS (6u * 60u * 60u * 1000u)
+typedef struct {
+  char base[NV_ADDON_URL_MAX], tipo[12], id[96], key[192];
+} DescSelCatalog;
+typedef struct {
+  int nCat, n;
+  DescSelCatalog catalogs[DESC_SEL_CATS];
+  CatItem *items;
+  NvPerfilSessao session;
+} DescSelWork;
+static pthread_mutex_t descSelMutex = PTHREAD_MUTEX_INITIALIZER;
+static CatItem *descSelItems, *descSelPending;
+static int descSelN, descSelPendingN, descSelBusy;
+static unsigned descSelLast, descSelLastRevision;
+static char descSelSignature[4096];
+static int descSelMode;
+static unsigned descSelGeneration;
+static const CatItem *descItem(int i) {
+  return descSelMode && i >= 0 && i < descSelN ? &descSelItems[i] : cat_item(i);
+}
+static int descSelDuplicate(CatItem *a, int n, const CatItem *c) {
+  for (int i=0; i<n; i++)
+    if (!strcmp(a[i].imdb,c->imdb) && !strcmp(a[i].tipo,c->tipo)) return 1;
+  return 0;
+}
+static void *descSelFetch(void *arg) {
+  DescSelWork *w = arg;
+  for (int j=0; j<w->nCat && w->n<DESC_SEL_MAX; j++) {
+    const DescSelCatalog *d=&w->catalogs[j];
+    char url[NV_ADDON_PEDIDO_MAX];
+    int n=nv_addon_url(url,sizeof url,d->base,"/catalog/%s/%s.json",d->tipo,d->id);
+    if (!NV_COUBE(n,url)) continue;
+    char *body=rede_baixar(url,10);
+    if (!body) continue;
+    for (const char *p=js_array(body,NULL,"metas"); p && w->n<DESC_SEL_MAX; p=js_prox(js_fim(p))) {
+      const char *end=js_fim(p);
+      CatItem *c=&w->items[w->n];
+      memset(c,0,sizeof *c);
+      js_texto(p,end,"id",c->imdb,sizeof c->imdb);
+      js_texto(p,end,"type",c->tipo,sizeof c->tipo);
+      if (!c->tipo[0]) snprintf(c->tipo,sizeof c->tipo,"%s",d->tipo);
+      if (!js_texto(p,end,"name",c->titulo,sizeof c->titulo))
+        js_texto(p,end,"title",c->titulo,sizeof c->titulo);
+      js_texto(p,end,"background",c->backdrop,sizeof c->backdrop);
+      if (!c->backdrop[0]) js_texto(p,end,"backdrop",c->backdrop,sizeof c->backdrop);
+      js_texto(p,end,"poster",c->poster,sizeof c->poster);
+      js_texto(p,end,"logo",c->logo,sizeof c->logo);
+      js_texto(p,end,"description",c->sinopse,sizeof c->sinopse);
+      if (!c->imdb[0] || !c->titulo[0] || !c->backdrop[0] ||
+          descSelDuplicate(w->items,w->n,c)) continue;
+      w->n++;
+    }
+    free(body);
+  }
+  pthread_mutex_lock(&descSelMutex);
+  if (nv_perfil_sessao_atual(w->session)) {
+    free(descSelPending);
+    descSelPending=w->items;
+    descSelPendingN=w->n;
+    w->items=NULL;
+  }
+  descSelBusy=0;
+  pthread_mutex_unlock(&descSelMutex);
+  free(w->items); free(w);
+  return NULL;
+}
+static void descSelStep(unsigned now, int wanted) {
+  pthread_mutex_lock(&descSelMutex);
+  if (descSelPending) {
+    // Never replace a working snapshot with an empty/error response.
+    if (descSelPendingN > 0) {
+      free(descSelItems);
+      descSelItems=descSelPending;
+      descSelN=descSelPendingN;
+      descSelGeneration++;
+    } else free(descSelPending);
+    descSelPending=NULL;
+  }
+  pthread_mutex_unlock(&descSelMutex);
+  if (!wanted || descSelBusy) return;
+  // The signature includes the actual selected keys, not only their count:
+  // switching a selection refreshes immediately.
+  char signature[sizeof descSelSignature]="";
+  DescSelWork *w=calloc(1,sizeof *w);
+  if (!w) return;
+  for (int k=0; k<fil_n() && w->nCat<DESC_SEL_CATS; k++) {
+    const char *key=fil_chave(k);
+    if (!ajustes_vetrina_catalogo_ativo(key) || fil_origem_de(key)!=FIL_ORIGEM_CATALOGO) continue;
+    for (int a=0; a<addons_n(); a++) {
+      const char *aid=addons_id_manifesto(a);
+      const char *tail=key+strlen(aid);
+      if (!aid[0] || strncmp(key,aid,strlen(aid)) || *tail!='_' || !addons_ativo(a)) continue;
+      tail++;
+      const char *type=NULL;
+      if (!strncmp(tail,"movie_",6)) {type="movie";tail+=6;}
+      else if (!strncmp(tail,"series_",7)) {type="series";tail+=7;}
+      if (!type || !*tail || strlen(tail)>=sizeof w->catalogs[0].id) break;
+      DescSelCatalog *d=&w->catalogs[w->nCat++];
+      snprintf(d->base,sizeof d->base,"%s",addons_base(a));
+      snprintf(d->tipo,sizeof d->tipo,"%s",type);
+      snprintf(d->id,sizeof d->id,"%s",tail);
+      snprintf(d->key,sizeof d->key,"%s",key);
+      size_t len=strlen(signature), kl=strlen(key);
+      if (len+kl+2<sizeof signature) {
+        memcpy(signature+len,key,kl); signature[len+kl]='\n';signature[len+kl+1]=0;
+      }
+      break;
+    }
+  }
+  if (!strcmp(signature,descSelSignature) && descSelLast &&
+      (unsigned)(now-descSelLast)<DESC_SEL_REFRESH_MS) { free(w); return; }
+  snprintf(descSelSignature,sizeof descSelSignature,"%s",signature);
+  descSelLast=now?now:1;
+  if (!w->nCat) {free(w);return;}
+  w->items=calloc(DESC_SEL_MAX,sizeof(CatItem));
+  if (!w->items) {free(w);return;}
+  w->session=nv_perfil_sessao_ler();
+  pthread_t thread;
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr,2u*1024u*1024u);
+  pthread_mutex_lock(&descSelMutex);
+  descSelBusy=1;
+  pthread_mutex_unlock(&descSelMutex);
+  if (pthread_create(&thread,&attr,descSelFetch,w)==0) pthread_detach(thread);
+  else {pthread_mutex_lock(&descSelMutex);descSelBusy=0;pthread_mutex_unlock(&descSelMutex);free(w->items);free(w);}
+  pthread_attr_destroy(&attr);
+}
+
 static unsigned sorteio(unsigned *e) { *e = *e * 1664525u + 1013904223u; return *e >> 8; }
 
 static int itemServe(int i, int fonte) {
@@ -80,6 +222,8 @@ static int itemServe(int i, int fonte) {
 // titulos cai no catalogo inteiro: tres trocas ja repetem.
 static void montarFila(unsigned semente) {
   int n = cat_n(), i, fonte = fonteAt;
+  descSelMode = fonte == DESC_FONTE_ESCOLHIDOS && descSelN > 0;
+  if (descSelMode) n = descSelN;
   filaN = 0; filaPos = 0;
   if (fonte == DESC_FONTE_LISTA) {
     int conta = 0;
@@ -93,14 +237,14 @@ static void montarFila(unsigned semente) {
   // usable. A later catalog revision rebuilds this queue automatically.
   if (fonte == DESC_FONTE_ESCOLHIDOS) {
     int eligible = 0;
-    for (i = 0; i < n; i++) if (itemServe(i, fonte)) { eligible = 1; break; }
-    if (!eligible) fonte = DESC_FONTE_CATALOGO;
+    for (i = 0; i < n; i++) if (descSelMode || itemServe(i, fonte)) { eligible = 1; break; }
+    if (!eligible) { fonte = DESC_FONTE_CATALOGO; descSelMode=0; n=cat_n(); }
   }
   // Reservoir sampling: any eligible title has the same probability of
   // entering the 48-item session, including catalogues loaded later.
   { unsigned vistos = 0;
     for (i = 0; i < n; i++) {
-      if (!itemServe(i, fonte)) continue;
+      if (!descSelMode && !itemServe(i, fonte)) continue;
       vistos++;
       if (filaN < DESC_FILA_MAX) fila[filaN++] = i;
       else {
@@ -116,14 +260,14 @@ static void montarFila(unsigned semente) {
   }
   filaFonte = fonte;
   filaFontePedida = fonteAt;
-  filaRev = cat_revisao();
+  filaRev = cat_revisao() ^ descSelGeneration;
 }
 
 static int itemDaFila(int pos) {
   int i;
   if (filaN <= 0) return -1;
   i = fila[((pos % filaN) + filaN) % filaN];
-  return itemServe(i, filaFonte) ? i : -1;
+  return descSelMode || itemServe(i, filaFonte) ? i : -1;
 }
 
 static void montarProxima(void) {
@@ -161,6 +305,7 @@ static void entrar(unsigned agora) {
 int descanso_indice_em_tela(void) {
   if (estiloAt != ESM_ESTILO_VITRINE || atual < 0 || !texArte) return -1;
   if (itemT < 0.6f || itemT > DESC_ITEM_S - DESC_SAI_S) return -1;
+  if (descSelMode) return cat_acrescentar(&descSelItems[atual]);
   return atual;
 }
 void descanso_pedir_abrir(void) { pedidoAbrir = descanso_indice_em_tela(); }
@@ -172,14 +317,15 @@ void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte)
   if (dt > 0.1f) dt = 0.1f;
   estiloAt = estilo; fonteAt = fonte;
   if (!ativo) { ativoAnt = 0; atual = -1; texArte = texLogo = texProx = 0; return; }
+  if (fonte == DESC_FONTE_ESCOLHIDOS) descSelStep(agora, 1);
   if (!ativoAnt) entrar(agora);
   ativoAnt = 1;
   tempoAtivo += dt;
   if (estilo != ESM_ESTILO_VITRINE) return;
   // Catalogo trocado no meio (sync, perfil): sorteia de novo, sem cortar o atual.
-  if (filaRev != cat_revisao() || filaFontePedida != fonteAt) { montarFila(agora); filaPos = 0; atual = -1; }
+  if (filaRev != (cat_revisao() ^ descSelGeneration) || filaFontePedida != fonteAt) { montarFila(agora); filaPos = 0; atual = -1; }
   if (atual < 0) { atual = itemDaFila(filaPos); itemT = 0.0f; }
-  c = atual >= 0 ? cat_item(atual) : NULL;
+  c = atual >= 0 ? descItem(atual) : NULL;
   texArte = c ? tex_obter_larg(c->backdrop, DESC_ARTE_LARG) : 0;
   texLogo = c && c->logo[0] ? tex_obter_logo_larg(c->logo, DESC_LOGO_W) : 0;
   // O relogio do item so anda com a arte na tela: sem isto o fade de entrada
@@ -187,7 +333,7 @@ void descanso_quadro(unsigned agora, float dt, int ativo, int estilo, int fonte)
   if (texArte || !c) itemT += dt;
   // A arte do PROXIMO ja vai sendo pedida na metade do atual.
   { int prox = itemDaFila(filaPos + 1);
-    const CatItem *p = prox >= 0 ? cat_item(prox) : NULL;
+    const CatItem *p = prox >= 0 ? descItem(prox) : NULL;
     texProx = p && itemT > DESC_ITEM_S * 0.5f ? tex_obter_larg(p->backdrop, DESC_ARTE_LARG) : 0;
     if (p && p->logo[0] && itemT > DESC_ITEM_S * 0.5f) (void)tex_obter_logo_larg(p->logo, DESC_LOGO_W);
     if (itemT >= DESC_ITEM_S) {
@@ -308,7 +454,7 @@ static void primeiraFrase(const char *s, char *dst, size_t n) {
 }
 
 static void desenharVitrine(unsigned agora, float a) {
-  const CatItem *c = atual >= 0 ? cat_item(atual) : NULL;
+  const CatItem *c = atual >= 0 ? descItem(atual) : NULL;
   float t = itemT, ent, sai, vis, u;
   char hora[8];
   (void)agora;
