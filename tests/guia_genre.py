@@ -15,5 +15,7 @@ assert '"genre=%s.json"' in g or '"/catalog/%s/%s/genre=%s.json"' in g
 assert '"/catalog/%s/%s/genre=%s&skip=%d.json"' in g
 assert '"%%%02X"' in g
 assert '!strcmp(sFontes[j].genero, cc[k].genero)' in g
-assert 'if (sFontes[i].genero[0] && cota > 48)' in g
+assert 'if (sFontes[i].genero[0])' in g
+assert 'if (cota > 48) cota = 48;' in g
+assert 'else if (cota < G_COTA_MIN) cota = G_COTA_MIN;' in g
 print("PASS: genre-required live TV catalog discovery, encoded requests, quotas")
