@@ -725,6 +725,73 @@ static const char *categoriaPorNome(const char *nome) {
   return NULL;
 }
 
+// Classify EACH channel, not its source catalog. This merges TVVoo's
+// "Sky Sport F1" with StreamViX's Formula 1 events into one guide row.
+// Priority: precise channel identity > original genre > generic addon catalog.
+// Preserve original IDs, base URLs and order within the resulting row.
+static const char *categoriaCanal(const char *nome, const char *genero,
+                                  const char *catalogo) {
+  const char *n=nome ? nome : "", *g=genero ? genero : "";
+  const char *catalog=catalogo ? catalogo : "";
+  // Specific disciplines are recognized first, even in generic Sport catalogs.
+  if (contemSemCaixa(n,"formula 1") || contemSemCaixa(n,"formula one") ||
+      contemSemCaixa(n,"f1 tv") ||
+      contemSemCaixa(n,"sport f1") || contemSemCaixa(n,"f1 live") ||
+      contemSemCaixa(n,"f1 ") || !strcasecmp(n,"f1") ||
+      (strlen(n)>=2 && !strcasecmp(n+strlen(n)-2,"f1")) ||
+      contemSemCaixa(g,"formula 1") ||
+      !strcasecmp(g,"f1")) return "Formula 1";
+  if (contemSemCaixa(n,"motogp") || contemSemCaixa(n,"moto gp") ||
+      contemSemCaixa(g,"motogp")) return "MotoGP";
+  if (contemSemCaixa(n,"serie a") || contemSemCaixa(g,"serie a")) return "Serie A";
+  if (contemSemCaixa(n,"serie b") || contemSemCaixa(g,"serie b")) return "Serie B";
+  if (contemSemCaixa(n,"serie c") || contemSemCaixa(g,"serie c")) return "Serie C";
+  if (contemSemCaixa(n,"premier league") || contemSemCaixa(g,"premier league")) return "Premier League";
+  if (contemSemCaixa(n,"bundesliga") || contemSemCaixa(g,"bundesliga")) return "Bundesliga";
+  if (contemSemCaixa(n,"ligue 1") || contemSemCaixa(g,"ligue 1")) return "Ligue 1";
+  if (contemSemCaixa(n,"la liga") || !strcasecmp(g,"liga")) return "La Liga";
+  if (contemSemCaixa(n,"tennis") || contemSemCaixa(g,"tennis")) return "Tennis";
+  if (contemSemCaixa(n,"basket") || contemSemCaixa(n,"nba") ||
+      contemSemCaixa(g,"basket")) return "Basket";
+  if (contemSemCaixa(n,"volley") || contemSemCaixa(g,"volley")) return "Pallavolo";
+  if (contemSemCaixa(n,"hockey") || contemSemCaixa(n,"nhl") ||
+      contemSemCaixa(g,"hockey")) return "Hockey";
+  if (contemSemCaixa(n,"nfl") || !strcasecmp(g,"nfl")) return "Football americano";
+  if (contemSemCaixa(n,"wrestling") || contemSemCaixa(n,"wwe") ||
+      contemSemCaixa(g,"wrestling")) return "Wrestling";
+  if (contemSemCaixa(n,"boxing") || contemSemCaixa(g,"boxing")) return "Boxe";
+  if (contemSemCaixa(n,"darts") || contemSemCaixa(g,"darts")) return "Freccette";
+  if (contemSemCaixa(n,"baseball") || contemSemCaixa(n,"mlb") ||
+      contemSemCaixa(g,"baseball")) return "Baseball";
+  if (contemSemCaixa(n,"coppa") || contemSemCaixa(g,"coppe")) return "Coppe";
+  if (contemSemCaixa(n,"calcio") || contemSemCaixa(n,"football") ||
+      contemSemCaixa(g,"soccer")) return "Altri campionati";
+  // A generic Sport row never swallows channels with an explicit discipline.
+  if (contemSemCaixa(g,"sport") || contemSemCaixa(g,"esport") ||
+      contemSemCaixa(n,"sport") || contemSemCaixa(catalog,"sport") ||
+      contemSemCaixa(catalog,"eventi")) return "Canali sportivi";
+  if (contemSemCaixa(n,"cinema") || contemSemCaixa(n,"film") ||
+      contemSemCaixa(g,"film") || contemSemCaixa(g,"cinema") ||
+      contemSemCaixa(g,"serie tv") || contemSemCaixa(g,"série") ||
+      contemSemCaixa(catalog,"cinema") ||
+      contemSemCaixa(n,"movie")) return "Canali cinema e serie";
+  if (contemSemCaixa(g,"news") || contemSemCaixa(g,"notiz") ||
+      contemSemCaixa(n,"notiz") ||
+      contemSemCaixa(n,"news")) return "Canali di informazione";
+  if (contemSemCaixa(g,"document") || contemSemCaixa(g,"discovery") ||
+      contemSemCaixa(n,"discovery") ||
+      contemSemCaixa(n,"document")) return "Canali documentari";
+  if (contemSemCaixa(g,"bambin") || contemSemCaixa(g,"kids") ||
+      contemSemCaixa(n,"cartoon") ||
+      contemSemCaixa(n,"kids")) return "Canali per bambini";
+  if (contemSemCaixa(g,"music") || contemSemCaixa(n,"music") ||
+      contemSemCaixa(n,"mtv")) return "Canali musicali";
+  if (contemSemCaixa(g,"rai") || contemSemCaixa(n,"rai ")) return "Rai";
+  if (contemSemCaixa(g,"mediaset") || contemSemCaixa(n,"mediaset")) return "Mediaset";
+  if (contemSemCaixa(g,"sky") || contemSemCaixa(n,"sky ")) return "Sky";
+  if (contemSemCaixa(g,"pluto") || contemSemCaixa(n,"pluto")) return "Pluto TV";
+  return "Canali generalisti";
+}
 static int sCatDe(const char *nome) {
   for (int i = 0; i < sNCats; i++) if (!strcmp(sCats[i], nome)) return i;
   if (sNCats >= G_MAX_CAT) return -1;
@@ -818,7 +885,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
         const char *h = categoriaPorNome(c.nome);
         if (h) snprintf(gen, sizeof gen, "%s", h);
       }
-      c.cat = sCatDe(gen[0] ? gen : f->nome[0] ? f->nome : "Outros");
+      c.cat = sCatDe(categoriaCanal(c.nome, gen, f->genero[0] ? f->genero : f->nome));
       // Base que nao cabe fica VAZIA, nunca cortada (ver GCanal.base).
       c.origemHash = guiaHashBase(f->base);
       if (strlen(f->base) < sizeof c.base) snprintf(c.base, sizeof c.base, "%s", f->base);
@@ -1054,7 +1121,7 @@ static void *fioGuia(void *u) {
       snprintf(c.id,   sizeof c.id,   "%s", st[i].id);
       snprintf(c.nome, sizeof c.nome, "%s", st[i].nome);
       snprintf(c.logo, sizeof c.logo, "%s", st[i].logo);
-      c.cat = sCatDe(st[i].categoria[0] ? st[i].categoria : "Outros");
+      c.cat = sCatDe(categoriaCanal(c.nome, st[i].categoria, ""));
       if (c.cat >= 0) { sCanais[sNCanais++] = c; ok = 1; }
     }
     free(st);
@@ -1075,7 +1142,7 @@ static void *fioGuia(void *u) {
       snprintf(c.nome, sizeof c.nome, "%s", xt[i].nome);
       snprintf(c.logo, sizeof c.logo, "%s", xt[i].logo);
       snprintf(c.epgId, sizeof c.epgId, "%s", xt[i].epgId);
-      c.cat = sNCanais < G_MAX_CANAL ? sCatDe(xt[i].categoria[0] ? xt[i].categoria : "Outros") : 0;
+      c.cat = sNCanais < G_MAX_CANAL ? sCatDe(categoriaCanal(c.nome, xt[i].categoria, "")) : 0;
       if (guiacorte_entra(&sCorte, sNCanais, c.cat >= 0)) { sCanais[sNCanais++] = c; ok = 1; }
     }
     // O que o servidor tem alem do pedido (xtream_canais devolve ate `max`).
@@ -1169,7 +1236,7 @@ static void empacotar(void) {
 // structs no cabecalho: uma build que mude GCanal ignora o cache antigo em
 // vez de ler lixo.
 #define GC_MAGIA  0x31474e56u   /* "NVG1" */
-#define GC_VERSAO 1u
+#define GC_VERSAO 2u
 typedef struct {
   unsigned magia, versao, tamCanal, tamFonte, tamSabe;
   int nCanais, nCats, nFontes, nSabe, perfil;
@@ -1449,7 +1516,10 @@ static int guideGroupOf(const char *name) {
       guideContains(name,"volley") || guideContains(name,"hockey") ||
       guideContains(name,"wrestling") || guideContains(name,"boxing") ||
       guideContains(name,"darts") || guideContains(name,"baseball") ||
-      guideContains(name,"nfl") || guideContains(name,"eventi")) return 1;
+      guideContains(name,"nfl") || guideContains(name,"football americano") ||
+      guideContains(name,"pallavolo") || guideContains(name,"boxe") ||
+      guideContains(name,"freccette") || guideContains(name,"campionati") ||
+      guideContains(name,"eventi")) return 1;
   if (guideContains(name,"cinema") || guideContains(name,"film") ||
       guideContains(name,"serie tv")) return 3;
   if (guideContains(name,"news") || guideContains(name,"notiz") ||
@@ -1477,17 +1547,18 @@ static const char *guideSubName(int l) {
     if (guideContains(n,"ligue 1")) return "Ligue 1";
     if (guideContains(n,"liga")) return "La Liga";
     if (guideContains(n,"coppe")) return "Coppe";
-    if (guideContains(n,"soccer") || guideContains(n,"calcio")) return "Altri campionati";
+    if (guideContains(n,"soccer") || guideContains(n,"calcio") ||
+        guideContains(n,"campionati")) return "Altri campionati";
     if (guideContains(n,"formula") || guideContains(n,"f1")) return "Formula 1";
     if (guideContains(n,"moto")) return "MotoGP";
     if (guideContains(n,"tennis")) return "Tennis";
     if (guideContains(n,"basket")) return "Basket";
-    if (guideContains(n,"volley")) return "Pallavolo";
+    if (guideContains(n,"volley") || guideContains(n,"pallavolo")) return "Pallavolo";
     if (guideContains(n,"hockey")) return "Hockey";
-    if (guideContains(n,"nfl")) return "Football americano";
+    if (guideContains(n,"nfl") || guideContains(n,"football americano")) return "Football americano";
     if (guideContains(n,"wrestling")) return "Wrestling";
-    if (guideContains(n,"boxing")) return "Boxe";
-    if (guideContains(n,"darts")) return "Freccette";
+    if (guideContains(n,"boxing") || guideContains(n,"boxe")) return "Boxe";
+    if (guideContains(n,"darts") || guideContains(n,"freccette")) return "Freccette";
     if (guideContains(n,"baseball")) return "Baseball";
     if (guideContains(n,"eventi")) return "Eventi live";
     return "Canali sportivi";

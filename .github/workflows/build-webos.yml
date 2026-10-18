@@ -57,6 +57,8 @@ jobs:
           python3 tests/guia_categoria_cap.py
           python3 tests/guia_category_labels.py
           python3 tests/guia_taxonomia.py
+          python3 tests/guia_channel_taxonomy.py
+          python3 tests/guia_channel_taxonomy_native.py
           python3 tests/descanso_vetrina_selezionati.py
           python3 tests/descanso_independente.py
           bash tests/cwfonte6h.sh
