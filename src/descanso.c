@@ -189,14 +189,22 @@ static void descSelStep(unsigned now, int wanted) {
       snprintf(d->id,sizeof d->id,"%s",tail);
       snprintf(d->key,sizeof d->key,"%s",key);
       size_t len=strlen(signature), kl=strlen(key);
+      // Key plus base fingerprint: an addon reconfigured with the same ID
+      // must refresh immediately rather than reuse the old endpoint.
       if (len+kl+2<sizeof signature) {
         memcpy(signature+len,key,kl); signature[len+kl]='\n';signature[len+kl+1]=0;
+      }
+      { size_t p=strlen(signature); unsigned long h=2166136261UL;
+        for (const unsigned char *c=(const unsigned char*)d->base; *c; c++)
+          {h^=*c;h*=16777619UL;}
+        if (p+20<sizeof signature)
+          snprintf(signature+p,sizeof signature-p,"%08lx\n",h & 0xffffffffUL);
       }
       break;
     }
   }
   if (!strcmp(signature,descSelSignature) && descSelLast &&
-      (unsigned)(now-descSelLast)<DESC_SEL_REFRESH_MS) { free(w); return; }
+      (unsigned)(now-descSelLast)<(descSelN ? DESC_SEL_REFRESH_MS : 10u * 60u * 1000u)) { free(w); return; }
   snprintf(descSelSignature,sizeof descSelSignature,"%s",signature);
   descSelLast=now?now:1;
   if (!w->nCat) {
