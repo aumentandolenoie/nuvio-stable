@@ -13,7 +13,9 @@ assert 'return "MotoGP";' in s
 assert 'return "Canali sportivi";' in s
 assert 'return "Canali cinema e serie";' in s
 assert 'return "Pallavolo";' in s
-assert '#define GC_VERSAO 2u' in s
+assert '#define GC_VERSAO 3u' in s
+assert 'return "Eventi live";' in s
+assert 'contemSemCaixa(catalog,"eventi")' in s
 assert 'guideContains(name,"pallavolo")' in s
 assert 'guideContains(name,"campionati")' in s
 assert 'guideContains(name,"football americano")' in s
