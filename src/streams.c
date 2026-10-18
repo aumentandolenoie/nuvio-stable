@@ -3499,6 +3499,7 @@ void stream_folha_abrir(void) {
   aut = automaticaDaFolha();
   melhorFolha = automaticoCom(!canalFolha);
   abreFoco = 1; abreAnt = 0; linhaAnt = -1; foco = 0;
+  focoFixo = -1; // A previously open picker must not restore stale focus.
   montar(aut);
   // Picker opens on the first visible source; automatic choice is unchanged.
   foco = 0;
