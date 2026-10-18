@@ -94,7 +94,7 @@
 #define G_MAX_FAV    400
 // Cada addon pode declarar VARIOS catalogos de canal no manifesto; 8 so
 // bastava para um FrostView.
-#define G_MAX_FONTE   24
+#define G_MAX_FONTE   96
 #define G_PAGINA     100
 #define G_COTA_MIN   150   // piso da cota por catalogo (ver fioGuia)
 
