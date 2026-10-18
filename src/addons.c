@@ -1844,7 +1844,14 @@ static void capacidadesDoManifesto(int i, const char *corpo) {
                 addon[i].canal[addon[i].nCanal++] = copy;
                 added++;
               }
-              option = js_prox(js_fim(option));
+              // js_fim only advances objects/arrays, not JSON strings.
+              // Find the matching closing quote (honour escaped quotes).
+              const char *end = option + 1;
+              while (*end && *end != '"') {
+                if (*end == '\\' && end[1]) end++;
+                end++;
+              }
+              option = *end ? js_prox(end + 1) : NULL;
             }
           } else if (required) requiredOther = 1;
           extra = js_prox(ef);
