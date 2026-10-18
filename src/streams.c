@@ -3486,7 +3486,7 @@ void stream_folha_abrir(void) {
 #ifdef NV_TOUCH_UI
   toquerol_limpar(&toqueFontes); toquerol_limpar(&toqueFontesAbas); toqueFontesAbasOffset = 0;
 #endif
-  int excl, aut, alvo;
+  int excl, aut;
   fitAbrir();
   aberta=1; escolha=-1; grupo=1; filtro=0; soMp4=0; soCache=0; soDub=0; recarregar=0;
   folhaGeometria();
@@ -3498,14 +3498,13 @@ void stream_folha_abrir(void) {
   // fonte qualquer de 4K enquanto a marca "automatica" fica la embaixo.
   aut = automaticaDaFolha();
   melhorFolha = automaticoCom(!canalFolha);
-  alvo = atual >= 0 ? atual : aut;
   abreFoco = 1; abreAnt = 0; linhaAnt = -1; foco = 0;
   montar(aut);
-  foco = linhaDe(alvo);
-  if (foco < 0) foco = 0;
-  focoVisto = foco;
+  // Picker opens on the first visible source; automatic choice is unchanged.
+  foco = 0;
+  focoVisto = 0;
   montar(aut);
-  rolagem = alvoRolagem(); velRol = 0;
+  rolagem = 0; velRol = 0;
   // A CONTAGEM DA FOLHA NO LOG (#132). O log tinha "[addons] X: N fontes" e
   // "[addons] total N" de um lado e nada do que a folha mostrou do outro: um
   // relato de "so 1 fonte listada" nao tinha como dizer se a queda foi no
