@@ -3514,11 +3514,11 @@ static void desenharPainelCategorias(float a) {
     { float nw = r.w - 24.0f - 16.0f - (float)tc.w - 16.0f;
       int cn = atual ? 245 : 205;
       tn = foc ? txt_linha_corta(TXT_BODY, guideMenuName(i), tf, tf, tf, 255, nw)
-               : txt_linha_corta(TXT_BODY, linhaNome(i), cn, cn + 1, cn + 5 > 255 ? 255 : cn + 5, 255, nw);
+               : txt_linha_corta(TXT_BODY, guideMenuName(i), cn, cn + 1, cn + 5 > 255 ? 255 : cn + 5, 255, nw);
       txt_desenhar_alpha(tn, r.x + 24.0f, r.y + (r.h - (float)tn.h) * 0.5f, la); }
   }
   gfx_sem_recorte();
-  { TxtLinha t = txt_linha_corta(TXT_CAPTION, i18n("OK entra  ·  Voltar fecha"),
+  { TxtLinha t = txt_linha_corta(TXT_CAPTION, guideLevel ? i18n("OK seleziona  ·  Sinistra torna") : i18n("OK apre  ·  Voltar chiude"),
                                  128, 130, 138, 255, G_CAT_W - 96.0f);
     txt_desenhar_alpha(t, x0 + 56.0f, NV_TELA_H - 60.0f, ea); }
 }
