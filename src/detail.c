@@ -4201,11 +4201,11 @@ static void desenhaBotao(GfxRect r, const char *rot, int icone, int focado, floa
       int color = (int)(tinta * 255.0f);
       TxtLinha t = txt_linha_corta(TXT_DET_BOTAO, label,
                                    color, color, color, 255, r.w - 72.0f);
-      float groupW = iconW + gap + (float)t.w;
+      float groupW = iconW + (focado ? gap + (float)t.w : 0.0f);
       float left = r.x + (r.w - groupW) * 0.5f;
       GfxRect ir = {left, r.y + (r.h - iconW)*0.5f, iconW, iconW};
       gfx_icone(ir, simbolo, tinta, tinta, tinta, a);
-      txt_desenhar_alpha(t, left + iconW + gap,
+      if (focado) txt_desenhar_alpha(t, left + iconW + gap,
                          r.y + (r.h - t.h)*0.5f, a);
     }
     return;
@@ -4895,7 +4895,7 @@ static void heroWeb(float a, float desloc) {
     // Reserve focus-scale clearance between adjacent pills. The focused pill
     // grows around its centre, so the resting gap alone can cause overlap.
     // Portrait has a wrapped two-column layout and keeps its own spacing.
-    float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 32.0f);
+    float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 18.0f);
     if (acoesAgrupadas()) {
       int grupo = 1 + (temInicio() ? 1 : 0);
       maisAcoes = nivel == 0 && botao >= grupo;
@@ -4999,11 +4999,22 @@ static void heroWeb(float a, float desloc) {
         (cat && cat_visto(cat) ? i18n("Visto") : i18n("Non Visto")) :
         acaoAtual == ACAO_FONTES ? i18n("Fonti") :
         acaoAtual == ACAO_TRAILER ? i18n("Trailer") : NULL;
+      // Only the focused action opens into a text pill; all other actions
+      // remain icon-only. Widths animate so focus changes do not jump.
+      static float pillWidth[16];
+      static int pillIdx = -1;
+      if (pillIdx != idx) {
+        for (int k = 0; k < 16; k++) pillWidth[k] = NV_DETW2_CIRC;
+        pillIdx = idx;
+      }
       float largura = NV_DETW2_CIRC;
-      if (rotAcao) {
+      if (rotAcao && nb < 16) {
         TxtLinha t = txt_linha(TXT_DET_BOTAO, rotAcao, 255, 255, 255, 255);
-        largura = t.w + NV_DETW2_CIRC * 0.34f + 14.0f + 64.0f;
-        if (largura < 154.0f) largura = 154.0f;
+        float expanded = t.w + NV_DETW2_CIRC * 0.34f + 14.0f + 64.0f;
+        if (expanded < 154.0f) expanded = 154.0f;
+        float goal = (nivel == 0 && botao == nb) ? expanded : NV_DETW2_CIRC;
+        pillWidth[nb] += (goal - pillWidth[nb]) * (ajustes_animacoes_reduzidas() ? 1.0f : 0.28f);
+        largura = pillWidth[nb];
       }
       GfxRect rc = { bx, cyBtn - NV_DETW2_CIRC * 0.5f,
                      largura, NV_DETW2_CIRC };
