@@ -1,3 +1,10 @@
+## 2.0.38 — Categorie Guida TV semplificate
+
+- I canali sono indicizzati per significato: Cinema e serie TV non compare più sotto Canali TV, Sport non mostra più duplicati chiamati Sport.
+- Categorie logiche unificate (es. Canali sportivi, Eventi live, Serie A, Formula 1) con possibilità di scegliere l'add-on quando più fonti condividono la stessa categoria.
+- Le sottocategorie originali e tutti i canali restano accessibili, senza modifiche a download, EPG o riproduzione.
+- Test specifici di raggruppamento e navigazione con telecomando.
+
 ## 2.0.37 — Vetrina indipendente dalla Home
 
 - I cataloghi movie/series selezionati vengono interrogati direttamente anche se non sono visibili nella Home.
