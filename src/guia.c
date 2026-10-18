@@ -736,7 +736,7 @@ static const char *categoriaCanal(const char *nome, const char *genero,
   // Specific disciplines are recognized first, even in generic Sport catalogs.
   if (contemSemCaixa(n,"formula 1") || contemSemCaixa(n,"f1 tv") ||
       contemSemCaixa(n,"sport f1") || contemSemCaixa(n,"f1 live") ||
-      contemSemCaixa(n,"f1 ") || contemSemCaixa(g,"formula 1") ||
+      contemSemCaixa(n,"f1 ") || !strcasecmp(n,"f1") || contemSemCaixa(g,"formula 1") ||
       !strcasecmp(g,"f1")) return "Formula 1";
   if (contemSemCaixa(n,"motogp") || contemSemCaixa(n,"moto gp") ||
       contemSemCaixa(g,"motogp")) return "MotoGP";
@@ -1229,7 +1229,7 @@ static void empacotar(void) {
 // structs no cabecalho: uma build que mude GCanal ignora o cache antigo em
 // vez de ler lixo.
 #define GC_MAGIA  0x31474e56u   /* "NVG1" */
-#define GC_VERSAO 1u
+#define GC_VERSAO 2u
 typedef struct {
   unsigned magia, versao, tamCanal, tamFonte, tamSabe;
   int nCanais, nCats, nFontes, nSabe, perfil;
@@ -1509,7 +1509,10 @@ static int guideGroupOf(const char *name) {
       guideContains(name,"volley") || guideContains(name,"hockey") ||
       guideContains(name,"wrestling") || guideContains(name,"boxing") ||
       guideContains(name,"darts") || guideContains(name,"baseball") ||
-      guideContains(name,"nfl") || guideContains(name,"eventi")) return 1;
+      guideContains(name,"nfl") || guideContains(name,"football americano") ||
+      guideContains(name,"pallavolo") || guideContains(name,"boxe") ||
+      guideContains(name,"freccette") || guideContains(name,"campionati") ||
+      guideContains(name,"eventi")) return 1;
   if (guideContains(name,"cinema") || guideContains(name,"film") ||
       guideContains(name,"serie tv")) return 3;
   if (guideContains(name,"news") || guideContains(name,"notiz") ||
@@ -1537,17 +1540,18 @@ static const char *guideSubName(int l) {
     if (guideContains(n,"ligue 1")) return "Ligue 1";
     if (guideContains(n,"liga")) return "La Liga";
     if (guideContains(n,"coppe")) return "Coppe";
-    if (guideContains(n,"soccer") || guideContains(n,"calcio")) return "Altri campionati";
+    if (guideContains(n,"soccer") || guideContains(n,"calcio") ||
+        guideContains(n,"campionati")) return "Altri campionati";
     if (guideContains(n,"formula") || guideContains(n,"f1")) return "Formula 1";
     if (guideContains(n,"moto")) return "MotoGP";
     if (guideContains(n,"tennis")) return "Tennis";
     if (guideContains(n,"basket")) return "Basket";
-    if (guideContains(n,"volley")) return "Pallavolo";
+    if (guideContains(n,"volley") || guideContains(n,"pallavolo")) return "Pallavolo";
     if (guideContains(n,"hockey")) return "Hockey";
-    if (guideContains(n,"nfl")) return "Football americano";
+    if (guideContains(n,"nfl") || guideContains(n,"football americano")) return "Football americano";
     if (guideContains(n,"wrestling")) return "Wrestling";
-    if (guideContains(n,"boxing")) return "Boxe";
-    if (guideContains(n,"darts")) return "Freccette";
+    if (guideContains(n,"boxing") || guideContains(n,"boxe")) return "Boxe";
+    if (guideContains(n,"darts") || guideContains(n,"freccette")) return "Freccette";
     if (guideContains(n,"baseball")) return "Baseball";
     if (guideContains(n,"eventi")) return "Eventi live";
     return "Canali sportivi";
