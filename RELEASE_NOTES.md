@@ -1,3 +1,9 @@
+## 2.0.40 — Eventi live StreamViX visibili nella Guida TV
+
+- Gli eventi StreamViX privi di uno sport riconoscibile compaiono in Sport → Eventi live invece che tra i canali sportivi generici.
+- Gli eventi riconoscibili (Formula 1, MotoGP, Serie A e altri) rimangono nelle rispettive sottocategorie unificate tra fornitori.
+- Aggiornata la cache della Guida TV e aggiunti test nativi di classificazione; nessuna modifica a player, URL o EPG.
+
 ## 2.0.39 — Guida TV indicizzata per singolo canale
 
 - Sport → Formula 1 mostra direttamente insieme i canali F1 di TVVoo e StreamViX, anche se i rispettivi cataloghi li dichiarano sotto generi diversi.
