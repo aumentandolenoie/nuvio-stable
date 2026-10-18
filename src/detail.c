@@ -2691,8 +2691,26 @@ void detail_evento(const SDL_Event *e) {
       if (sinopseDe(idx) && sinopseDe(idx)[0]) { sinLendo = 1; sinPagina = 0; }
       return;
     }
-    if (sk == SDLK_DOWN || sk == SDLK_ESCAPE || sk == SDLK_AC_BACK || sk == SDLK_BACKSPACE) { sinFoco = 0; if (sk != SDLK_DOWN) return; }
-    else if (sk == SDLK_UP || sk == SDLK_LEFT || sk == SDLK_RIGHT) { sinFoco = 0; return; }
+    if (sk == SDLK_DOWN) {
+      // Move directly to the first focusable lower section: forwarding DOWN
+      // through level 0 would focus the synopsis again and trap navigation.
+      sinFoco = 0;
+      for (int o = 0; o < N_ORDEM; o++) {
+        int r = ordemSecoes()[o];
+        if (secaoColunas(r) <= 0) continue;
+        int alvo = foco.colunaLembrada[r];
+        if (alvo >= secaoColunas(r)) alvo = secaoColunas(r) - 1;
+        if (alvo < 0) alvo = 0;
+        foco.fileira = r; foco.coluna = alvo; nivel = 1;
+        break;
+      }
+      return;
+    }
+    if (sk == SDLK_UP || sk == SDLK_ESCAPE || sk == SDLK_AC_BACK ||
+        sk == SDLK_BACKSPACE || sk == SDLK_LEFT || sk == SDLK_RIGHT) {
+      sinFoco = 0;
+      return;
+    }
   }
   if (corpoSobArte()) {
     if (trocaarte_aberto()) trocaarte_evento(e);
@@ -4874,6 +4892,10 @@ static void heroWeb(float a, float desloc) {
   }
 
   { float cyBtn = yAcoes + NV_DETW2_BTN_H * 0.5f;
+    // Reserve focus-scale clearance between adjacent pills. The focused pill
+    // grows around its centre, so the resting gap alone can cause overlap.
+    // Portrait has a wrapped two-column layout and keeps its own spacing.
+    float gapAcoes = NV_DETW2_BTN_GAP + (detalheRetrato() ? 0.0f : 32.0f);
     if (acoesAgrupadas()) {
       int grupo = 1 + (temInicio() ? 1 : 0);
       maisAcoes = nivel == 0 && botao >= grupo;
@@ -4889,7 +4911,7 @@ static void heroWeb(float a, float desloc) {
     desenhaBotao(rp, rot, 0, nivel == 0 && botao == nb, a);
     primarioPct = -1;   // os outros botoes nao tem trilho
     if (a > 0.3f) ponteiro_alvo(rp.x, rp.y, rp.w, rp.h, ponteiroDetalhe, NULL, -1, nb);
-    bx += rp.w + NV_DETW2_BTN_GAP; nb++;
+    bx += rp.w + gapAcoes; nb++;
     if (temInicio()) {
       // "Assistir do comeco" entre o primario e os circulares (issue #46).
       const char *rotIni = i18n("Assistir do começo");
@@ -4924,7 +4946,7 @@ static void heroWeb(float a, float desloc) {
         }
       } else desenhaSecundario(rs, rotIni, selIni, a);
       if (a > 0.3f) ponteiro_alvo(rs.x, rs.y, rs.w, rs.h, ponteiroDetalhe, NULL, -1, nb);
-      bx += rs.w + NV_DETW2_BTN_GAP; nb++;
+      bx += rs.w + gapAcoes; nb++;
     }
     if (temLembrar() && !acoesAgrupadas()) {
       const CatItem *ciL = cat_item(idx);
@@ -4934,7 +4956,7 @@ static void heroWeb(float a, float desloc) {
       desenhaLembrete(rs, ciL && agenda_lembrete(ciL->imdb),
                       nivel == 0 && botao == nb, a);
       if (a > 0.3f) ponteiro_alvo(rs.x, rs.y, rs.w, rs.h, ponteiroDetalhe, NULL, -1, nb);
-      bx += NV_DETW2_CIRC + NV_DETW2_BTN_GAP; nb++;
+      bx += NV_DETW2_CIRC + gapAcoes; nb++;
     }
     if (acoesAgrupadas()) {
       static float reveal, revealVelocity;
@@ -4954,7 +4976,7 @@ static void heroWeb(float a, float desloc) {
       for (int j=nBotoesTodos()-1; j>first; j--) {
         float stagger = anim_clamp((progress-(j-first-1)*.045f)/.78f,0,1);
         if (stagger < .005f) continue;
-        GfxRect rc = {bx+(j-first)*(NV_DETW2_CIRC+NV_DETW2_BTN_GAP)*stagger,
+        GfxRect rc = {bx+(j-first)*(NV_DETW2_CIRC+gapAcoes)*stagger,
           anchor.y,NV_DETW2_CIRC,NV_DETW2_CIRC};
         int action = acaoEm(j), selected = nivel == 0 && botao == j;
         if (action == ACAO_LEMBRAR)
@@ -4991,7 +5013,7 @@ static void heroWeb(float a, float desloc) {
       if (nivel == 0 && botao == nb && acaoEm(nb) == ACAO_MAIS && !detmais_aberto())
         desenhaDicaBotao(rc, i18n("Mais opções"), a);
       if (a > 0.3f) ponteiro_alvo(rc.x, rc.y, rc.w, rc.h, ponteiroDetalhe, NULL, -1, nb);
-      bx += largura + NV_DETW2_BTN_GAP;
+      bx += largura + gapAcoes;
     }
   }
 
@@ -5098,7 +5120,11 @@ static void heroWeb(float a, float desloc) {
       else esqueletoSinopse(NV_DETW2_X, ySin, a * (1.0f - f));
     }
     if (sinFoco && sin) {
-      gfx_cor((GfxRect){NV_DETW2_X-9.0f, ySin-5.0f, larguraTextoHero()+18.0f, hSinVis+15.0f}, 0.02f, 0.2f, 0.35f, 0.52f, a*0.7f);
+      float cr, cg, cb;
+      (void)focoAcento(&cr, &cg, &cb);
+      gfx_anel((GfxRect){NV_DETW2_X-9.0f, ySin-5.0f,
+                         larguraTextoHero()+18.0f, hSinVis+15.0f},
+               0.06f, 2.5f, cr, cg, cb, a);
     }
     if (sin) txt_bloco_corta(TXT_DET_SIN, sin, 255, 255, 255, NV_DETW2_X, ySin,
                        larguraTextoHero(), NV_DETW2_LD_SIN, a * f,
