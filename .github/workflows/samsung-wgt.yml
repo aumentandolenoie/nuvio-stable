@@ -1,0 +1,94 @@
+name: Samsung Tizen WGT (validation and build)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'tools/tizen*'
+      - 'tools/build-ass-wasm.sh'
+      - 'tools/env.sh'
+      - 'deploy/app/**'
+      - '.github/workflows/samsung-wgt.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    env:
+      EMSDK_DIR: ${{ github.workspace }}/emsdk
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Validate packaging scripts and source configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash -n tools/tizen.sh tools/tizen-wgt.sh tools/env.sh tools/build-ass-wasm.sh
+          python3 - <<'PY'
+          import json, xml.etree.ElementTree as ET
+          app=json.load(open('deploy/app/appinfo.json'))
+          root=ET.parse('tools/tizen-config.xml').getroot()
+          assert app['version']==root.attrib['version'], (app['version'],root.attrib['version'])
+          print('Version match:', app['version'])
+          PY
+      - name: Configure app public endpoints from repository secrets
+        env:
+          NUVIO_SUPABASE_URL: ${{ secrets.NUVIO_SUPABASE_URL }}
+          NUVIO_SUPABASE_ANON_KEY: ${{ secrets.NUVIO_SUPABASE_ANON_KEY }}
+          TV_LOGIN_WEB_BASE_URL: ${{ secrets.TV_LOGIN_WEB_BASE_URL }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for key in NUVIO_SUPABASE_URL NUVIO_SUPABASE_ANON_KEY TV_LOGIN_WEB_BASE_URL; do
+            [ -n "${!key}" ] || { echo "::error::Missing required GitHub Actions secret: $key"; exit 1; }
+            [[ "${!key}" != *$'\n'* ]] || { echo "::error::Invalid newline in $key"; exit 1; }
+          done
+          umask 077
+          printf 'NUVIO_SUPABASE_URL=%s\nNUVIO_SUPABASE_ANON_KEY=%s\nTV_LOGIN_WEB_BASE_URL=%s\n' \
+            "$NUVIO_SUPABASE_URL" "$NUVIO_SUPABASE_ANON_KEY" "$TV_LOGIN_WEB_BASE_URL" > local.properties
+          bash tools/env.sh --require-core >/dev/null
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake ninja-build meson python3-venv zip unzip xz-utils
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+          "$EMSDK_DIR/emsdk" install latest
+          "$EMSDK_DIR/emsdk" activate latest
+      - name: Build subtitle dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$EMSDK_DIR/emsdk_env.sh" >/dev/null
+          bash tools/build-ass-wasm.sh
+      - name: Build WebAssembly and package unsigned Tizen WGT
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash tools/tizen.sh
+          version=$(python3 -c "import json; print(json.load(open('deploy/app/appinfo.json'))['version'])")
+          NUVIO_WGT_NOME="NuvioStable-${version}-tizen" bash tools/tizen-wgt.sh
+          test -s "NuvioStable-${version}-tizen.wgt"
+          unzip -t "NuvioStable-${version}-tizen.wgt"
+          for file in index.html index.js index.wasm decodificador.js config.xml icon.png; do
+            unzip -Z1 "NuvioStable-${version}-tizen.wgt" | grep -Fxq "$file"
+          done
+          sha256sum "NuvioStable-${version}-tizen.wgt" > SHA256SUMS-samsung
+      - name: Upload validated Samsung package
+        uses: actions/upload-artifact@v4
+        with:
+          name: nuvio-stable-samsung-wgt
+          path: |
+            NuvioStable-*-tizen.wgt
+            SHA256SUMS-samsung
+          if-no-files-found: error
+          retention-days: 14
+      - name: Clean local configuration
+        if: always()
+        shell: bash
+        run: rm -f local.properties
