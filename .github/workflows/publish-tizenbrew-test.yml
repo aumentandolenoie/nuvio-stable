@@ -1,0 +1,84 @@
+name: Publish TizenBrew test module to npm
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: 'Successful Samsung Tizen WGT workflow run id with tested module'
+        required: true
+        type: string
+      expected_commit:
+        description: '40-character commit SHA used by that build'
+        required: true
+        type: string
+      confirm_experimental:
+        description: 'Type PUBLISH-TEST to permit experimental npm publishing'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  publish:
+    if: ${{ inputs.confirm_experimental == 'PUBLISH-TEST' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Confirm approved artifact belongs to expected source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run_id }}
+          EXPECTED_COMMIT: ${{ inputs.expected_commit }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$BUILD_RUN" =~ ^[0-9]+$ ]] || exit 1
+          [[ "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]] || exit 1
+          actual_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" --jq '.head_sha')
+          state=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" --jq '.conclusion')
+          workflow=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN" --jq '.name')
+          test "$state" = success
+          test "$workflow" = "Samsung Tizen WGT (validation and build)"
+          test "$actual_sha" = "$EXPECTED_COMMIT"
+          test "$GITHUB_SHA" = "$EXPECTED_COMMIT"
+      - name: Download successfully validated module
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p checked
+          gh run download "$BUILD_RUN" --repo "$GITHUB_REPOSITORY" --name nuvio-stable-tizenbrew-module-test --dir checked
+          files=(checked/*.tgz)
+          [ "${#files[@]}" = 1 ] && test -s "${files[0]}"
+          tar -tzf "${files[0]}" > checked/contents.txt
+          for file in package/package.json package/app/index.html package/app/index.js package/app/index.wasm package/app/index.data; do
+            grep -Fx "$file" checked/contents.txt > /dev/null
+          done
+          tar -xOf "${files[0]}" package/package.json > checked/manifest.json
+          node -e "const p=require('./checked/manifest.json'); if(p.name!=='@aumentandolenoie/nuvio-stable-tizenbrew'||p.packageType!=='app'||p.appPath!=='app/index.html'||!Array.isArray(p.keys)||p.private===true) process.exit(1)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          registry-url: https://registry.npmjs.org
+      - name: Prepublication verification
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm --version
+          npm pack --dry-run --json checked/*.tgz > checked/npm-dry-run.json
+          node -e "let p=require('./checked/manifest.json'); console.log('Publishing experimental package',p.name,p.version,'with npm dist-tag next')"
+      - name: Publish experimental version
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm publish checked/*.tgz --access public --tag next
