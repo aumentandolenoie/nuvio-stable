@@ -89,8 +89,11 @@ jobs:
           node -e "const p=require('./package.json'); if(p.packageType!=='app'||p.appPath!=='app/index.html'||p.version!==process.argv[1]) process.exit(1)" "$version"
           npm pack --ignore-scripts --pack-destination ..
           cd ../..
-          tar -tzf build/aumentandolenoie-nuvio-stable-tizenbrew-*.tgz | grep -Fxq package/app/index.wasm
-          tar -tzf build/aumentandolenoie-nuvio-stable-tizenbrew-*.tgz | grep -Fxq package/app/index.html
+          tar -tzf build/aumentandolenoie-nuvio-stable-tizenbrew-*.tgz > build/tizenbrew-package-contents.txt
+          grep -Fx 'package/app/index.wasm' build/tizenbrew-package-contents.txt > /dev/null
+          grep -Fx 'package/app/index.html' build/tizenbrew-package-contents.txt > /dev/null
+          grep -Fx 'package/app/index.data' build/tizenbrew-package-contents.txt > /dev/null
+          grep -Fx 'package/package.json' build/tizenbrew-package-contents.txt > /dev/null
       - name: Upload TizenBrew module candidate
         uses: actions/upload-artifact@v4
         with:
