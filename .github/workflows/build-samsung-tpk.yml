@@ -38,7 +38,7 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsSLo /tmp/tizen-workload-install.sh https://raw.githubusercontent.com/Samsung/Tizen.NET/main/workload/scripts/workload-install.sh
-          bash /tmp/tizen-workload-install.sh -d "$HOME/.dotnet"
+          bash /tmp/tizen-workload-install.sh -d "$DOTNET_ROOT"
           dotnet workload list | grep -i tizen
       - name: Enable ARM emulation
         uses: docker/setup-qemu-action@v3
