@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake ninja-build meson python3-venv zip unzip xz-utils
+          sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake ninja-build meson python3-venv zip unzip xz-utils ffmpeg
           git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
           "$EMSDK_DIR/emsdk" install latest
           "$EMSDK_DIR/emsdk" activate latest
