@@ -51,3 +51,29 @@ jobs:
               print("INDEX_JS_CONTEXT",repr(html[max(0,match.start()-160):match.end()+120]))
           print('EMBEDDED_TEMPLATE_TOKEN', '{{{ SCRIPT }}}' in html)
           PY
+
+      - name: Package diagnostic from validated WGT (no recompilation)
+        shell: bash
+        run: |
+          set -euo pipefail
+          WGT=$(find /tmp/wgt -type f -name '*.wgt' -print -quit)
+          python3 tools/tizenbrew-package.py "$WGT" /tmp/nuvio-tizenbrew-test
+          python3 - <<'PY'
+          from pathlib import Path
+          import json,re
+          root=Path('/tmp/nuvio-tizenbrew-test')
+          manifest=json.loads((root/'package.json').read_text())
+          html=(root/'app/index.html').read_text()
+          assert manifest['version']=='2.0.41-test.3'
+          assert "window.__nuvioTizenBrewUnsupported" in html
+          assert "nuvioBootstrap.src = 'index.js'" in html
+          assert not re.search(r'<script\\s+async\\s+src="index\\.js"',html,re.I)
+          assert (root/'app/index.wasm').stat().st_size>0
+          print("TizenBrew guarded bootstrap package verified")
+          PY
+          (cd /tmp/nuvio-tizenbrew-test && npm pack --ignore-scripts --pack-destination /tmp)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuvio-stable-tizenbrew-guarded-test
+          path: /tmp/aumentandolenoie-nuvio-stable-tizenbrew-*.tgz
+          if-no-files-found: error
