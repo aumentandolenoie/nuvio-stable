@@ -86,7 +86,7 @@ jobs:
           version=$(python3 -c "import json; print(json.load(open('deploy/app/appinfo.json'))['version'])")
           python3 tools/tizenbrew-package.py "NuvioStable-${version}-tizen.wgt" build/tizenbrew-module
           cd build/tizenbrew-module
-          node -e "const p=require('./package.json'); if(p.packageType!=='app'||p.appPath!=='app/index.html'||!Array.isArray(p.keys)||p.version!==process.argv[1]+'-test.1') process.exit(1)" "$version"
+          node -e "const p=require('./package.json'); if(p.packageType!=='app'||p.appPath!=='app/index.html'||!Array.isArray(p.keys)||p.version!==process.argv[1]+'-test.2') process.exit(1)" "$version"
           npm pack --ignore-scripts --pack-destination ..
           cd ../..
           tar -tzf build/aumentandolenoie-nuvio-stable-tizenbrew-*.tgz > build/tizenbrew-package-contents.txt
