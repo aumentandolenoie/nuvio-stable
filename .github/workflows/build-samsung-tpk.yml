@@ -4,6 +4,7 @@ on:
   push:
     paths:
       - '.github/workflows/build-samsung-tpk.yml'
+      - 'src/video_tpk.c'
 permissions:
   contents: read
 concurrency:
@@ -59,7 +60,7 @@ jobs:
           chmod 600 local.properties
           NUVIO_PROPERTIES="$PWD/local.properties" bash tools/env.sh --require-core >/dev/null
       - name: Cache native dependencies (avoids 50-minute repeat builds)
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/nuvio-tpk
           key: samsung-tpk-deps-${{ runner.os }}-v3-${{ hashFiles('tools/tpk/deps.sh','tools/tpk/Dockerfile') }}
@@ -74,6 +75,12 @@ jobs:
           set -euo pipefail
           mkdir -p build/logs
           bash tools/tpk.sh 2>&1 | tee build/logs/samsung-tpk.log
+      - name: Save dependencies even if compilation fails
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/nuvio-tpk
+          key: samsung-tpk-deps-${{ runner.os }}-v3-${{ hashFiles('tools/tpk/deps.sh','tools/tpk/Dockerfile') }}
       - name: Validate installable artifact and identity
         shell: bash
         run: |
