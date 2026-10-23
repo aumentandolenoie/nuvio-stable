@@ -22,7 +22,8 @@ jobs:
           set -euo pipefail
           python3 .nuvio-stable/test_contract.py
           bash -n tools/tpk.sh tools/env.sh
-          grep -Fq 'if [[ " $PACOTES " == *" NuvioTpk40 "* ]]' tools/tpk.sh
+          grep -Fq 'NV_TPK_PACOTES="$PACOTES"' tools/tpk.sh
+          grep -Fq 'grep -Fq " NuvioTpk40 "' tools/tpk.sh
           python3 - <<'PY'
           import json,re,pathlib
           v=json.loads(pathlib.Path('deploy/app/appinfo.json').read_text())['version']
