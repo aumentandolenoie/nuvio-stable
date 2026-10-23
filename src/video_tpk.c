@@ -858,6 +858,11 @@ void video_tpk_log_host(const char *linha) {
   if (!conflito) { printf("[video] tpk: outro app tomou o video da TV; trailers automaticos desligados nesta sessao\n"); fflush(stdout); }
   conflito = 1;
 }
+// The Tizen player exposes only its selectable tracks. Unlike webOS it does
+// not expose separate omitted/unsupported tracks; keep the shared UI contract.
+int video_n_audio_omesse(void) { return 0; }
+const VideoFaixa *video_audio_omessa(int i) { (void)i; return NULL; }
+int video_audio_noncompatibile(int i) { return i < 0 || i >= nAudio; }
 int  video_n_audio(void) { return nAudio; }
 int  video_n_legenda(void) { return nLeg; }
 const VideoFaixa *video_audio(int i) { return (i >= 0 && i < nAudio) ? &faixaAudio[i] : 0; }
