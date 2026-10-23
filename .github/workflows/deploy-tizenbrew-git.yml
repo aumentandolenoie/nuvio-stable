@@ -58,7 +58,7 @@ jobs:
           m=json.loads((p/'package.json').read_text())
           assert m['packageType']=='app' and m['appPath']=='app/index.html'
           assert m['name']=='@aumentandolenoie/nuvio-stable-tizenbrew'
-          assert m['version'].endswith('-test.1')
+          assert m['version'].endswith('-test.2')
           assert isinstance(m['keys'],list)
           for file in p.rglob('*'):
               if file.is_file() and file.stat().st_size > 20_000_000:
