@@ -17,7 +17,7 @@ permissions:
 jobs:
   validate-and-build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 180
+    timeout-minutes: 90
     env:
       EMSDK_DIR: ${{ github.workspace }}/emsdk
     steps:
@@ -52,20 +52,40 @@ jobs:
             'SIMKL_APP_NAME=nuvio' > local.properties
           printf 'NUVIO_SUPABASE_ANON_KEY=%s\n' "$PUBLIC_KEY" >> local.properties
           bash tools/env.sh --require-core > /dev/null
+      - name: Restore Emscripten SDK cache
+        id: emsdk-cache
+        uses: actions/cache@v4
+        with:
+          path: emsdk
+          key: samsung-emsdk-4.0.20-ubuntu24-v1
+      - name: Restore compiled subtitle libraries
+        id: ass-cache
+        uses: actions/cache@v4
+        with:
+          path: build/ass-wasm
+          key: samsung-ass-4.0.20-freetype2.13.3-fribidi1.0.16-harfbuzz10.4.0-libass0.17.5-v1
       - name: Install build dependencies
+        timeout-minutes: 25
         shell: bash
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential autoconf automake libtool pkg-config cmake ninja-build meson python3-venv zip unzip xz-utils ffmpeg
-          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
-          "$EMSDK_DIR/emsdk" install latest
-          "$EMSDK_DIR/emsdk" activate latest
+          if [ ! -f "$EMSDK_DIR/emsdk_env.sh" ]; then
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$EMSDK_DIR"
+            "$EMSDK_DIR/emsdk" install 4.0.20
+          fi
+          "$EMSDK_DIR/emsdk" activate 4.0.20
       - name: Build subtitle dependencies
+        timeout-minutes: 25
         shell: bash
         run: |
           set -euo pipefail
           source "$EMSDK_DIR/emsdk_env.sh" >/dev/null
-          bash tools/build-ass-wasm.sh
+          if [ -s build/ass-wasm/lib/libass.a ] && [ -s build/ass-wasm/lib/libharfbuzz.a ]; then
+            echo 'Using cached subtitle libraries'
+          else
+            bash tools/build-ass-wasm.sh
+          fi
       - name: Build WebAssembly and package unsigned Tizen WGT
         shell: bash
         run: |
