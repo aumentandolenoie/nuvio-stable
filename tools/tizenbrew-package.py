@@ -49,6 +49,7 @@ manifest = {
     "packageType": "app",
     "appName": "Nuvio Stable (test)",
     "appPath": "app/index.html",
+    "keys": ["MediaPlay", "MediaPause", "MediaPlayPause", "MediaStop", "MediaFastForward", "MediaRewind"],
     "files": ["app/**"],
 }
 (dest / "package.json").write_text(json.dumps(manifest, indent=2) + "\n")
