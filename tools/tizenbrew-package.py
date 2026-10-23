@@ -99,14 +99,30 @@ preflight = """<script>
 # The Emscripten HTML embeds its bootstrap and does not contain a
 # standalone <script src="index.js">. Do not assume that script shape.
 # Intercept unsupported startup at the head before Emscripten bootstrap.
+# Emscripten emits <script async src="index.js"></script> in this build.
+# Keep the actual module bootstrap conditional, rather than merely displaying
+# a warning while the incompatible WASM still starts.
+bootstrap = re.compile(r'<script\\s+async\\s+src="index\\.js"\\s*><\\/script>', re.I)
+if len(bootstrap.findall(html)) != 1:
+    sys.exit("Expected exactly one async index.js bootstrap script; refusing unsafe package")
+html = bootstrap.sub("""<script>
+if (!window.__nuvioTizenBrewUnsupported) {
+  var nuvioBootstrap = document.createElement('script');
+  nuvioBootstrap.src = 'index.js';
+  nuvioBootstrap.async = true;
+  document.body.appendChild(nuvioBootstrap);
+}
+</script>""", html)
 html_path.write_text(html.replace("</head>", preflight + diagnostic_filter + diagnostic + "</head>", 1))
+if '<script async src="index.js"></script>' in html_path.read_text():
+    sys.exit("Unconditional WASM bootstrap remains after patch")
 
 manifest_version = json.loads(pathlib.Path("deploy/app/appinfo.json").read_text())["version"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", manifest_version):
     sys.exit("Unexpected version string")
 manifest = {
     "name": "@aumentandolenoie/nuvio-stable-tizenbrew",
-    "version": manifest_version + "-test.2",
+    "version": manifest_version + "-test.3",
     "private": False,
     "description": "Nuvio Stable Samsung WebAssembly TizenBrew application module (experimental)",
     "license": "GPL-3.0-or-later",
