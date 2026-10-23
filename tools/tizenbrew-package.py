@@ -75,14 +75,40 @@ diagnostic = """<script>
 """
 if "</head>" not in html:
     sys.exit("Missing head element; cannot inject TizenBrew diagnostics")
-html_path.write_text(html.replace("</head>", diagnostic_filter + diagnostic + "</head>", 1))
+# The bundled app requires pthreads. Detect the unsupported runtime before
+# loading index.js, otherwise TizenBrew repeatedly logs an unhandled Worker error.
+# This is a controlled compatibility test, not a claim of player support.
+preflight = """<script>
+(function () {
+  if (typeof SharedArrayBuffer !== 'undefined' && self.crossOriginIsolated === true) return;
+  window.__nuvioTizenBrewUnsupported = true;
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.innerHTML = '';
+    document.body.style.cssText = 'background:#10131c;color:white;margin:0;font:24px sans-serif;';
+    var box = document.createElement('div');
+    box.style.cssText = 'padding:6%;max-width:1400px;line-height:1.5;';
+    var av = (typeof window.webapis !== 'undefined' && window.webapis.avplay) ? 'available' : 'not available';
+    box.textContent = 'Nuvio Stable - TizenBrew compatibility check\\n\\nThis build requires SharedArrayBuffer and a cross-origin-isolated context. TizenBrew does not expose them here, so loading was stopped to prevent a black screen.\\n\\nSharedArrayBuffer: ' + typeof SharedArrayBuffer + '\\nCross-origin isolated: ' + self.crossOriginIsolated + '\\nAVPlay: ' + av + '\\nWeb video element: ' + (typeof HTMLVideoElement !== 'undefined' ? 'available (playback untested)' : 'not available');
+    box.style.whiteSpace = 'pre-wrap';
+    document.body.appendChild(box);
+  });
+})();
+</script>
+"""
+# Avoid executing the WASM bootstrap when pthreads cannot work.
+import re as _re
+bootstrap = _re.compile(r'(<script\\b[^>]*\\bsrc=["\\\']index\\.js["\\\'][^>]*><\\/script>)', _re.I)
+if len(bootstrap.findall(html)) != 1:
+    sys.exit('Expected exactly one index.js bootstrap script in Samsung HTML')
+html = bootstrap.sub(r'<script>if (!window.__nuvioTizenBrewUnsupported) { var s = document.createElement("script"); s.src = "index.js"; document.head.appendChild(s); }</script>', html)
+html_path.write_text(html.replace("</head>", preflight + diagnostic_filter + diagnostic + "</head>", 1))
 
 manifest_version = json.loads(pathlib.Path("deploy/app/appinfo.json").read_text())["version"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", manifest_version):
     sys.exit("Unexpected version string")
 manifest = {
     "name": "@aumentandolenoie/nuvio-stable-tizenbrew",
-    "version": manifest_version + "-test.1",
+    "version": manifest_version + "-test.2",
     "private": False,
     "description": "Nuvio Stable Samsung WebAssembly TizenBrew application module (experimental)",
     "license": "GPL-3.0-or-later",
