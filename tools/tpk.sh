@@ -168,6 +168,7 @@ docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
     objdump -T /work/build/tpk/libnuvio.so | grep -qE " $f\$" || { echo "libnuvio.so nao exporta $f (falta visibility default?)" >&2; exit 1; }
   done
 
+  if [[ " $PACOTES " == *" NuvioTpk40 "* ]]; then
   echo "[1b/3] libnuvio-tpk40.so (Tizen 4/5: -DNV_TPK40, sem TLS, com DT_HASH)"
   # So as unidades que citam NV_TPK40 sao recompiladas; as demais sao os MESMOS
   # objetos da .so de cima. O link ganha --hash-style=both para o carregador
@@ -206,7 +207,10 @@ docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
     objdump -T "$L40" | grep -qE " $f\$" || { echo "libnuvio-tpk40.so nao exporta $f (falta visibility default?)" >&2; exit 1; }
   done
 '
-
+  else
+    echo "[1b/3] skipped: Tizen 4/5 is not among selected packages"
+  fi
+'
 echo "[2/3] host .NET + pacotes"
 export DOTNET_ROOT="${DOTNET_ROOT:-$HOME/.dotnet}" PATH="$HOME/.dotnet:$PATH" DOTNET_CLI_TELEMETRY_OPTOUT=1
 VER=$(sed -n 's/^NV_VERSAO=//p' "$ENVF")
@@ -303,5 +307,7 @@ echo "  $SAIDA/libnuvio-$VER-tpk-arm.so (anexo de auto-atualizacao; suba na rele
 # O 4/5 roda a lib SEM TLS (libnuvio-tpk40.so): anexo proprio, que so o host
 # 4/5 procura (atualizacao.c com NV_TPK40). Baixar a comum ali quebraria o
 # carregador ELF, que recusa PT_TLS.
-cp "$SAIDA/libnuvio-tpk40.so" "$SAIDA/libnuvio-$VER-tpk40-arm.so"
+if [[ " $PACOTES " == *" NuvioTpk40 "* ]]; then
+  cp "$SAIDA/libnuvio-tpk40.so" "$SAIDA/libnuvio-$VER-tpk40-arm.so"
+fi
 echo "  $SAIDA/libnuvio-$VER-tpk40-arm.so (anexo de auto-atualizacao do 4/5)"
