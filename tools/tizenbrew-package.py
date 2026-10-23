@@ -36,12 +36,45 @@ with zipfile.ZipFile(archive) as z:
         out.write_bytes(z.read(member))
     if not (app / "index.html").stat().st_size or not (app / "index.wasm").stat().st_size:
         sys.exit("Empty application assets")
+# Diagnostics apply only to the TizenBrew package; the standalone WGT stays intact.
+html_path = app / "index.html"
+html = html_path.read_text()
+original_counter = "console.log(t);\n      if (window.__nvDiag) window.__nvDiag(t, livres === 0);"
+if original_counter not in html:
+    sys.exit("Unexpected Samsung thread diagnostic signature; refusing silent patch")
+html = html.replace(original_counter, """if (!window.__nvThreadOnce) {
+        window.__nvThreadOnce = true;
+        console.log(t);
+        if (window.__nvDiag) window.__nvDiag(t, livres === 0);
+      }""", 1)
+diagnostic = """<script>
+(function () {
+  var info = document.createElement('div');
+  info.id = 'nuvio-brew-startup-diagnostic';
+  info.style.cssText = 'position:fixed;top:0;left:0;right:0;padding:14px 22px;background:#161b28;color:#fff;font:20px monospace;z-index:2147483647;white-space:pre-wrap;pointer-events:none';
+  function report() {
+    var worker = typeof Worker, wasm = typeof WebAssembly, sab = typeof SharedArrayBuffer;
+    var gl = 'unknown';
+    try { var c = document.createElement('canvas'); gl = !!(c.getContext('webgl') || c.getContext('experimental-webgl')); } catch (e) { gl = 'error: ' + e.message; }
+    info.textContent = 'Nuvio Stable / TizenBrew diagnostic\\nWebAssembly=' + wasm + ' Worker=' + worker + ' SharedArrayBuffer=' + sab + ' isolated=' + (typeof crossOriginIsolated === 'undefined' ? 'unknown' : crossOriginIsolated) + ' WebGL=' + gl + '\\nWaiting for app rendering. Photograph this panel if the screen stays black.';
+  }
+  document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(info); report(); });
+  window.addEventListener('error', function (e) { if (info.parentNode) info.textContent += '\\nJS ERROR: ' + e.message; });
+  window.addEventListener('unhandledrejection', function (e) { if (info.parentNode) info.textContent += '\\nPROMISE ERROR: ' + String(e.reason); });
+  setTimeout(function () { var canvas = document.querySelector('canvas'); if (canvas && canvas.width && canvas.height) info.style.display = 'none'; }, 12000);
+})();
+</script>
+"""
+if "</head>" not in html:
+    sys.exit("Missing head element; cannot inject TizenBrew diagnostics")
+html_path.write_text(html.replace("</head>", diagnostic + "</head>", 1))
+
 manifest_version = json.loads(pathlib.Path("deploy/app/appinfo.json").read_text())["version"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", manifest_version):
     sys.exit("Unexpected version string")
 manifest = {
     "name": "@aumentandolenoie/nuvio-stable-tizenbrew",
-    "version": manifest_version,
+    "version": manifest_version + "-test.1",
     "private": False,
     "description": "Nuvio Stable Samsung WebAssembly TizenBrew application module (experimental)",
     "license": "GPL-3.0-or-later",
