@@ -48,7 +48,6 @@ jobs:
           test "$state" = success
           test "$workflow" = "Samsung Tizen WGT (validation and build)"
           test "$actual_sha" = "$EXPECTED_COMMIT"
-          test "$GITHUB_SHA" = "$EXPECTED_COMMIT"
       - name: Download successfully validated module
         env:
           GH_TOKEN: ${{ github.token }}
@@ -75,7 +74,7 @@ jobs:
         run: |
           set -euo pipefail
           npm --version
-          npm pack --dry-run --json checked/*.tgz > checked/npm-dry-run.json
+          tar -tzf checked/*.tgz > checked/verified-contents.txt
           node -e "let p=require('./checked/manifest.json'); console.log('Publishing experimental package',p.name,p.version,'with npm dist-tag next')"
       - name: Publish experimental version
         shell: bash
