@@ -1,5 +1,9 @@
 name: Inspect TizenBrew bootstrap (reuse built WGT)
 on:
+  pull_request:
+    paths:
+      - 'tools/tizenbrew-package.py'
+      - '.github/workflows/inspect-tizenbrew-bootstrap.yml'
   workflow_dispatch:
     inputs:
       build_run_id:
@@ -18,7 +22,7 @@ jobs:
       - name: Download successful Samsung WGT
         env:
           GH_TOKEN: ${{ github.token }}
-          RUN_ID: ${{ inputs.build_run_id }}
+          RUN_ID: ${{ inputs.build_run_id || '39966087675' }}
         shell: bash
         run: |
           set -euo pipefail
