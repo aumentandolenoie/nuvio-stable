@@ -61,7 +61,7 @@ diagnostic = """<script>
   document.addEventListener('DOMContentLoaded', function () { document.body.appendChild(info); report(); });
   window.addEventListener('error', function (e) { if (info.parentNode) info.textContent += '\\nJS ERROR: ' + e.message; });
   window.addEventListener('unhandledrejection', function (e) { if (info.parentNode) info.textContent += '\\nPROMISE ERROR: ' + String(e.reason); });
-  setTimeout(function () { var canvas = document.querySelector('canvas'); if (canvas && canvas.width && canvas.height) info.style.display = 'none'; }, 12000);
+  // Keep diagnostics visible for this diagnostic-only release, even if an empty canvas exists.
 })();
 </script>
 """
