@@ -39,14 +39,22 @@ with zipfile.ZipFile(archive) as z:
 # Diagnostics apply only to the TizenBrew package; the standalone WGT stays intact.
 html_path = app / "index.html"
 html = html_path.read_text()
-original_counter = "console.log(t);\n      if (window.__nvDiag) window.__nvDiag(t, livres === 0);"
-if original_counter not in html:
-    sys.exit("Unexpected Samsung thread diagnostic signature; refusing silent patch")
-html = html.replace(original_counter, """if (!window.__nvThreadOnce) {
-        window.__nvThreadOnce = true;
-        console.log(t);
-        if (window.__nvDiag) window.__nvDiag(t, livres === 0);
-      }""", 1)
+# Generated Emscripten HTML may change whitespace or inline diagnostic code.
+# Keep the runtime unchanged and suppress only matching repetitive console messages.
+diagnostic_filter = """<script>
+(function () {
+  var previous = console.log;
+  var seenThreads = false;
+  console.log = function () {
+    if (arguments.length && typeof arguments[0] === 'string' && arguments[0].indexOf('[fios] livres=') === 0) {
+      if (seenThreads) return;
+      seenThreads = true;
+    }
+    return previous.apply(console, arguments);
+  };
+})();
+</script>
+"""
 diagnostic = """<script>
 (function () {
   var info = document.createElement('div');
@@ -67,7 +75,7 @@ diagnostic = """<script>
 """
 if "</head>" not in html:
     sys.exit("Missing head element; cannot inject TizenBrew diagnostics")
-html_path.write_text(html.replace("</head>", diagnostic + "</head>", 1))
+html_path.write_text(html.replace("</head>", diagnostic_filter + diagnostic + "</head>", 1))
 
 manifest_version = json.loads(pathlib.Path("deploy/app/appinfo.json").read_text())["version"]
 if not re.fullmatch(r"\d+\.\d+\.\d+", manifest_version):
