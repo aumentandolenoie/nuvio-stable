@@ -108,7 +108,7 @@ nv_p2p_resolver tpk
 P2P_VOL=""
 [ -n "$NV_P2P_DIR" ] && P2P_VOL="-v $NV_P2P_DIR:/p2p"
 docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
-  -e NUVIO_BUILD_JOBS="${NUVIO_BUILD_JOBS:-6}" \
+  -e NUVIO_BUILD_JOBS="${NUVIO_BUILD_JOBS:-6}" -e NV_TPK_PACOTES="$PACOTES" \
   -e NUVIO_SDK_ID="$(docker image inspect --format '{{.Id}}' nuvio-tpk-sdk):$CACHE:$NV_P2P_DIR" \
   -e NUVIO_P2P_MOTOR="${NV_P2P_DIR:+1}" \
   -e NUVIO_EXTRA_CFLAGS="${NUVIO_EXTRA_CFLAGS:-}" -e NV_TPK_SEM_ASS="${NV_TPK_SEM_ASS:-}" \
@@ -168,7 +168,7 @@ docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
     objdump -T /work/build/tpk/libnuvio.so | grep -qE " $f\$" || { echo "libnuvio.so nao exporta $f (falta visibility default?)" >&2; exit 1; }
   done
 
-  if printf "%s\n" " $PACOTES " | grep -Fq " NuvioTpk40 "; then
+  if printf "%s\n" " $NV_TPK_PACOTES " | grep -Fq " NuvioTpk40 "; then
   echo "[1b/3] libnuvio-tpk40.so (Tizen 4/5: -DNV_TPK40, sem TLS, com DT_HASH)"
   # So as unidades que citam NV_TPK40 sao recompiladas; as demais sao os MESMOS
   # objetos da .so de cima. O link ganha --hash-style=both para o carregador
