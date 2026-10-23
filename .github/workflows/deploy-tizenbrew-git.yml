@@ -1,0 +1,86 @@
+name: Publish validated TizenBrew Git module
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Samsung workflow run to deploy
+        required: true
+        type: string
+      expected_commit:
+        description: SHA of the successful Samsung build
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: tizenbrew-git-distribution
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify successful source build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.build_run_id }}
+          EXPECTED: ${{ inputs.expected_commit }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          [[ "$EXPECTED" =~ ^[0-9a-f]{40}$ ]]
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .conclusion)" = success
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .head_sha)" = "$EXPECTED"
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq .name)" = "Samsung Tizen WGT (validation and build)"
+      - name: Download and validate compiled module
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.build_run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/nuvio-module/asset /tmp/nuvio-module/extract
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name nuvio-stable-tizenbrew-module-test --dir /tmp/nuvio-module/asset
+          packages=(/tmp/nuvio-module/asset/*.tgz)
+          test "${#packages[@]}" = 1
+          tar -tzf "${packages[0]}" > /tmp/nuvio-module/list.txt
+          for entry in package/package.json package/app/index.html package/app/index.js package/app/index.wasm package/app/index.data; do
+            grep -Fx "$entry" /tmp/nuvio-module/list.txt >/dev/null
+          done
+          tar -xzf "${packages[0]}" -C /tmp/nuvio-module/extract --strip-components=1
+          python3 - <<'PY'
+          import json,pathlib,sys
+          p=pathlib.Path('/tmp/nuvio-module/extract')
+          m=json.loads((p/'package.json').read_text())
+          assert m['packageType']=='app' and m['appPath']=='app/index.html'
+          assert m['name']=='@aumentandolenoie/nuvio-stable-tizenbrew'
+          assert m['version'].endswith('-test.1')
+          assert isinstance(m['keys'],list)
+          for file in p.rglob('*'):
+              if file.is_file() and file.stat().st_size > 20_000_000:
+                  print('BLOCKED: GitHub/jsDelivr asset exceeds 20 MB:',file.relative_to(p),file.stat().st_size)
+                  sys.exit(2)
+          print('Git distribution assets validated')
+          PY
+      - name: Publish isolated distribution branch (only after all checks)
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin tizenbrew-dist >/dev/null; then
+            git fetch origin tizenbrew-dist
+            git switch -C tizenbrew-dist FETCH_HEAD
+            git rm -r --ignore-unmatch .
+          else
+            git checkout --orphan tizenbrew-dist
+            git rm -r --ignore-unmatch .
+          fi
+          cp -a /tmp/nuvio-module/extract/. .
+          printf '# Nuvio Stable TizenBrew Git distribution\n\nGenerated from successful GitHub Actions build. This branch contains compiled assets only.\n' > README.md
+          git add -A
+          git commit -m "build: publish validated TizenBrew diagnostic module" || exit 0
+          git push origin HEAD:refs/heads/tizenbrew-dist
