@@ -1,0 +1,108 @@
+name: Samsung Tizen 8-9 TPK (manual artifact)
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/build-samsung-tpk.yml'
+permissions:
+  contents: read
+concurrency:
+  group: samsung-tpk-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 105
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check source and platform contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 .nuvio-stable/test_contract.py
+          bash -n tools/tpk.sh tools/env.sh
+          python3 - <<'PY'
+          import json,re,pathlib
+          v=json.loads(pathlib.Path('deploy/app/appinfo.json').read_text())['version']
+          xml=pathlib.Path('tools/tizen-config.xml').read_text()
+          assert re.search(r'\bversion="'+re.escape(v)+'"',xml), "Mismatch: Tizen vs LG manifest"
+          assert pathlib.Path('tizen-tpk/NuvioTpk/NuvioTpk.csproj').exists()
+          print('Version matches; native Tizen 8+ target present:', v)
+          PY
+      - name: Install .NET 6 for Tizen native host
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '6.0.x'
+      - name: Install official Samsung Tizen workload
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSLo /tmp/tizen-workload-install.sh https://raw.githubusercontent.com/Samsung/Tizen.NET/main/workload/scripts/workload-install.sh
+          bash /tmp/tizen-workload-install.sh -d "$HOME/.dotnet"
+          dotnet workload list | grep -i tizen
+      - name: Enable ARM emulation
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm
+      - name: Configure public client values (not personal credentials)
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo NUVIO_SUPABASE_URL=https://api.nuvio.tv
+            echo TV_LOGIN_WEB_BASE_URL=https://nuvio.tv/tv-login
+            echo SIMKL_APP_NAME=nuvio
+          } > local.properties
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/NuvioMedia/self-host/main/.env.example |
+            sed -n 's/^NUVIO_CLOUD_PUBLISHABLE_KEY=/NUVIO_SUPABASE_ANON_KEY=/p' |
+            head -1 >> local.properties
+          chmod 600 local.properties
+          NUVIO_PROPERTIES="$PWD/local.properties" bash tools/env.sh --require-core >/dev/null
+      - name: Cache native dependencies (avoids 50-minute repeat builds)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/nuvio-tpk
+          key: samsung-tpk-deps-${{ runner.os }}-v3-${{ hashFiles('tools/tpk/deps.sh','tools/tpk/Dockerfile') }}
+      - name: Compile native TPK
+        shell: bash
+        env:
+          NV_TPK_PACOTES: NuvioTpk
+          NUVIO_PROPERTIES: ${{ github.workspace }}/local.properties
+          NUVIO_BUILD_JOBS: '4'
+          NUVIO_P2P_MOTOR: none
+        run: |
+          set -euo pipefail
+          mkdir -p build/logs
+          bash tools/tpk.sh 2>&1 | tee build/logs/samsung-tpk.log
+      - name: Validate installable artifact and identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION=$(python3 -c 'import json;print(json.load(open("deploy/app/appinfo.json"))["version"])')
+          PKG="build/tpk/Nuvio-$VERSION-NuvioTpk.tpk"
+          test -s "$PKG"
+          unzip -t "$PKG"
+          unzip -Z1 "$PKG" | grep -Fx 'lib/libnuvio.so'
+          unzip -Z1 "$PKG" | grep -Fx 'res/versao.txt'
+          test "$(unzip -p "$PKG" res/versao.txt)" = "$VERSION"
+          unzip -p "$PKG" tizen-manifest.xml | grep -F "version=\"$VERSION\""
+          ! unzip -Z1 "$PKG" | grep -Ei '(^|/)(local.properties|\.env|trakt\.txt|addons\.txt|conta-[^/]+\.txt)$'
+          sha256sum "$PKG" | tee build/tpk/SHA256SUMS-tizen9
+          echo "### Samsung Tizen 8+ APK-equivalent native TPK ready (unsigned for Apps2Samsung)" >> "$GITHUB_STEP_SUMMARY"
+          echo "`$(basename "$PKG")`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Samsung TPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Nuvio-Stable-Samsung-Tizen8-9-TPK
+          path: |
+            build/tpk/Nuvio-*-NuvioTpk.tpk
+            build/tpk/SHA256SUMS-tizen9
+          retention-days: 30
+          if-no-files-found: error
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: samsung-tpk-diagnostics
+          path: build/logs/samsung-tpk.log
+          if-no-files-found: warn
