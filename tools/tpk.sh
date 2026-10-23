@@ -168,7 +168,7 @@ docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
     objdump -T /work/build/tpk/libnuvio.so | grep -qE " $f\$" || { echo "libnuvio.so nao exporta $f (falta visibility default?)" >&2; exit 1; }
   done
 
-  if [[ " $PACOTES " == *" NuvioTpk40 "* ]]; then
+  if printf "%s\n" " $PACOTES " | grep -Fq " NuvioTpk40 "; then
   echo "[1b/3] libnuvio-tpk40.so (Tizen 4/5: -DNV_TPK40, sem TLS, com DT_HASH)"
   # So as unidades que citam NV_TPK40 sao recompiladas; as demais sao os MESMOS
   # objetos da .so de cima. O link ganha --hash-style=both para o carregador
