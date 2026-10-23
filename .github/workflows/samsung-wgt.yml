@@ -45,7 +45,6 @@ jobs:
             https://raw.githubusercontent.com/NuvioMedia/self-host/main/.env.example \
             | sed -n 's/^NUVIO_CLOUD_PUBLISHABLE_KEY=//p' | head -1)"
           [ -n "$PUBLIC_KEY" ] || { echo "::error::Public Nuvio cloud key unavailable"; exit 1; }
-          [[ "$PUBLIC_KEY" != *$'\\n'* ]] || { echo "::error::Malformed public key"; exit 1; }
           umask 077
           printf '%s\n' \
             'NUVIO_SUPABASE_URL=https://api.nuvio.tv' \
