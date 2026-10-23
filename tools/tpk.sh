@@ -206,7 +206,6 @@ docker run --rm --platform linux/arm/v5 --env-file "$ENVF" $P2P_VOL \
   for f in $(grep -rhoE "DllImport\(\"libnuvio.so\"\)\] static extern [a-z]+ nv_[a-z0-9_]+" tizen-tpk/*.cs tizen-tpk/NuvioTpk40/*.cs | awk "{print \$NF}" | sort -u); do
     objdump -T "$L40" | grep -qE " $f\$" || { echo "libnuvio-tpk40.so nao exporta $f (falta visibility default?)" >&2; exit 1; }
   done
-'
   else
     echo "[1b/3] skipped: Tizen 4/5 is not among selected packages"
   fi
