@@ -96,11 +96,9 @@ preflight = """<script>
 </script>
 """
 # Avoid executing the WASM bootstrap when pthreads cannot work.
-import re as _re
-bootstrap = _re.compile(r'(<script\\b[^>]*\\bsrc=["\\\']index\\.js["\\\'][^>]*><\\/script>)', _re.I)
-if len(bootstrap.findall(html)) != 1:
-    sys.exit('Expected exactly one index.js bootstrap script in Samsung HTML')
-html = bootstrap.sub(r'<script>if (!window.__nuvioTizenBrewUnsupported) { var s = document.createElement("script"); s.src = "index.js"; document.head.appendChild(s); }</script>', html)
+# The Emscripten HTML embeds its bootstrap and does not contain a
+# standalone <script src="index.js">. Do not assume that script shape.
+# Intercept unsupported startup at the head before Emscripten bootstrap.
 html_path.write_text(html.replace("</head>", preflight + diagnostic_filter + diagnostic + "</head>", 1))
 
 manifest_version = json.loads(pathlib.Path("deploy/app/appinfo.json").read_text())["version"]
