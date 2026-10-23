@@ -1,0 +1,49 @@
+name: Inspect TizenBrew bootstrap (reuse built WGT)
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Samsung build run id
+        required: true
+        type: string
+permissions:
+  contents: read
+  actions: read
+jobs:
+  inspect:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download successful Samsung WGT
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ inputs.build_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]]
+          test "$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID" --jq '.conclusion')" = success
+          mkdir -p /tmp/wgt
+          gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name nuvio-stable-samsung-wgt --dir /tmp/wgt
+          find /tmp/wgt -maxdepth 2 -type f -name '*.wgt' -print
+          WGT=$(find /tmp/wgt -type f -name '*.wgt' -print -quit)
+          test -n "$WGT"
+          unzip -p "$WGT" index.html > /tmp/samsung-index.html
+      - name: Inspect generated script tags and bootstrap references
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from html.parser import HTMLParser
+          from pathlib import Path
+          import re
+          class Scripts(HTMLParser):
+              def handle_starttag(self, tag, attrs):
+                  if tag == 'script':
+                      print("SCRIPT", [(k,v) for k,v in attrs])
+          html=Path('/tmp/samsung-index.html').read_text()
+          Scripts().feed(html)
+          for match in re.finditer(r'index\\.js',html):
+              print("INDEX_JS_CONTEXT",repr(html[max(0,match.start()-160):match.end()+120]))
+          print('EMBEDDED_TEMPLATE_TOKEN', '{{{ SCRIPT }}}' in html)
+          PY
