@@ -5158,7 +5158,7 @@ void app_atualizar(float dt, Uint32 agora) {
                video_pos(), video_bufferando_ms(), canalFonteIdx, liveStall.tentativa,
                NV_LS_MAX, nv_ls_espera_ms(liveStall.tentativa));
         fflush(stdout);
-        player_toast_ex(i18n("Conexão caiu, reconectando…"), 4000, "aj_wifi-off", 1);
+        player_toast_ex(i18n("Flusso interrotto, riconnessione…"), 4000, "aj_refresh-cw", 1);
       } else if (ls == NV_LS_REABRIR) {
         const Stream *mesma = stream_item(canalFonteIdx);
         if (mesma) {
