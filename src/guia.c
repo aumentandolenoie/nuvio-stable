@@ -835,9 +835,13 @@ static int guiaCatalogoPermitido(const char *base, const char *nome,
   return contemSemCaixa(n, "streamvix tv") ||
          contemSemCaixa(n, "streamvix event") ||
          contemSemCaixa(n, "streamvix eventi") ||
+         contemSemCaixa(n, "streamvix eventos") ||
+         contemSemCaixa(n, "streamvix events") ||
          contemSemCaixa(c, "streamvix-tv") ||
          contemSemCaixa(c, "streamvix_event") ||
          contemSemCaixa(c, "streamvix_eventi") ||
+         contemSemCaixa(c, "streamvix-eventos") ||
+         contemSemCaixa(c, "streamvix-events") ||
          contemSemCaixa(c, "streamvix-event") ||
          !strcasecmp(n, "TV") || !strcasecmp(n, "Eventi");
 }
