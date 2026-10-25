@@ -830,11 +830,16 @@ static int guiaCatalogoPermitido(const char *base, const char *nome,
   // Never admit StreamVix Live, even if its title also contains "TV".
   if (contemSemCaixa(n, "streamvix live") || contemSemCaixa(c, "streamvix-live") ||
       contemSemCaixa(c, "streamvix_live")) return 0;
+  // A genre facet can have a generic name; the parent ID remains stable.
+  if (contemSemCaixa(c, "live") && !contemSemCaixa(c, "event")) return 0;
   return contemSemCaixa(n, "streamvix tv") ||
          contemSemCaixa(n, "streamvix event") ||
          contemSemCaixa(n, "streamvix eventi") ||
          contemSemCaixa(c, "streamvix-tv") ||
-         contemSemCaixa(c, "streamvix-event");
+         contemSemCaixa(c, "streamvix_event") ||
+         contemSemCaixa(c, "streamvix_eventi") ||
+         contemSemCaixa(c, "streamvix-event") ||
+         !strcasecmp(n, "TV") || !strcasecmp(n, "Eventi");
 }
 
 static int sCanalPorId(const char *id) {
