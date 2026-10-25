@@ -11,4 +11,7 @@ assert 'contemSemCaixa(c, "live")' in s
 assert 'contemSemCaixa(n, "streamvix eventi")' in s
 assert 'if (cota > 48) cota = 48;' not in s
 assert '#define GC_VERSAO 4u' in s
-print("PASS: provider categories and StreamViX TV/events filter")
+assert 'for (int j = i; j < sNFontes; j++)' in s
+assert 'restantes++;' in s
+assert 'int restantes = sNFontes - i;' not in s
+print("PASS: provider categories, excluded catalogs do not consume quota")
