@@ -1999,7 +1999,15 @@ static void acaoOk(void) {
 // O CANAL DE UM LEMBRETE, para o "Assistir" do cartao: o CatItem do guia
 // quando a lista ja esta carregada; senao so a identidade guardada.
 int guia_item_do_canal(const char *id, const char *nome, const char *base, CatItem *it) {
-  GCanal *c = canalPorId(id);
+  // A reminder retains its addon base: prefer that identity over an ID
+  // which can legitimately appear in both Tvvoo and Streamvix.
+  GCanal *c = NULL;
+  if (id && base && *base)
+    for (int i = 0; i < nCanais; i++)
+      if (!strcmp(canais[i].id, id) && !strcmp(guiaBaseCanal(&canais[i]), base)) {
+        c = &canais[i]; break;
+      }
+  if (!c && (!base || !*base)) c = canalPorId(id);
   if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c)); return 1; }
   if (!id || !id[0]) return 0;
   memset(it, 0, sizeof *it);
@@ -2038,7 +2046,10 @@ static int zapAlvo(const char *idAtual, int dir, CatItem *saida, int aplicar) {
   int i, alvo = 0;
   if (!saida || estado != G_PRONTO || nCanais < 1) return 0;
   for (i = 0; i < nCanais; i++)
-    if (!strcmp(canais[i].id, idAtual ? idAtual : "")) { alvo = i; break; }
+    if (!strcmp(canais[i].id, idAtual ? idAtual : "") &&
+        (!pedidoBase[0] || !strcmp(guiaBaseCanal(&canais[i]), pedidoBase))) {
+      alvo = i; break;
+    }
   // `dir` pode ser um deslocamento maior que 1 (o zapping com debounce soma os
   // toques) e 0 devolve o proprio canal (recarregar a fonte).
   alvo = aovivo_ordem(nCanais, alvo, dir);
