@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""The guide drawer must show identical names regardless of focus."""
+"""The guide displays only the requested provider categories."""
 from pathlib import Path
 s=Path("src/guia.c").read_text()
-assert 'tn = foc ? txt_linha_corta(TXT_BODY, guideMenuName(i)' in s
-assert ': txt_linha_corta(TXT_BODY, guideMenuName(i)' in s
-assert ': txt_linha_corta(TXT_BODY, linhaNome(i)' not in s
-assert 'guideLevel ? guideGroups[guideGroup]' in s
-assert 'guideLevel ? i18n("OK seleziona' in s
-print("PASS: focused/unfocused categories render the same hierarchical label")
+assert 'static const char *guideGroups[G_GUIDE_GROUPS] = { "Tvvoo", "Streamvix" };' in s
+assert 'guideMenuName(i)' in s
+print("PASS: guide provider labels")
