@@ -1115,7 +1115,13 @@ static void *fioGuia(void *u) {
   // porque a conta e sobre o que ainda cabe, catalogo a catalogo.
   for (int i = 0; cargaAtual() && i < sNFontes; i++) {
     if (!guiaCatalogoPermitido(sFontes[i].base, sFontes[i].nome, sFontes[i].id)) continue;
-    int restantes = sNFontes - i;
+    // Distribute capacity across catalogues actually shown in this guide.
+    // Counting excluded StreamViX Live catalogs reserved empty slots and
+    // caused TV/Eventi channels to be prematurely truncated.
+    int restantes = 0;
+    for (int j = i; j < sNFontes; j++)
+      if (guiaCatalogoPermitido(sFontes[j].base, sFontes[j].nome, sFontes[j].id))
+        restantes++;
     int cota = (G_MAX_CANAL - sNCanais) / (restantes > 0 ? restantes : 1);
     int lidos = 0;
     // Each required-genre facet receives a fair share of remaining capacity.
