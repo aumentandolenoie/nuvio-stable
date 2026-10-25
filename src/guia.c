@@ -1518,180 +1518,43 @@ static int    catAberto, catFoco;
 // sem tecla por G_CAT_OCIOSO_MS ela fecha sem mudar nada.
 // Hierarchical category drawer. It indexes the already-loaded categories;
 // opening a folder never issues a new network request or modifies channel IDs.
-#define G_GUIDE_GROUPS 9
-static const char *guideGroups[G_GUIDE_GROUPS] = {
-  "Preferiti", "Sport", "Canali TV", "Film e serie TV", "Informazione",
-  "Documentari", "Bambini", "Musica", "Altri"
-};
+// Two provider folders. Channels remain ordered in their respective row.
+#define G_GUIDE_GROUPS 2
+static const char *guideGroups[G_GUIDE_GROUPS] = { "Tvvoo", "Streamvix" };
 static int guideGroup, guideLevel, guideSub;
-static int guideContains(const char *name, const char *needle) {
-  if (!name || !needle) return 0;
-  for (; *name; name++) {
-    const char *a=name,*b=needle;
-    while (*a && *b && tolower((unsigned char)*a)==tolower((unsigned char)*b)) {a++;b++;}
-    if (!*b) return 1;
-  }
-  return 0;
-}
-// Grouping by meaning, not by incidental substring "tv" (which previously
-// put Film - Serie TV under Canali TV). Names from the original catalogs are
-// never altered, so stream URLs, EPG, caches and channel order stay stable.
 static int guideGroupOf(const char *name) {
-  if (guideContains(name,"serie a") || guideContains(name,"serie b") ||
-      guideContains(name,"serie c") || guideContains(name,"sport") ||
-      guideContains(name,"calcio") || guideContains(name,"soccer") ||
-      guideContains(name,"premier") || guideContains(name,"liga") ||
-      guideContains(name,"bundesliga") || guideContains(name,"ligue 1") ||
-      guideContains(name,"coppe") || guideContains(name,"tennis") ||
-      guideContains(name,"formula") || guideContains(name,"f1") ||
-      guideContains(name,"moto") || guideContains(name,"basket") ||
-      guideContains(name,"volley") || guideContains(name,"hockey") ||
-      guideContains(name,"wrestling") || guideContains(name,"boxing") ||
-      guideContains(name,"darts") || guideContains(name,"baseball") ||
-      guideContains(name,"nfl") || guideContains(name,"football americano") ||
-      guideContains(name,"pallavolo") || guideContains(name,"boxe") ||
-      guideContains(name,"freccette") || guideContains(name,"campionati") ||
-      guideContains(name,"eventi")) return 1;
-  if (guideContains(name,"cinema") || guideContains(name,"film") ||
-      guideContains(name,"serie tv")) return 3;
-  if (guideContains(name,"news") || guideContains(name,"notiz") ||
-      guideContains(name,"inform")) return 4;
-  if (guideContains(name,"document") || guideContains(name,"discovery")) return 5;
-  if (guideContains(name,"bambin") || guideContains(name,"kids")) return 6;
-  if (guideContains(name,"music")) return 7;
-  if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
-      guideContains(name,"sky") || guideContains(name,"pluto") ||
-      guideContains(name,"general") || guideContains(name,"tv")) return 2;
-  return 8;
+  return name && !strcasecmp(name, "Streamvix") ? 1 : 0;
 }
-// Logical subcategories are stable and unique within a macro-group.
-// If multiple source categories map to the same logical name, OK opens
-// a third level listing their original rows. This never drops any channel.
-static const char *guideSubName(int l) {
-  const char *n = linhaNome(l);
-  int group = guideGroupOf(n);
-  if (group == 1) {
-    if (guideContains(n,"serie a")) return "Serie A";
-    if (guideContains(n,"serie b")) return "Serie B";
-    if (guideContains(n,"serie c")) return "Serie C";
-    if (guideContains(n,"premier")) return "Premier League";
-    if (guideContains(n,"bundesliga")) return "Bundesliga";
-    if (guideContains(n,"ligue 1")) return "Ligue 1";
-    if (guideContains(n,"liga")) return "La Liga";
-    if (guideContains(n,"coppe")) return "Coppe";
-    if (guideContains(n,"soccer") || guideContains(n,"calcio") ||
-        guideContains(n,"campionati")) return "Altri campionati";
-    if (guideContains(n,"formula") || guideContains(n,"f1")) return "Formula 1";
-    if (guideContains(n,"moto")) return "MotoGP";
-    if (guideContains(n,"tennis")) return "Tennis";
-    if (guideContains(n,"basket")) return "Basket";
-    if (guideContains(n,"volley") || guideContains(n,"pallavolo")) return "Pallavolo";
-    if (guideContains(n,"hockey")) return "Hockey";
-    if (guideContains(n,"nfl") || guideContains(n,"football americano")) return "Football americano";
-    if (guideContains(n,"wrestling")) return "Wrestling";
-    if (guideContains(n,"boxing") || guideContains(n,"boxe")) return "Boxe";
-    if (guideContains(n,"darts") || guideContains(n,"freccette")) return "Freccette";
-    if (guideContains(n,"baseball")) return "Baseball";
-    if (guideContains(n,"eventi")) return "Eventi live";
-    return "Canali sportivi";
-  }
-  if (group == 3) return "Canali cinema e serie";
-  if (group == 4) return "Canali di informazione";
-  if (group == 5) return "Canali documentari";
-  if (group == 6) return "Canali per bambini";
-  if (group == 7) return "Canali musicali";
-  if (group == 2) {
-    if (guideContains(n,"rai")) return "Rai";
-    if (guideContains(n,"mediaset")) return "Mediaset";
-    if (guideContains(n,"sky")) return "Sky";
-    if (guideContains(n,"pluto")) return "Pluto TV";
-    return "Canali generalisti";
-  }
-  return guideContains(n,"altro") || guideContains(n,"tutti") ? "Altri canali" : n;
-}
+static const char *guideSubName(int l) { return linhaNome(l); }
 static int guideSubFirst(int pos) {
   int off = nFavOrd > 0 ? 1 : 0;
-  for (int l = off; l < nLinhas(); l++) {
-    if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
-    const char *sub = guideSubName(l);
-    int seen=0;
-    for (int prev=off; prev<l; prev++)
-      if (guideGroupOf(linhaNome(prev)) == guideGroup &&
-          !strcmp(guideSubName(prev),sub)) {seen=1;break;}
-    if (!seen && pos-- == 0) return l;
-  }
+  for (int l = off; l < nLinhas(); l++)
+    if (guideGroupOf(linhaNome(l)) == guideGroup && pos-- == 0) return l;
   return -1;
 }
-static int guideSubMatches(int first) {
-  if (first < 0) return 0;
-  int n=0;
-  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-    if (guideGroupOf(linhaNome(l))==guideGroup &&
-        !strcmp(guideSubName(l),guideSubName(first))) n++;
-  return n;
-}
-static int guideSourceLine(int pos) {
-  if (guideGroup == 0) return nFavOrd>0 && pos==0 ? 0 : -1;
-  int first=guideSubFirst(guideSub);
-  if (first < 0) return -1;
-  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-    if (guideGroupOf(linhaNome(l))==guideGroup &&
-        !strcmp(guideSubName(l),guideSubName(first)) && pos--==0) return l;
-  return -1;
-}
+static int guideSubMatches(int first) { return first >= 0 ? 1 : 0; }
+static int guideSourceLine(int pos) { return guideSubFirst(pos); }
 static int guideMenuN(void) {
   if (!guideLevel) return G_GUIDE_GROUPS;
-  if (guideLevel == 2) return guideSubMatches(guideSubFirst(guideSub));
-  if (guideGroup == 0) return nFavOrd > 0 ? 1 : 0;
-  int n=0;
-  while (guideSubFirst(n)>=0) n++;
+  int n = 0;
+  while (guideSubFirst(n) >= 0) n++;
   return n;
 }
-static int guideMenuLine(int i) {
-  if (guideLevel==2) return guideSourceLine(i);
-  if (guideGroup==0) return nFavOrd>0 && i==0 ? 0:-1;
-  return guideSubFirst(i);
-}
+static int guideMenuLine(int i) { return guideSubFirst(i); }
 static const char *guideMenuName(int i) {
   if (!guideLevel) return guideGroups[i];
-  if (guideLevel==1) {
-    if (guideGroup==0) return "Preferiti";
-    return guideSubName(guideSubFirst(i));
-  }
-  int l=guideSourceLine(i);
-  // Disambiguate duplicate raw labels by the addon they came from.
-  // A single static buffer is safe: the label is drawn before the next one.
-  static char sourceLabel[192];
-  if (l<0) return "";
-  GCanal *channel=linhaItem(l,0);
-  const char *base=guiaBaseCanal(channel);
-  for (int a=0; base[0] && a<addons_n(); a++)
-    if (!strcmp(addons_base(a),base)) {
-      const char *provider=addons_nome(a);
-      snprintf(sourceLabel,sizeof sourceLabel,"%s · %s",
-               provider && *provider ? provider : "Addon",linhaNome(l));
-      return sourceLabel;
-    }
-  snprintf(sourceLabel,sizeof sourceLabel,"%s · %d",
-           linhaNome(l),i+1);
-  return sourceLabel;
+  int l = guideMenuLine(i);
+  return l >= 0 ? linhaNome(l) : "";
 }
 static int guideMenuCount(int i) {
   if (!guideLevel) {
-    if (i==0) return nFavOrd;
-    int n=0;
-    for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-      if (guideGroupOf(linhaNome(l))==i) n+=linhaN(l);
+    int n = 0;
+    for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++)
+      if (guideGroupOf(linhaNome(l)) == i) n += linhaN(l);
     return n;
   }
-  if (guideLevel==2) {int l=guideSourceLine(i);return l>=0?linhaN(l):0;}
-  if (guideGroup==0) return nFavOrd;
-  int first=guideSubFirst(i), count=0;
-  if (first<0) return 0;
-  for(int l=nFavOrd>0?1:0;l<nLinhas();l++)
-    if(guideGroupOf(linhaNome(l))==guideGroup &&
-       !strcmp(guideSubName(l),guideSubName(first))) count+=linhaN(l);
-  return count;
+  int l = guideMenuLine(i);
+  return l >= 0 ? linhaN(l) : 0;
 }
 #define G_CAT_OCIOSO_MS 8000u
 static Uint32 catUlt;
