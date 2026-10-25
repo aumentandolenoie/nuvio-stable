@@ -14,4 +14,6 @@ assert '#define GC_VERSAO 4u' in s
 assert 'for (int j = i; j < sNFontes; j++)' in s
 assert 'restantes++;' in s
 assert 'int restantes = sNFontes - i;' not in s
-print("PASS: provider categories, excluded catalogs do not consume quota")
+assert 'sCanalPorOrigem(c.id, guiaHashBase(f->base)) < 0' in s
+assert 'sCanais[i].origemHash == origem' in s
+print("PASS: provider categories and per-origin channel IDs")
