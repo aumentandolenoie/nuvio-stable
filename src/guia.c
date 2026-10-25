@@ -2116,8 +2116,10 @@ static void catFechar(void) { catAberto = 0; dirSeg = 0; guideLevel = 0; }
 static void catConfirmar(void) {
   if (!guideLevel) {
     guideGroup = catFoco;
-    guideLevel = 1;
-    catFoco = 0; catRol = 0; catVelRol = 0;
+    int first = guideSubFirst(0);
+    if (first < 0) return;
+    focoLin = first; focoCol = 0;
+    catFechar(); focoValido();
     return;
   }
   if (guideLevel==1 && guideGroup!=0) {
