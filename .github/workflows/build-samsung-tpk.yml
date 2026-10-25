@@ -87,6 +87,29 @@ jobs:
         with:
           path: ~/.cache/nuvio-tpk
           key: samsung-tpk-deps-${{ runner.os }}-v3-${{ hashFiles('tools/tpk/deps.sh','tools/tpk/Dockerfile') }}
+      - name: Restore cached ARM compiler image
+        id: arm_sdk_cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/nuvio-tpk-sdk-image.tar
+          key: samsung-tpk-sdk-${{ runner.os }}-v1-${{ hashFiles('tools/tpk/Dockerfile') }}
+      - name: Load cached ARM compiler image
+        if: steps.arm_sdk_cache.outputs.cache-hit == 'true'
+        shell: bash
+        run: docker load -i ~/.cache/nuvio-tpk-sdk-image.tar
+      - name: Save ARM compiler image for future builds
+        if: steps.arm_sdk_cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker build --platform linux/arm/v5 -t nuvio-tpk-sdk tools/tpk/
+          docker save -o ~/.cache/nuvio-tpk-sdk-image.tar nuvio-tpk-sdk
+      - name: Cache ARM compiler image
+        if: steps.arm_sdk_cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.cache/nuvio-tpk-sdk-image.tar
+          key: samsung-tpk-sdk-${{ runner.os }}-v1-${{ hashFiles('tools/tpk/Dockerfile') }}
       - name: Compile native TPK
         shell: bash
         env:
