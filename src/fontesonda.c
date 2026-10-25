@@ -1,16 +1,28 @@
-#define _GNU_SOURCE   // strcasestr no glibc (LG/tpk)
 #include "fontesonda.h"
 #include <stdio.h>
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
 
+// Portable case-insensitive substring match: avoid implicit strcasestr
+// declarations on the older ARM toolchain used for Tizen packages.
+static int fonteContem(const char *texto, const char *agulha) {
+  if (!texto || !agulha) return 0;
+  for (; *texto; texto++) {
+    const unsigned char *a = (const unsigned char *)texto;
+    const unsigned char *b = (const unsigned char *)agulha;
+    while (*a && *b && tolower(*a) == tolower(*b)) { a++; b++; }
+    if (!*b) return 1;
+  }
+  return !*agulha;
+}
+
 int fontesonda_erro_conexao(const char *t) {
   if (!t || !*t) return 0;
-  return strcasestr(t, "ConnectionFailed") || strcasestr(t, "0xfe6c0026") ||
-         strcasestr(t, "connect") || strcasestr(t, "timed out") ||
-         strcasestr(t, "timeout") || strcasestr(t, "network") ||
-         strcasestr(t, "unreachable") || strcasestr(t, "dns");
+  return fonteContem(t, "ConnectionFailed") || fonteContem(t, "0xfe6c0026") ||
+         fonteContem(t, "connect") || fonteContem(t, "timed out") ||
+         fonteContem(t, "timeout") || fonteContem(t, "network") ||
+         fonteContem(t, "unreachable") || fonteContem(t, "dns");
 }
 
 // Host apenas: sem esquema, usuario, porta, caminho, query ou fragmento.
