@@ -846,6 +846,13 @@ static int guiaCatalogoPermitido(const char *base, const char *nome,
          !strcasecmp(n, "TV") || !strcasecmp(n, "Eventi");
 }
 
+// IDs are only unique inside an addon. Two providers may publish the
+// same stream ID; preserve both guide entries and their source ownership.
+static int sCanalPorOrigem(const char *id, uint64_t origem) {
+  for (int i = 0; i < sNCanais; i++)
+    if (!strcmp(sCanais[i].id, id) && sCanais[i].origemHash == origem) return i;
+  return -1;
+}
 static int sCanalPorId(const char *id) {
   for (int i = 0; i < sNCanais; i++) if (!strcmp(sCanais[i].id, id)) return i;
   return -1;
@@ -901,7 +908,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
     n++;
     if (js_texto(p, fim, "id", c.id, sizeof c.id) &&
         js_texto(p, fim, "name", c.nome, sizeof c.nome) &&
-        sCanalPorId(c.id) < 0) {
+        sCanalPorOrigem(c.id, guiaHashBase(f->base)) < 0) {
       char mtipo[16] = "";
       // O catalogo se declara de canal, mas um meta que se diz filme/serie
       // nao entra — protege o guia de catalogo mal declarado.
