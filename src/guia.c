@@ -1032,10 +1032,13 @@ static void sondaManifestos(void) {
             snprintf(sFontes[ja].genero, sizeof sFontes[ja].genero, "%s", cc[k].genero);
             sFontes[ja].nome[0] = 0;
           }
-          if (cc[k].genero[0])
-            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].genero);
-          else if (cc[k].nome[0])
+          // The genre is a request parameter, not the catalog identity.
+          // Keep the parent catalog name so StreamViX TV/Eventi facets stay
+          // discoverable even when the facet is called "Sport" or "Cinema".
+          if (cc[k].nome[0])
             snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].nome);
+          else if (cc[k].genero[0] && !sFontes[ja].nome[0])
+            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].genero);
         }
         continue;
       } }
