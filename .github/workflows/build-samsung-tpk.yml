@@ -1,21 +1,37 @@
 name: Samsung Tizen 8-9 TPK (manual artifact)
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/build-samsung-tpk.yml'
-      - 'src/video_tpk.c'
+  workflow_run:
+    workflows: ["Verify Nuvio Stable before publishing"]
+    types: [completed]
+    branches: [main]
+  pull_request:
+    branches: [main]
 permissions:
   contents: read
 concurrency:
-  group: samsung-tpk-${{ github.ref }}
-  cancel-in-progress: false
+  group: ${{ github.event_name == 'pull_request' && format('samsung-tpk-pr-{0}', github.event.pull_request.number) || 'samsung-tpk-main' }}
+  cancel-in-progress: true
 jobs:
   build:
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository) }}
     runs-on: ubuntu-22.04
     timeout-minutes: 105
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || (github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha) }}
+          persist-credentials: false
+      - name: Confirm verified source is still main HEAD
+        if: github.event_name == 'workflow_run'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          CURRENT="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq '.commit.sha')"
+          test "$CURRENT" = "${{ github.event.workflow_run.head_sha }}"
+          test "$(git rev-parse HEAD)" = "$CURRENT"
       - name: Check source and platform contracts
         shell: bash
         run: |
