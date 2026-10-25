@@ -811,6 +811,32 @@ static int lerStrEl(const char *p, char *dst, int tam) {
   return js_cadeia(p, dst, (size_t)tam);
 }
 
+// Only these two addons populate the simplified guide. The catalog identity,
+ // not a channel title, determines which StreamVix sections are permitted.
+static const char *guiaGrupoAddon(const char *base) {
+  for (int i = 0; i < nAddonsCarga; i++) {
+    if (strcmp(addonsCarga[i].base, base)) continue;
+    if (contemSemCaixa(addonsCarga[i].nome, "tvvoo")) return "Tvvoo";
+    if (contemSemCaixa(addonsCarga[i].nome, "streamvix")) return "Streamvix";
+  }
+  return NULL;
+}
+static int guiaCatalogoPermitido(const char *base, const char *nome,
+                                 const char *id) {
+  const char *grupo = guiaGrupoAddon(base);
+  if (!grupo) return 0;
+  if (!strcmp(grupo, "Tvvoo")) return 1;
+  const char *n = nome ? nome : "", *c = id ? id : "";
+  // Never admit StreamVix Live, even if its title also contains "TV".
+  if (contemSemCaixa(n, "streamvix live") || contemSemCaixa(c, "streamvix-live") ||
+      contemSemCaixa(c, "streamvix_live")) return 0;
+  return contemSemCaixa(n, "streamvix tv") ||
+         contemSemCaixa(n, "streamvix event") ||
+         contemSemCaixa(n, "streamvix eventi") ||
+         contemSemCaixa(c, "streamvix-tv") ||
+         contemSemCaixa(c, "streamvix-event");
+}
+
 static int sCanalPorId(const char *id) {
   for (int i = 0; i < sNCanais; i++) if (!strcmp(sCanais[i].id, id)) return i;
   return -1;
@@ -888,7 +914,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
         const char *h = categoriaPorNome(c.nome);
         if (h) snprintf(gen, sizeof gen, "%s", h);
       }
-      c.cat = sCatDe(categoriaCanal(c.nome, gen, f->genero[0] ? f->genero : f->nome));
+      c.cat = sCatDe(guiaGrupoAddon(f->base));
       // Base que nao cabe fica VAZIA, nunca cortada (ver GCanal.base).
       c.origemHash = guiaHashBase(f->base);
       if (strlen(f->base) < sizeof c.base) snprintf(c.base, sizeof c.base, "%s", f->base);
@@ -1079,6 +1105,7 @@ static void *fioGuia(void *u) {
   // quando sao muitos; catalogo pequeno nao usa a cota e sobra para os outros
   // porque a conta e sobre o que ainda cabe, catalogo a catalogo.
   for (int i = 0; cargaAtual() && i < sNFontes; i++) {
+    if (!guiaCatalogoPermitido(sFontes[i].base, sFontes[i].nome, sFontes[i].id)) continue;
     int restantes = sNFontes - i;
     int cota = (G_MAX_CANAL - sNCanais) / (restantes > 0 ? restantes : 1);
     int lidos = 0;
@@ -1086,10 +1113,7 @@ static void *fioGuia(void *u) {
     // Applying G_COTA_MIN to every one of ~40 StreamViX genres would exhaust
     // the whole guide after only a few, hiding the later sports categories.
     // Existing catalog-only addons keep their historical minimum quota.
-    if (sFontes[i].genero[0]) {
-      if (cota < 1) cota = 1;
-      if (cota > 48) cota = 48;
-    } else if (cota < G_COTA_MIN) cota = G_COTA_MIN;
+    if (cota < G_COTA_MIN) cota = G_COTA_MIN;
     for (int skip = 0; cargaAtual() && sNCanais < G_MAX_CANAL && lidos < cota; skip += G_PAGINA) {
       int novos = 0;
       int n = lerPagina(&sFontes[i], skip, cota - lidos, &novos);
@@ -1109,7 +1133,7 @@ static void *fioGuia(void *u) {
   // ja se anuncia pela ausencia das categorias dele. Somar aqui faria a
   // mensagem "nenhum catalogo de canais" aparecer para quem tem addons bons e
   // um portal errado.
-  if (cargaAtual() && stalker_configurado()) {
+  if (0 && cargaAtual() && stalker_configurado()) {
     // MALLOC e nao `static`: sao ~670 KB que so servem durante a carga. Como
     // vetor estatico eles ficariam residentes para sempre, inclusive em quem
     // nunca configurou portal nenhum — e este app ja disputa memoria com o
@@ -1132,7 +1156,7 @@ static void *fioGuia(void *u) {
   // XTREAM, pela mesma porta e pelas mesmas razoes (ver xtream.h). O epg_id
   // que o servidor manda casa com o XMLTV do proprio provedor, que o EPG baixa
   // como sexta fonte (#158, ver epg_fonte_extra); sem ele, o nome.
-  if (cargaAtual() && xtream_configurado()) {
+  if (0 && cargaAtual() && xtream_configurado()) {
     XtreamCanal *xt = malloc(sizeof *xt * G_MAX_CANAL);
     int n = xt ? xtream_canais_sessao(xt, G_MAX_CANAL, cargaSessao) : 0, i;
     if (xt) { sXtFalha = xtream_ultima_falha(); sXtHttp = xtream_ultimo_http(); }
@@ -1239,7 +1263,7 @@ static void empacotar(void) {
 // structs no cabecalho: uma build que mude GCanal ignora o cache antigo em
 // vez de ler lixo.
 #define GC_MAGIA  0x31474e56u   /* "NVG1" */
-#define GC_VERSAO 3u
+#define GC_VERSAO 4u
 typedef struct {
   unsigned magia, versao, tamCanal, tamFonte, tamSabe;
   int nCanais, nCats, nFontes, nSabe, perfil;
