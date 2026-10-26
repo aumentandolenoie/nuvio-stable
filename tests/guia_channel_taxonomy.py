@@ -20,4 +20,7 @@ assert '!strcmp(guiaBaseCanal(&canais[i]), base)' in s
 assert '!strcmp(guiaBaseCanal(&canais[i]), pedidoBase)' in s
 assert 'if (++pagineSoloDoppioni >= 2) break;' in s
 assert 'if (n < G_PAGINA) break;' in s
-print("PASS: provider-aware guide and bounded duplicate page probing")
+assert 'if (!guiaGrupoAddon(base)) continue;' in s
+assert 'if (!guiaCatalogoPermitido(base, cc[k].nome, cc[k].id)) continue;' in s
+assert 'guiaCatalogoPermitido(fontes[i].base, fontes[i].nome, fontes[i].id)' in s
+print("PASS: provider-only catalog slots and bounded pagination")
