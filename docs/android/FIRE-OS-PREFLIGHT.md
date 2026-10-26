@@ -22,3 +22,14 @@ Questa piattaforma usa il progetto Android nativo già presente nel repository; 
 - Non aggiungere automaticamente un APK nelle release pubbliche prima di un test su Fire OS.
 - Una futura build firmata dovrebbe produrre `Nuvio-<version>-android.apk` insieme agli artifact esistenti **solo** dopo i controlli di integrità e firma, mantenendo una versione comune.
 - Non modificare l'applicationId `space.nuvio.nativelegacy` dopo l'installazione, per mantenere l'aggiornabilità.
+
+## Aggiornamenti direttamente dalla Fire TV Stick (APK sideload)
+Il codice Android ha già un updater integrato (`src/atualizacao.c` + `NuvioActivity.instalarApk`):
+- verifica le release GitHub del repository, cerca soltanto un asset che termina con `-android.apk`;
+- scarica l'APK e ne controlla l'hash SHA-256 dichiarato nella release; in caso di differenza non lo installa;
+- consegna l'APK all'installer Fire OS mediante un `FileProvider` limitato a `dados/atualizacao/`;
+- su Fire OS 8/Android 8+ può richiedere inizialmente il permesso di installare app da questa fonte, e ogni aggiornamento richiede la conferma dell'installer di sistema.
+
+**Contratto irrinunciabile per gli aggiornamenti:** stessa `applicationId` e stessa firma di release dell'APK iniziale. `tools/release-android.sh` verifica esplicitamente l'impronta del certificato con `apksigner`; NON distribuire né usare come prima installazione un APK di debug, né rigenerare la keystore di release. Aggiungere ogni futuro APK firmato come `Nuvio-<versione>-android.apk` alla stessa release GitHub già usata dagli altri target, con relativo digest. Conservare in modo sicuro keystore e credenziali: non committarle e non stamparle nei log.
+
+Il sistema è **verificato a livello di sorgenti, non ancora su Fire OS reale**. Per il test del primo aggiornamento servono due APK consecutivi firmati con la stessa chiave e una Fire TV Stick: installazione da APK, verifica della versione nuova, conferma del prompt di permesso, conferma installazione, preservazione dei dati e riavvio. Non abilitare la pubblicazione automatica finché non è superato.
