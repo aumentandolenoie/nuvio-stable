@@ -85,6 +85,12 @@ export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_HOME/ndk/27.2.12479018}"
 FFMPEG_AAR="$EST/media3-ffmpeg-16kb.aar"
 bash tools/android/ffmpeg-android.sh "$FFMPEG_AAR" arm64-v8a armeabi-v7a
 GR=(android/gradlew -p android --console=plain -Pnuvio.sdlSrc="$CACHE/src" -Pnuvio.estagio="$EST" -Pnuvio.ffmpegAar="$FFMPEG_AAR")
+# Opt-in only: keep standard Android builds unchanged.
+if [ "${NUVIO_FIRE_OS5:-0}" = 1 ]; then
+  [ "$RELEASE_ONLY" = 0 ] || { echo "fireos5: experimental release is disabled until API22 playback tests pass" >&2; exit 2; }
+  [ -z "${NUVIO_KEYSTORE:-}" ] || { echo "fireos5: signed release is not enabled" >&2; exit 2; }
+  GR+=(-Pnuvio.fireOs5=true)
+fi
 # Motor P2P embutido: pasta achada por tools/p2p-motor/pasta.sh (NUVIO_P2P_MOTOR,
 # ou a pasta padrao); configurada e incompleta = erro, nunca pacote sem motor calado.
 . tools/p2p-motor/pasta.sh
@@ -108,8 +114,10 @@ SAIDA="$EST"
 DBG="android/app/build/outputs/apk/debug/app-debug.apk"
 APKS=()
 if [ "$RELEASE_ONLY" = 0 ]; then
-  cp "$DBG" "$SAIDA/Nuvio-$VER-android-debug.apk"
-  APKS+=("$SAIDA/Nuvio-$VER-android-debug.apk")
+  DEBUG_NAME="Nuvio-$VER-android-debug.apk"
+  [ "${NUVIO_FIRE_OS5:-0}" != 1 ] || DEBUG_NAME="Nuvio-$VER-fireos5-experimental-debug.apk"
+  cp "$DBG" "$SAIDA/$DEBUG_NAME"
+  APKS+=("$SAIDA/$DEBUG_NAME")
 fi
 if [ -n "${NUVIO_KEYSTORE:-}" ]; then
   cp android/app/build/outputs/apk/release/app-release.apk "$SAIDA/Nuvio-$VER-android.apk"
