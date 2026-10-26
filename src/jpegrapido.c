@@ -117,6 +117,28 @@ static SDL_Surface *viaNavegador(const unsigned char *dados, size_t n, const cha
   return s;
 }
 
+#ifdef NV_FIRE_OS5
+/* bionic API 22 has funopen(), but fmemopen() first appears in API 23. */
+typedef struct { const unsigned char *data; size_t len, pos; } FireJpegMem;
+static int fireJpegRead(void *cookie, char *dst, int count) {
+  FireJpegMem *m = (FireJpegMem *)cookie;
+  size_t n = count > 0 ? (size_t)count : 0;
+  if (n > m->len - m->pos) n = m->len - m->pos;
+  memcpy(dst, m->data + m->pos, n);
+  m->pos += n;
+  return (int)n;
+}
+static fpos_t fireJpegSeek(void *cookie, fpos_t off, int whence) {
+  FireJpegMem *m = (FireJpegMem *)cookie;
+  int64_t base = whence == SEEK_SET ? 0 : whence == SEEK_CUR ? (int64_t)m->pos : whence == SEEK_END ? (int64_t)m->len : -1;
+  int64_t p = base + (int64_t)off;
+  if (base < 0 || p < 0 || (uint64_t)p > m->len) return -1;
+  m->pos = (size_t)p;
+  return (fpos_t)p;
+}
+static int fireJpegClose(void *cookie) { free(cookie); return 0; }
+#endif
+
 SDL_Surface *jpeg_rapido_carregar_mem(const unsigned char *dados, size_t n, int largMax,
                                       int *larguraOriginal, int *alturaOriginal) {
   if (larguraOriginal) *larguraOriginal = 0;
@@ -357,7 +379,15 @@ SDL_Surface *jpeg_rapido_carregar_mem(const unsigned char *dados, size_t n, int 
   if (alturaOriginal) *alturaOriginal = 0;
   if (!dados || n < 16 || largMax < 1 || dados[0] != 0xFF || dados[1] != 0xD8) return NULL;
   if (!abrir()) return NULL;
+#ifdef NV_FIRE_OS5
+  FireJpegMem *mem = (FireJpegMem *)malloc(sizeof *mem);
+  if (!mem) return NULL;
+  mem->data = dados; mem->len = n; mem->pos = 0;
+  f = funopen(mem, fireJpegRead, NULL, fireJpegSeek, fireJpegClose);
+  if (!f) free(mem);
+#else
   f = fmemopen((void *)dados, n, "rb");
+#endif
   if (!f) return NULL;
   return carregarDeFILE(f, largMax, larguraOriginal, alturaOriginal);
 }
