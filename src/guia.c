@@ -1008,6 +1008,8 @@ static void sondaManifestos(void) {
     GSabe *sb = sNSabe < G_MAX_SABE ? &sSabe[sNSabe] : NULL;
     base = ad->base;
     if (!base || !base[0]) continue;
+    // Reserve the finite source table for the two guide providers only.
+    if (!guiaGrupoAddon(base)) continue;
     if (sb) { snprintf(sb->base, sizeof sb->base, "%s", base); sb->canal = -1; sNSabe++; }
     // O MANIFESTO JA FOI LIDO PELA DESCOBERTA, no arranque e em paralelo: o
     // que ele declara de canal esta em addons.c. Reler aqui era um GET por
@@ -1020,6 +1022,7 @@ static void sondaManifestos(void) {
         if (sb) sb->canal = nc > 0;
         if (!ativo) continue;
         for (k = 0; k < nc && sNFontes < G_MAX_FONTE; k++) {
+          if (!guiaCatalogoPermitido(base, cc[k].nome, cc[k].id)) continue;
           int ja = -1;
           for (int j = 0; j < sNFontes; j++)
             if (!strcmp(sFontes[j].base, base) && !strcmp(sFontes[j].id, cc[k].id) &&
@@ -1489,7 +1492,9 @@ static void iniciarCarga(void) {
   }
   sNFontes = 0;
   for (int i = 0; i < nFontes && sNFontes < G_MAX_FONTE; i++)
-    if (cargaBaseLigada(fontes[i].base)) sFontes[sNFontes++] = fontes[i];
+    if (cargaBaseLigada(fontes[i].base) &&
+        guiaCatalogoPermitido(fontes[i].base, fontes[i].nome, fontes[i].id))
+      sFontes[sNFontes++] = fontes[i];
   fioVivo = 1;
   estado = G_BAIXANDO;
   if (pthread_create(&t, NULL, fioGuia, NULL) != 0) {
