@@ -14,12 +14,12 @@ Verifiche obbligatorie prima di una prima installazione tramite Downloader:
 
 Non pubblicare questa variante in `releases/latest` né sostituire gli artifact LG/Samsung fino a esito positivo.
 
-## Blocco Media3 / ExoPlayer su API 22
+## Media3 1.8.0: compatibilità ancora da confermare
 
-La documentazione Android Media3 indica API 23 come minimo per video/audio/HLS: https://developer.android.com/media/media3/exoplayer/supported-devices . La dipendenza attuale `androidx.media3:media3-exoplayer:1.8.0` non è dunque supportata ufficialmente sulla Fire Stick Android 5.1/API 22.
+**Correzione della valutazione precedente:** l'aumento del minimo ufficiale di Media3 a API 23 avviene dalla versione 1.9.0 (release notes ufficiali: https://developer.android.com/jetpack/androidx/releases/media3). La nostra fork usa ancora Media3 **1.8.0**. Pertanto non è corretto affermare che la libreria attuale sia già incompatibile con API 22.
 
-Non forzare il manifest Media3 con overrideLibrary e non pubblicare semplicemente abbassando minSdk. Occorre implementare/testare un backend video alternativo compatibile API 22 (o valutare una versione legacy specifica), mantenendo Media3 standard invariato.
+Occorre compilare l'intero grafo delle dipendenze con minSdk 22, senza forzare manifest override, e poi effettuare test reali di playback sulla Fire Stick. Soltanto se la build fallisce o il player non riproduce correttamente HLS/VOD si valuta un backend alternativo.
 
 ## Aggiornamenti in-app: canale da separare
 
-L'updater Android attuale cerca la release latest e l'asset `-android.apk` standard (API 24). La variante Fire OS 5 non deve tentare di installare tale pacchetto: prima della distribuzione occorre selezione di un asset Fire OS 5 dedicato e aggiornamenti con lo stesso applicationId e firma. Senza questo controllo, l'update sarebbe incompatibile. Questa PR non implementa ancora il backend video né l'updater selettivo.
+L'updater Android corrente cerca la release latest e l'asset `-android.apk` standard (API 24). La variante Fire OS 5 non deve scaricarlo automaticamente. Prima della distribuzione occorre aggiungere un asset Fire OS 5 dedicato, selezionarlo nella logica di aggiornamento della variante e verificare l'installazione con la stessa firma. Il semplice nome diverso dell'APK sperimentale non risolve da solo il problema.
