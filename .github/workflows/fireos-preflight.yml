@@ -39,7 +39,7 @@ jobs:
                   assert re.search(pattern, content), f"{path}: missing expected contract: {pattern}"
 
           must("android/app/build.gradle.kts", [
-              r'minSdk\s*=\s*if \(providers\.gradleProperty\("nuvio\.fireOs5"\)\.orNull == "true"\) 22 else 24',
+              r'minSdk\s*=\s*if \(providers\.gradleProperty\("nuvio\.fireOs5"\)\.orNull == "true"\) 22 else 24', r'abiFilters\s*\+=\s*listOf\("arm64-v8a",\s*"armeabi-v7a"\)',
               r'media3-exoplayer', r'ffmpegAar', r'applicationId\s*=\s*"space\.nuvio\.nativelegacy"',
           ])
           must("android/app/src/main/AndroidManifest.xml", [
