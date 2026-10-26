@@ -1134,6 +1134,7 @@ static void *fioGuia(void *u) {
         restantes++;
     int cota = (G_MAX_CANAL - sNCanais) / (restantes > 0 ? restantes : 1);
     int lidos = 0;
+    int pagineSoloDoppioni = 0;
     // Each required-genre facet receives a fair share of remaining capacity.
     // Applying G_COTA_MIN to every one of ~40 StreamViX genres would exhaust
     // the whole guide after only a few, hiding the later sports categories.
@@ -1145,9 +1146,15 @@ static void *fioGuia(void *u) {
       if (n <= 0) break;
       ok = 1;
       lidos += novos;
-      // Pagina cheia que nao trouxe nada novo e catalogo que ignora `skip`:
-      // pedir a proxima e receber a mesma de novo, para sempre.
-      if (n < G_PAGINA || novos == 0) break;
+      // A full page of already-known channels can precede exclusive channels
+      // in a later page (overlapping TV/Eventi genre catalogs). Probe ONE
+      // more page before giving up; bound the cost for addons ignoring skip.
+      if (n < G_PAGINA) break;
+      if (novos == 0) {
+        if (++pagineSoloDoppioni >= 2) break;
+      } else {
+        pagineSoloDoppioni = 0;
+      }
     }
   }
   // PORTAL STALKER, quando houver um configurado neste perfil. Entra DEPOIS
