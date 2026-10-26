@@ -18,4 +18,6 @@ assert 'sCanalPorOrigem(c.id, guiaHashBase(f->base)) < 0' in s
 assert 'sCanais[i].origemHash == origem' in s
 assert '!strcmp(guiaBaseCanal(&canais[i]), base)' in s
 assert '!strcmp(guiaBaseCanal(&canais[i]), pedidoBase)' in s
-print("PASS: per-origin IDs, reminders and zapping")
+assert 'if (++pagineSoloDoppioni >= 2) break;' in s
+assert 'if (n < G_PAGINA) break;' in s
+print("PASS: provider-aware guide and bounded duplicate page probing")
