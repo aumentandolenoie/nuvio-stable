@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
-"""Regression: the TV guide is indexed by channel, not addon/genre folders."""
+"""Regression: TV guide uses provider categories and excludes StreamViX Live."""
 from pathlib import Path
-s=Path("src/guia.c").read_text()
-assert 'static const char *categoriaCanal(const char *nome, const char *genero,' in s
-assert 'c.cat = sCatDe(categoriaCanal(c.nome, gen, f->genero[0] ? f->genero : f->nome));' in s
-assert 'sCatDe(categoriaCanal(c.nome, st[i].categoria, ""))' in s
-assert 'sCatDe(categoriaCanal(c.nome, xt[i].categoria, ""))' in s
-assert 'contemSemCaixa(n,"sport f1")' in s
-assert 'contemSemCaixa(g,"formula 1")' in s
-assert 'return "Formula 1";' in s
-assert 'return "MotoGP";' in s
-assert 'return "Canali sportivi";' in s
-assert 'return "Canali cinema e serie";' in s
-assert 'return "Pallavolo";' in s
-assert '#define GC_VERSAO 3u' in s
-assert 'return "Eventi live";' in s
-assert 'contemSemCaixa(catalog,"eventi")' in s
-assert 'guideContains(name,"pallavolo")' in s
-assert 'guideContains(name,"campionati")' in s
-assert 'guideContains(name,"football americano")' in s
-assert 'guideContains(name,"freccette")' in s
-assert 'guideContains(n,"pallavolo")' in s
-assert 'guideContains(n,"campionati")' in s
-print("PASS: cross-addon F1 and other channels join canonical rows; old cache invalidated")
+s = Path("src/guia.c").read_text()
+assert 'c.cat = sCatDe(guiaGrupoAddon(f->base));' in s
+assert 'if (!guiaCatalogoPermitido(sFontes[i].base, sFontes[i].nome, sFontes[i].id)) continue;' in s
+assert 'if (contemSemCaixa(addonsCarga[i].nome, "tvvoo")) return "Tvvoo";' in s
+assert 'if (contemSemCaixa(addonsCarga[i].nome, "streamvix")) return "Streamvix";' in s
+assert 'contemSemCaixa(n, "streamvix live")' in s
+assert 'contemSemCaixa(c, "live")' in s
+assert 'contemSemCaixa(n, "streamvix eventi")' in s
+assert 'if (cota > 48) cota = 48;' not in s
+assert '#define GC_VERSAO 4u' in s
+assert 'for (int j = i; j < sNFontes; j++)' in s
+assert 'restantes++;' in s
+assert 'int restantes = sNFontes - i;' not in s
+assert 'sCanalPorOrigem(c.id, guiaHashBase(f->base)) < 0' in s
+assert 'sCanais[i].origemHash == origem' in s
+assert '!strcmp(guiaBaseCanal(&canais[i]), base)' in s
+assert '!strcmp(guiaBaseCanal(&canais[i]), pedidoBase)' in s
+assert 'if (++pagineSoloDoppioni >= 2) break;' in s
+assert 'if (n < G_PAGINA) break;' in s
+assert 'if (!guiaGrupoAddon(base)) continue;' in s
+assert 'if (!guiaCatalogoPermitido(base, cc[k].nome, cc[k].id)) continue;' in s
+assert 'guiaCatalogoPermitido(fontes[i].base, fontes[i].nome, fontes[i].id)' in s
+print("PASS: provider-only catalog slots and bounded pagination")

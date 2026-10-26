@@ -811,6 +811,48 @@ static int lerStrEl(const char *p, char *dst, int tam) {
   return js_cadeia(p, dst, (size_t)tam);
 }
 
+// Only these two addons populate the simplified guide. The catalog identity,
+ // not a channel title, determines which StreamVix sections are permitted.
+static const char *guiaGrupoAddon(const char *base) {
+  for (int i = 0; i < nAddonsCarga; i++) {
+    if (strcmp(addonsCarga[i].base, base)) continue;
+    if (contemSemCaixa(addonsCarga[i].nome, "tvvoo")) return "Tvvoo";
+    if (contemSemCaixa(addonsCarga[i].nome, "streamvix")) return "Streamvix";
+  }
+  return NULL;
+}
+static int guiaCatalogoPermitido(const char *base, const char *nome,
+                                 const char *id) {
+  const char *grupo = guiaGrupoAddon(base);
+  if (!grupo) return 0;
+  if (!strcmp(grupo, "Tvvoo")) return 1;
+  const char *n = nome ? nome : "", *c = id ? id : "";
+  // Never admit StreamVix Live, even if its title also contains "TV".
+  if (contemSemCaixa(n, "streamvix live") || contemSemCaixa(c, "streamvix-live") ||
+      contemSemCaixa(c, "streamvix_live")) return 0;
+  // A genre facet can have a generic name; the parent ID remains stable.
+  if (contemSemCaixa(c, "live") && !contemSemCaixa(c, "event")) return 0;
+  return contemSemCaixa(n, "streamvix tv") ||
+         contemSemCaixa(n, "streamvix event") ||
+         contemSemCaixa(n, "streamvix eventi") ||
+         contemSemCaixa(n, "streamvix eventos") ||
+         contemSemCaixa(n, "streamvix events") ||
+         contemSemCaixa(c, "streamvix-tv") ||
+         contemSemCaixa(c, "streamvix_event") ||
+         contemSemCaixa(c, "streamvix_eventi") ||
+         contemSemCaixa(c, "streamvix-eventos") ||
+         contemSemCaixa(c, "streamvix-events") ||
+         contemSemCaixa(c, "streamvix-event") ||
+         !strcasecmp(n, "TV") || !strcasecmp(n, "Eventi");
+}
+
+// IDs are only unique inside an addon. Two providers may publish the
+// same stream ID; preserve both guide entries and their source ownership.
+static int sCanalPorOrigem(const char *id, uint64_t origem) {
+  for (int i = 0; i < sNCanais; i++)
+    if (!strcmp(sCanais[i].id, id) && sCanais[i].origemHash == origem) return i;
+  return -1;
+}
 static int sCanalPorId(const char *id) {
   for (int i = 0; i < sNCanais; i++) if (!strcmp(sCanais[i].id, id)) return i;
   return -1;
@@ -866,7 +908,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
     n++;
     if (js_texto(p, fim, "id", c.id, sizeof c.id) &&
         js_texto(p, fim, "name", c.nome, sizeof c.nome) &&
-        sCanalPorId(c.id) < 0) {
+        sCanalPorOrigem(c.id, guiaHashBase(f->base)) < 0) {
       char mtipo[16] = "";
       // O catalogo se declara de canal, mas um meta que se diz filme/serie
       // nao entra — protege o guia de catalogo mal declarado.
@@ -888,7 +930,7 @@ static int lerPagina(const GFonte *f, int skip, int teto, int *novos) {
         const char *h = categoriaPorNome(c.nome);
         if (h) snprintf(gen, sizeof gen, "%s", h);
       }
-      c.cat = sCatDe(categoriaCanal(c.nome, gen, f->genero[0] ? f->genero : f->nome));
+      c.cat = sCatDe(guiaGrupoAddon(f->base));
       // Base que nao cabe fica VAZIA, nunca cortada (ver GCanal.base).
       c.origemHash = guiaHashBase(f->base);
       if (strlen(f->base) < sizeof c.base) snprintf(c.base, sizeof c.base, "%s", f->base);
@@ -966,6 +1008,8 @@ static void sondaManifestos(void) {
     GSabe *sb = sNSabe < G_MAX_SABE ? &sSabe[sNSabe] : NULL;
     base = ad->base;
     if (!base || !base[0]) continue;
+    // Reserve the finite source table for the two guide providers only.
+    if (!guiaGrupoAddon(base)) continue;
     if (sb) { snprintf(sb->base, sizeof sb->base, "%s", base); sb->canal = -1; sNSabe++; }
     // O MANIFESTO JA FOI LIDO PELA DESCOBERTA, no arranque e em paralelo: o
     // que ele declara de canal esta em addons.c. Reler aqui era um GET por
@@ -978,6 +1022,7 @@ static void sondaManifestos(void) {
         if (sb) sb->canal = nc > 0;
         if (!ativo) continue;
         for (k = 0; k < nc && sNFontes < G_MAX_FONTE; k++) {
+          if (!guiaCatalogoPermitido(base, cc[k].nome, cc[k].id)) continue;
           int ja = -1;
           for (int j = 0; j < sNFontes; j++)
             if (!strcmp(sFontes[j].base, base) && !strcmp(sFontes[j].id, cc[k].id) &&
@@ -990,10 +1035,13 @@ static void sondaManifestos(void) {
             snprintf(sFontes[ja].genero, sizeof sFontes[ja].genero, "%s", cc[k].genero);
             sFontes[ja].nome[0] = 0;
           }
-          if (cc[k].genero[0])
-            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].genero);
-          else if (cc[k].nome[0])
+          // The genre is a request parameter, not the catalog identity.
+          // Keep the parent catalog name so StreamViX TV/Eventi facets stay
+          // discoverable even when the facet is called "Sport" or "Cinema".
+          if (cc[k].nome[0])
             snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].nome);
+          else if (cc[k].genero[0] && !sFontes[ja].nome[0])
+            snprintf(sFontes[ja].nome, sizeof sFontes[ja].nome, "%s", cc[k].genero);
         }
         continue;
       } }
@@ -1079,26 +1127,37 @@ static void *fioGuia(void *u) {
   // quando sao muitos; catalogo pequeno nao usa a cota e sobra para os outros
   // porque a conta e sobre o que ainda cabe, catalogo a catalogo.
   for (int i = 0; cargaAtual() && i < sNFontes; i++) {
-    int restantes = sNFontes - i;
+    if (!guiaCatalogoPermitido(sFontes[i].base, sFontes[i].nome, sFontes[i].id)) continue;
+    // Distribute capacity across catalogues actually shown in this guide.
+    // Counting excluded StreamViX Live catalogs reserved empty slots and
+    // caused TV/Eventi channels to be prematurely truncated.
+    int restantes = 0;
+    for (int j = i; j < sNFontes; j++)
+      if (guiaCatalogoPermitido(sFontes[j].base, sFontes[j].nome, sFontes[j].id))
+        restantes++;
     int cota = (G_MAX_CANAL - sNCanais) / (restantes > 0 ? restantes : 1);
     int lidos = 0;
+    int pagineSoloDoppioni = 0;
     // Each required-genre facet receives a fair share of remaining capacity.
     // Applying G_COTA_MIN to every one of ~40 StreamViX genres would exhaust
     // the whole guide after only a few, hiding the later sports categories.
     // Existing catalog-only addons keep their historical minimum quota.
-    if (sFontes[i].genero[0]) {
-      if (cota < 1) cota = 1;
-      if (cota > 48) cota = 48;
-    } else if (cota < G_COTA_MIN) cota = G_COTA_MIN;
+    if (cota < G_COTA_MIN) cota = G_COTA_MIN;
     for (int skip = 0; cargaAtual() && sNCanais < G_MAX_CANAL && lidos < cota; skip += G_PAGINA) {
       int novos = 0;
       int n = lerPagina(&sFontes[i], skip, cota - lidos, &novos);
       if (n <= 0) break;
       ok = 1;
       lidos += novos;
-      // Pagina cheia que nao trouxe nada novo e catalogo que ignora `skip`:
-      // pedir a proxima e receber a mesma de novo, para sempre.
-      if (n < G_PAGINA || novos == 0) break;
+      // A full page of already-known channels can precede exclusive channels
+      // in a later page (overlapping TV/Eventi genre catalogs). Probe ONE
+      // more page before giving up; bound the cost for addons ignoring skip.
+      if (n < G_PAGINA) break;
+      if (novos == 0) {
+        if (++pagineSoloDoppioni >= 2) break;
+      } else {
+        pagineSoloDoppioni = 0;
+      }
     }
   }
   // PORTAL STALKER, quando houver um configurado neste perfil. Entra DEPOIS
@@ -1109,7 +1168,7 @@ static void *fioGuia(void *u) {
   // ja se anuncia pela ausencia das categorias dele. Somar aqui faria a
   // mensagem "nenhum catalogo de canais" aparecer para quem tem addons bons e
   // um portal errado.
-  if (cargaAtual() && stalker_configurado()) {
+  if (0 && cargaAtual() && stalker_configurado()) {
     // MALLOC e nao `static`: sao ~670 KB que so servem durante a carga. Como
     // vetor estatico eles ficariam residentes para sempre, inclusive em quem
     // nunca configurou portal nenhum — e este app ja disputa memoria com o
@@ -1132,7 +1191,7 @@ static void *fioGuia(void *u) {
   // XTREAM, pela mesma porta e pelas mesmas razoes (ver xtream.h). O epg_id
   // que o servidor manda casa com o XMLTV do proprio provedor, que o EPG baixa
   // como sexta fonte (#158, ver epg_fonte_extra); sem ele, o nome.
-  if (cargaAtual() && xtream_configurado()) {
+  if (0 && cargaAtual() && xtream_configurado()) {
     XtreamCanal *xt = malloc(sizeof *xt * G_MAX_CANAL);
     int n = xt ? xtream_canais_sessao(xt, G_MAX_CANAL, cargaSessao) : 0, i;
     if (xt) { sXtFalha = xtream_ultima_falha(); sXtHttp = xtream_ultimo_http(); }
@@ -1239,7 +1298,7 @@ static void empacotar(void) {
 // structs no cabecalho: uma build que mude GCanal ignora o cache antigo em
 // vez de ler lixo.
 #define GC_MAGIA  0x31474e56u   /* "NVG1" */
-#define GC_VERSAO 3u
+#define GC_VERSAO 4u
 typedef struct {
   unsigned magia, versao, tamCanal, tamFonte, tamSabe;
   int nCanais, nCats, nFontes, nSabe, perfil;
@@ -1433,7 +1492,9 @@ static void iniciarCarga(void) {
   }
   sNFontes = 0;
   for (int i = 0; i < nFontes && sNFontes < G_MAX_FONTE; i++)
-    if (cargaBaseLigada(fontes[i].base)) sFontes[sNFontes++] = fontes[i];
+    if (cargaBaseLigada(fontes[i].base) &&
+        guiaCatalogoPermitido(fontes[i].base, fontes[i].nome, fontes[i].id))
+      sFontes[sNFontes++] = fontes[i];
   fioVivo = 1;
   estado = G_BAIXANDO;
   if (pthread_create(&t, NULL, fioGuia, NULL) != 0) {
@@ -1489,180 +1550,43 @@ static int    catAberto, catFoco;
 // sem tecla por G_CAT_OCIOSO_MS ela fecha sem mudar nada.
 // Hierarchical category drawer. It indexes the already-loaded categories;
 // opening a folder never issues a new network request or modifies channel IDs.
-#define G_GUIDE_GROUPS 9
-static const char *guideGroups[G_GUIDE_GROUPS] = {
-  "Preferiti", "Sport", "Canali TV", "Film e serie TV", "Informazione",
-  "Documentari", "Bambini", "Musica", "Altri"
-};
+// Two provider folders. Channels remain ordered in their respective row.
+#define G_GUIDE_GROUPS 2
+static const char *guideGroups[G_GUIDE_GROUPS] = { "Tvvoo", "Streamvix" };
 static int guideGroup, guideLevel, guideSub;
-static int guideContains(const char *name, const char *needle) {
-  if (!name || !needle) return 0;
-  for (; *name; name++) {
-    const char *a=name,*b=needle;
-    while (*a && *b && tolower((unsigned char)*a)==tolower((unsigned char)*b)) {a++;b++;}
-    if (!*b) return 1;
-  }
-  return 0;
-}
-// Grouping by meaning, not by incidental substring "tv" (which previously
-// put Film - Serie TV under Canali TV). Names from the original catalogs are
-// never altered, so stream URLs, EPG, caches and channel order stay stable.
 static int guideGroupOf(const char *name) {
-  if (guideContains(name,"serie a") || guideContains(name,"serie b") ||
-      guideContains(name,"serie c") || guideContains(name,"sport") ||
-      guideContains(name,"calcio") || guideContains(name,"soccer") ||
-      guideContains(name,"premier") || guideContains(name,"liga") ||
-      guideContains(name,"bundesliga") || guideContains(name,"ligue 1") ||
-      guideContains(name,"coppe") || guideContains(name,"tennis") ||
-      guideContains(name,"formula") || guideContains(name,"f1") ||
-      guideContains(name,"moto") || guideContains(name,"basket") ||
-      guideContains(name,"volley") || guideContains(name,"hockey") ||
-      guideContains(name,"wrestling") || guideContains(name,"boxing") ||
-      guideContains(name,"darts") || guideContains(name,"baseball") ||
-      guideContains(name,"nfl") || guideContains(name,"football americano") ||
-      guideContains(name,"pallavolo") || guideContains(name,"boxe") ||
-      guideContains(name,"freccette") || guideContains(name,"campionati") ||
-      guideContains(name,"eventi")) return 1;
-  if (guideContains(name,"cinema") || guideContains(name,"film") ||
-      guideContains(name,"serie tv")) return 3;
-  if (guideContains(name,"news") || guideContains(name,"notiz") ||
-      guideContains(name,"inform")) return 4;
-  if (guideContains(name,"document") || guideContains(name,"discovery")) return 5;
-  if (guideContains(name,"bambin") || guideContains(name,"kids")) return 6;
-  if (guideContains(name,"music")) return 7;
-  if (guideContains(name,"rai") || guideContains(name,"mediaset") ||
-      guideContains(name,"sky") || guideContains(name,"pluto") ||
-      guideContains(name,"general") || guideContains(name,"tv")) return 2;
-  return 8;
+  return name && !strcasecmp(name, "Streamvix") ? 1 : 0;
 }
-// Logical subcategories are stable and unique within a macro-group.
-// If multiple source categories map to the same logical name, OK opens
-// a third level listing their original rows. This never drops any channel.
-static const char *guideSubName(int l) {
-  const char *n = linhaNome(l);
-  int group = guideGroupOf(n);
-  if (group == 1) {
-    if (guideContains(n,"serie a")) return "Serie A";
-    if (guideContains(n,"serie b")) return "Serie B";
-    if (guideContains(n,"serie c")) return "Serie C";
-    if (guideContains(n,"premier")) return "Premier League";
-    if (guideContains(n,"bundesliga")) return "Bundesliga";
-    if (guideContains(n,"ligue 1")) return "Ligue 1";
-    if (guideContains(n,"liga")) return "La Liga";
-    if (guideContains(n,"coppe")) return "Coppe";
-    if (guideContains(n,"soccer") || guideContains(n,"calcio") ||
-        guideContains(n,"campionati")) return "Altri campionati";
-    if (guideContains(n,"formula") || guideContains(n,"f1")) return "Formula 1";
-    if (guideContains(n,"moto")) return "MotoGP";
-    if (guideContains(n,"tennis")) return "Tennis";
-    if (guideContains(n,"basket")) return "Basket";
-    if (guideContains(n,"volley") || guideContains(n,"pallavolo")) return "Pallavolo";
-    if (guideContains(n,"hockey")) return "Hockey";
-    if (guideContains(n,"nfl") || guideContains(n,"football americano")) return "Football americano";
-    if (guideContains(n,"wrestling")) return "Wrestling";
-    if (guideContains(n,"boxing") || guideContains(n,"boxe")) return "Boxe";
-    if (guideContains(n,"darts") || guideContains(n,"freccette")) return "Freccette";
-    if (guideContains(n,"baseball")) return "Baseball";
-    if (guideContains(n,"eventi")) return "Eventi live";
-    return "Canali sportivi";
-  }
-  if (group == 3) return "Canali cinema e serie";
-  if (group == 4) return "Canali di informazione";
-  if (group == 5) return "Canali documentari";
-  if (group == 6) return "Canali per bambini";
-  if (group == 7) return "Canali musicali";
-  if (group == 2) {
-    if (guideContains(n,"rai")) return "Rai";
-    if (guideContains(n,"mediaset")) return "Mediaset";
-    if (guideContains(n,"sky")) return "Sky";
-    if (guideContains(n,"pluto")) return "Pluto TV";
-    return "Canali generalisti";
-  }
-  return guideContains(n,"altro") || guideContains(n,"tutti") ? "Altri canali" : n;
-}
+static const char *guideSubName(int l) { return linhaNome(l); }
 static int guideSubFirst(int pos) {
   int off = nFavOrd > 0 ? 1 : 0;
-  for (int l = off; l < nLinhas(); l++) {
-    if (guideGroupOf(linhaNome(l)) != guideGroup) continue;
-    const char *sub = guideSubName(l);
-    int seen=0;
-    for (int prev=off; prev<l; prev++)
-      if (guideGroupOf(linhaNome(prev)) == guideGroup &&
-          !strcmp(guideSubName(prev),sub)) {seen=1;break;}
-    if (!seen && pos-- == 0) return l;
-  }
+  for (int l = off; l < nLinhas(); l++)
+    if (guideGroupOf(linhaNome(l)) == guideGroup && pos-- == 0) return l;
   return -1;
 }
-static int guideSubMatches(int first) {
-  if (first < 0) return 0;
-  int n=0;
-  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-    if (guideGroupOf(linhaNome(l))==guideGroup &&
-        !strcmp(guideSubName(l),guideSubName(first))) n++;
-  return n;
-}
-static int guideSourceLine(int pos) {
-  if (guideGroup == 0) return nFavOrd>0 && pos==0 ? 0 : -1;
-  int first=guideSubFirst(guideSub);
-  if (first < 0) return -1;
-  for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-    if (guideGroupOf(linhaNome(l))==guideGroup &&
-        !strcmp(guideSubName(l),guideSubName(first)) && pos--==0) return l;
-  return -1;
-}
+static int guideSubMatches(int first) { return first >= 0 ? 1 : 0; }
+static int guideSourceLine(int pos) { return guideSubFirst(pos); }
 static int guideMenuN(void) {
   if (!guideLevel) return G_GUIDE_GROUPS;
-  if (guideLevel == 2) return guideSubMatches(guideSubFirst(guideSub));
-  if (guideGroup == 0) return nFavOrd > 0 ? 1 : 0;
-  int n=0;
-  while (guideSubFirst(n)>=0) n++;
+  int n = 0;
+  while (guideSubFirst(n) >= 0) n++;
   return n;
 }
-static int guideMenuLine(int i) {
-  if (guideLevel==2) return guideSourceLine(i);
-  if (guideGroup==0) return nFavOrd>0 && i==0 ? 0:-1;
-  return guideSubFirst(i);
-}
+static int guideMenuLine(int i) { return guideSubFirst(i); }
 static const char *guideMenuName(int i) {
   if (!guideLevel) return guideGroups[i];
-  if (guideLevel==1) {
-    if (guideGroup==0) return "Preferiti";
-    return guideSubName(guideSubFirst(i));
-  }
-  int l=guideSourceLine(i);
-  // Disambiguate duplicate raw labels by the addon they came from.
-  // A single static buffer is safe: the label is drawn before the next one.
-  static char sourceLabel[192];
-  if (l<0) return "";
-  GCanal *channel=linhaItem(l,0);
-  const char *base=guiaBaseCanal(channel);
-  for (int a=0; base[0] && a<addons_n(); a++)
-    if (!strcmp(addons_base(a),base)) {
-      const char *provider=addons_nome(a);
-      snprintf(sourceLabel,sizeof sourceLabel,"%s · %s",
-               provider && *provider ? provider : "Addon",linhaNome(l));
-      return sourceLabel;
-    }
-  snprintf(sourceLabel,sizeof sourceLabel,"%s · %d",
-           linhaNome(l),i+1);
-  return sourceLabel;
+  int l = guideMenuLine(i);
+  return l >= 0 ? linhaNome(l) : "";
 }
 static int guideMenuCount(int i) {
   if (!guideLevel) {
-    if (i==0) return nFavOrd;
-    int n=0;
-    for (int l=nFavOrd>0?1:0; l<nLinhas(); l++)
-      if (guideGroupOf(linhaNome(l))==i) n+=linhaN(l);
+    int n = 0;
+    for (int l = nFavOrd > 0 ? 1 : 0; l < nLinhas(); l++)
+      if (guideGroupOf(linhaNome(l)) == i) n += linhaN(l);
     return n;
   }
-  if (guideLevel==2) {int l=guideSourceLine(i);return l>=0?linhaN(l):0;}
-  if (guideGroup==0) return nFavOrd;
-  int first=guideSubFirst(i), count=0;
-  if (first<0) return 0;
-  for(int l=nFavOrd>0?1:0;l<nLinhas();l++)
-    if(guideGroupOf(linhaNome(l))==guideGroup &&
-       !strcmp(guideSubName(l),guideSubName(first))) count+=linhaN(l);
-  return count;
+  int l = guideMenuLine(i);
+  return l >= 0 ? linhaN(l) : 0;
 }
 #define G_CAT_OCIOSO_MS 8000u
 static Uint32 catUlt;
@@ -2090,7 +2014,15 @@ static void acaoOk(void) {
 // O CANAL DE UM LEMBRETE, para o "Assistir" do cartao: o CatItem do guia
 // quando a lista ja esta carregada; senao so a identidade guardada.
 int guia_item_do_canal(const char *id, const char *nome, const char *base, CatItem *it) {
-  GCanal *c = canalPorId(id);
+  // A reminder retains its addon base: prefer that identity over an ID
+  // which can legitimately appear in both Tvvoo and Streamvix.
+  GCanal *c = NULL;
+  if (id && base && *base)
+    for (int i = 0; i < nCanais; i++)
+      if (!strcmp(canais[i].id, id) && !strcmp(guiaBaseCanal(&canais[i]), base)) {
+        c = &canais[i]; break;
+      }
+  if (!c && (!base || !*base)) c = canalPorId(id);
   if (c) { canalParaItem(c, it); snprintf(pedidoBase, sizeof pedidoBase, "%s", guiaBaseCanal(c)); return 1; }
   if (!id || !id[0]) return 0;
   memset(it, 0, sizeof *it);
@@ -2129,7 +2061,10 @@ static int zapAlvo(const char *idAtual, int dir, CatItem *saida, int aplicar) {
   int i, alvo = 0;
   if (!saida || estado != G_PRONTO || nCanais < 1) return 0;
   for (i = 0; i < nCanais; i++)
-    if (!strcmp(canais[i].id, idAtual ? idAtual : "")) { alvo = i; break; }
+    if (!strcmp(canais[i].id, idAtual ? idAtual : "") &&
+        (!pedidoBase[0] || !strcmp(guiaBaseCanal(&canais[i]), pedidoBase))) {
+      alvo = i; break;
+    }
   // `dir` pode ser um deslocamento maior que 1 (o zapping com debounce soma os
   // toques) e 0 devolve o proprio canal (recarregar a fonte).
   alvo = aovivo_ordem(nCanais, alvo, dir);
@@ -2224,8 +2159,10 @@ static void catFechar(void) { catAberto = 0; dirSeg = 0; guideLevel = 0; }
 static void catConfirmar(void) {
   if (!guideLevel) {
     guideGroup = catFoco;
-    guideLevel = 1;
-    catFoco = 0; catRol = 0; catVelRol = 0;
+    int first = guideSubFirst(0);
+    if (first < 0) return;
+    focoLin = first; focoCol = 0;
+    catFechar(); focoValido();
     return;
   }
   if (guideLevel==1 && guideGroup!=0) {
