@@ -13,3 +13,13 @@ Verifiche obbligatorie prima di una prima installazione tramite Downloader:
 - Test di aggiornamento dall'app, con consenso tramite l'installer Fire OS.
 
 Non pubblicare questa variante in `releases/latest` né sostituire gli artifact LG/Samsung fino a esito positivo.
+
+## Blocco Media3 / ExoPlayer su API 22
+
+La documentazione Android Media3 indica API 23 come minimo per video/audio/HLS: https://developer.android.com/media/media3/exoplayer/supported-devices . La dipendenza attuale `androidx.media3:media3-exoplayer:1.8.0` non è dunque supportata ufficialmente sulla Fire Stick Android 5.1/API 22.
+
+Non forzare il manifest Media3 con overrideLibrary e non pubblicare semplicemente abbassando minSdk. Occorre implementare/testare un backend video alternativo compatibile API 22 (o valutare una versione legacy specifica), mantenendo Media3 standard invariato.
+
+## Aggiornamenti in-app: canale da separare
+
+L'updater Android attuale cerca la release latest e l'asset `-android.apk` standard (API 24). La variante Fire OS 5 non deve tentare di installare tale pacchetto: prima della distribuzione occorre selezione di un asset Fire OS 5 dedicato e aggiornamenti con lo stesso applicationId e firma. Senza questo controllo, l'update sarebbe incompatibile. Questa PR non implementa ancora il backend video né l'updater selettivo.
