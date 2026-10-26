@@ -19,7 +19,9 @@ int ajustes_idioma(void);   // ajustes.h puxa SDL; so o idioma interessa aqui
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef NV_FIRE_OS5
 #include <ifaddrs.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <poll.h>
@@ -82,7 +84,9 @@ static int privado(in_addr_t a) {
 static int ipLan(char *dst, size_t n) {
   struct sockaddr_in alvo, eu;
   socklen_t tam = sizeof eu;
+  #ifndef NV_FIRE_OS5
   struct ifaddrs *lista = NULL, *i;
+  #endif
   int s = socket(AF_INET, SOCK_DGRAM, 0), ok = 0;
   in_addr_t achou = 0;
   if (s >= 0) {
@@ -95,6 +99,7 @@ static int ipLan(char *dst, size_t n) {
       achou = eu.sin_addr.s_addr;
     close(s);
   }
+  #ifndef NV_FIRE_OS5
   if (!achou && !getifaddrs(&lista)) {
     for (i = lista; i; i = i->ifa_next) {
       if (!i->ifa_addr || i->ifa_addr->sa_family != AF_INET) continue;
@@ -106,6 +111,7 @@ static int ipLan(char *dst, size_t n) {
     }
     freeifaddrs(lista);
   }
+  #endif
   if (achou) {
     struct in_addr a; a.s_addr = achou;
     ok = inet_ntop(AF_INET, &a, dst, (socklen_t)n) != NULL;
