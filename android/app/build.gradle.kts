@@ -38,6 +38,7 @@ android {
                 arguments += listOf(
                     "-DANDROID_STL=c++_static",  // hidapi do SDL (hid.cpp) e C++
                     "-DNUVIO_RAIZ=$raiz",
+                    "-DNUVIO_FIRE_OS5=${if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") "ON" else "OFF"}",
                     "-DNUVIO_SDL_SRC=$sdlSrc",
                     "-DNUVIO_ENV_CMAKE=$estagio/nuvio-env.cmake",
                     "-DNUVIO_P2P_MOTOR=${(findProperty("nuvio.p2pMotor") as String?) ?: ""}",
