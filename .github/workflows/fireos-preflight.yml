@@ -76,7 +76,7 @@ jobs:
                        "tools/p2p-motor/pasta.sh", "tools/tizen-art.sh"):
               assert Path(path).is_file(), f"Missing dependency: {path}"
           a = re.search(r'"version"\s*:\s*"([^"]+)"', Path("deploy/app/appinfo.json").read_text())
-          b = re.search(r'\bversion="([0-9.]+)"', Path("tools/tizen-config.xml").read_text())
+          b = re.search(r'\bversion="([0-9.]+)"', "\n".join(line for line in Path("tools/tizen-config.xml").read_text().splitlines() if not line.lstrip().startswith("<?xml")))
           assert a and b and a.group(1) == b.group(1), "LG/Samsung version mismatch"
           print("Android packaging contract: OK")
           print("Version:", a.group(1))
