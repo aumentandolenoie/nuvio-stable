@@ -26,7 +26,9 @@ android {
 
     defaultConfig {
         applicationId = "space.nuvio.nativelegacy"
-        minSdk = 24
+        // Experimental Fire OS 5 / Android 5.1 (API 22). Opt-in only; do not
+        // change the minimum requirement of the standard Android APK.
+        minSdk = if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") 22 else 24
         targetSdk = 35
         versionCode = vx * 10000 + vy * 100 + vz
         versionName = versao
