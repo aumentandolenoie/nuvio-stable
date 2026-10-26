@@ -104,6 +104,9 @@ TAREFAS=()
 if [ -z "${NUVIO_KEYSTORE:-}" ] && [ -f "$HOME/.nuvio-android/release.env" ]; then
   set -a; . "$HOME/.nuvio-android/release.env"; set +a
 fi
+if [ "${NUVIO_FIRE_OS5:-0}" = 1 ] && [ -n "${NUVIO_KEYSTORE:-}" ]; then
+  echo "fireos5: disable signed release until API22 tests pass" >&2; exit 2
+fi
 [ -n "${NUVIO_KEYSTORE:-}" ] && TAREFAS+=(assembleRelease)
 [ "${#TAREFAS[@]}" -gt 0 ] || { echo "android.sh: release-only exige chave" >&2; exit 1; }
 [ -z "${NUVIO_BUILD_JOBS:-}" ] || GR+=(--max-workers="$NUVIO_BUILD_JOBS")
