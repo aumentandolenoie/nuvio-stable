@@ -52,6 +52,26 @@ jobs:
               r'android-apk-pages\.py', r'libcurl\.so',
               r'NV_P2P_DIR', r'NUVIO_REQUIRE_CORE',
           ])
+          # Fire OS in-app updates: exact asset suffix, verified APK, installer handoff.
+          must("src/atualizacao.c", [
+              r'AT_APK_SUFIXO\\s+"-android\\.apk"',
+              r'at_sha256_hex', r'android_instalar_apk\\(arq\\)',
+              r'strcasecmp\\(hex, hash\\)\\s*!=\\s*0',
+          ])
+          must("android/app/src/main/java/space/nuvio/nativelegacy/NuvioActivity.kt", [
+              r'fun instalarApk\\(caminho: String\\)',
+              r'canRequestPackageInstalls\\(\\)',
+              r'FileProvider\\.getUriForFile',
+              r'FLAG_GRANT_READ_URI_PERMISSION',
+          ])
+          must("tools/release-android.sh", [
+              r'CERT_SHA256=', r'apksigner',
+              r'--release-only', r'android\\.apk',
+              r'python3 tools/release\\.py --check-tree',
+          ])
+          must("android/app/src/main/res/xml/caminhos_atualizacao.xml", [
+              r'<files-path\\s+name="atualizacao"\\s+path="dados/atualizacao/"',
+          ])
           for path in ("android/gradlew", "tools/android/ffmpeg-android.sh", "tools/android-apk-pages.py",
                        "tools/p2p-motor/pasta.sh", "tools/tizen-art.sh"):
               assert Path(path).is_file(), f"Missing dependency: {path}"
