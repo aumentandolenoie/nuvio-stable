@@ -52,6 +52,10 @@ jobs:
               r'android-apk-pages\.py', r'libcurl\.so',
               r'NV_P2P_DIR', r'NUVIO_REQUIRE_CORE', r'NUVIO_FIRE_OS5', r'nuvio\.fireOs5=true',
           ])
+          must("android/app/src/main/cpp/CMakeLists.txt", [
+              r'if\(NUVIO_FIRE_OS5\)', r'NV_FIRE_OS5',
+          ])
+          must("src/atualizacao.c", [r'AT_APK_SUFIXO "-fireos5\.apk"'])
           # Fire OS in-app updates: exact asset suffix, verified APK, installer handoff.
           must("src/atualizacao.c", [
               r'AT_APK_SUFIXO\s+"-android\.apk"',
