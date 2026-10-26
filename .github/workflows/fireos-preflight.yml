@@ -1,0 +1,91 @@
+name: Fire OS Android preflight
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'android/**'
+      - 'tools/android.sh'
+      - 'tools/android/**'
+      - 'tools/android-apk-pages.py'
+      - 'tools/env.sh'
+      - 'tools/p2p-motor/**'
+      - 'deploy/app/appinfo.json'
+      - 'tools/tizen-config.xml'
+      - '.github/workflows/fireos-preflight.yml'
+      - 'docs/android/FIRE-OS-PREFLIGHT.md'
+
+permissions:
+  contents: read
+
+jobs:
+  android-preflight:
+    name: Verify Android / Fire OS packaging contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Android packaging prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import re
+          from pathlib import Path
+
+          def must(path, patterns):
+              content = Path(path).read_text()
+              for pattern in patterns:
+                  assert re.search(pattern, content), f"{path}: missing expected contract: {pattern}"
+
+          must("android/app/build.gradle.kts", [
+              r'minSdk\s*=\s*24', r'abiFilters\s*\+=\s*listOf\("arm64-v8a",\s*"armeabi-v7a"\)',
+              r'media3-exoplayer', r'ffmpegAar', r'applicationId\s*=\s*"space\.nuvio\.nativelegacy"',
+          ])
+          must("android/app/src/main/AndroidManifest.xml", [
+              r'android\.intent\.category\.LEANBACK_LAUNCHER',
+              r'android\.hardware\.touchscreen"\s+android:required="false"',
+              r'android\.permission\.INTERNET',
+          ])
+          must("tools/android.sh", [
+              r'NUVIO_KEYSTORE', r'assembleRelease',
+              r'android-apk-pages\.py', r'libcurl\.so',
+              r'NV_P2P_DIR', r'NUVIO_REQUIRE_CORE',
+          ])
+          # Fire OS in-app updates: exact asset suffix, verified APK, installer handoff.
+          must("src/atualizacao.c", [
+              r'AT_APK_SUFIXO\s+"-android\.apk"',
+              r'at_sha256_hex', r'android_instalar_apk\(arq\)',
+              r'strcasecmp\(hex, hash\)\s*!=\s*0',
+          ])
+          must("android/app/src/main/java/space/nuvio/nativelegacy/NuvioActivity.kt", [
+              r'fun instalarApk\(caminho: String\)',
+              r'canRequestPackageInstalls\(\)',
+              r'FileProvider\.getUriForFile',
+              r'FLAG_GRANT_READ_URI_PERMISSION',
+          ])
+          must("tools/release-android.sh", [
+              r'CERT_SHA256=', r'apksigner',
+              r'--release-only', r'android\.apk',
+              r'python3 tools/release\.py --check-tree',
+          ])
+          must("android/app/src/main/res/xml/caminhos_atualizacao.xml", [
+              r'<files-path\s+name="atualizacao"\s+path="dados/atualizacao/"',
+          ])
+          for path in ("android/gradlew", "tools/android/ffmpeg-android.sh", "tools/android-apk-pages.py",
+                       "tools/p2p-motor/pasta.sh", "tools/tizen-art.sh"):
+              assert Path(path).is_file(), f"Missing dependency: {path}"
+          a = re.search(r'"version"\s*:\s*"([^"]+)"', Path("deploy/app/appinfo.json").read_text())
+          b = re.search(r'\bversion="([0-9.]+)"', "\n".join(line for line in Path("tools/tizen-config.xml").read_text().splitlines() if not line.lstrip().startswith("<?xml")))
+          assert a and b and a.group(1) == b.group(1), "LG/Samsung version mismatch"
+          print("Android packaging contract: OK")
+          print("Version:", a.group(1))
+          PY
+          bash -n tools/android.sh tools/env.sh tools/android/ffmpeg-android.sh tools/tizen-art.sh
+          python3 -m py_compile tools/android-apk-pages.py
+      - name: Summarize status
+        if: success()
+        run: |
+          echo "## Fire OS preflight passed" >> "$GITHUB_STEP_SUMMARY"
+          echo "This checks source contracts only. It does NOT compile or publish an APK." >> "$GITHUB_STEP_SUMMARY"
+          echo "An installable release still requires provisioned Android native dependencies, signing and hardware tests." >> "$GITHUB_STEP_SUMMARY"
