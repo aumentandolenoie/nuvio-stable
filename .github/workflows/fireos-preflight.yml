@@ -50,7 +50,7 @@ jobs:
           must("tools/android.sh", [
               r'NUVIO_KEYSTORE', r'assembleRelease',
               r'android-apk-pages\.py', r'libcurl\.so',
-              r'NV_P2P_DIR', r'NUVIO_REQUIRE_CORE',
+              r'NV_P2P_DIR', r'NUVIO_REQUIRE_CORE', r'NUVIO_FIRE_OS5', r'nuvio\.fireOs5=true',
           ])
           # Fire OS in-app updates: exact asset suffix, verified APK, installer handoff.
           must("src/atualizacao.c", [
