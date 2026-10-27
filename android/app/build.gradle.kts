@@ -32,7 +32,7 @@ android {
         targetSdk = 35
         versionCode = vx * 10000 + vy * 100 + vz
         versionName = versao
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        ndk { abiFilters += if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") listOf("armeabi-v7a") else listOf("arm64-v8a", "armeabi-v7a") }
         externalNativeBuild {
             cmake {
                 arguments += listOf(
