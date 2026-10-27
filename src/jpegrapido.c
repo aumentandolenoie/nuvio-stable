@@ -117,6 +117,7 @@ static SDL_Surface *viaNavegador(const unsigned char *dados, size_t n, const cha
   return s;
 }
 
+
 SDL_Surface *jpeg_rapido_carregar_mem(const unsigned char *dados, size_t n, int largMax,
                                       int *larguraOriginal, int *alturaOriginal) {
   if (larguraOriginal) *larguraOriginal = 0;
@@ -357,7 +358,18 @@ SDL_Surface *jpeg_rapido_carregar_mem(const unsigned char *dados, size_t n, int 
   if (alturaOriginal) *alturaOriginal = 0;
   if (!dados || n < 16 || largMax < 1 || dados[0] != 0xFF || dados[1] != 0xD8) return NULL;
   if (!abrir()) return NULL;
+#ifdef NV_FIRE_OS5
+  // Android 5.1 (API 22) lacks fmemopen. Use a temporary stream only
+  // for this legacy target; fclose() is already handled by carregarDeFILE.
+  f = tmpfile();
+  if (!f) return NULL;
+  if (fwrite(dados, 1, n, f) != n || fseek(f, 0, SEEK_SET) != 0) {
+    fclose(f);
+    return NULL;
+  }
+#else
   f = fmemopen((void *)dados, n, "rb");
+#endif
   if (!f) return NULL;
   return carregarDeFILE(f, largMax, larguraOriginal, alturaOriginal);
 }

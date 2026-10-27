@@ -467,7 +467,11 @@ static int acharAnexo(const char *corpo, char *dst, size_t tam, char *hash, size
 #ifdef NV_ANDROID
 // Contrato do anexo: "Nuvio-<versao>-android.apk". "-android-debug.apk" e
 // "-android-preview.N.apk" NAO terminam em "-android.apk", entao nao casam.
+#ifdef NV_FIRE_OS5
+#define AT_APK_SUFIXO "-fireos5.apk"
+#else
 #define AT_APK_SUFIXO "-android.apk"
+#endif
 static int acharApk(const char *corpo, char *dst, size_t tam, char *hash, size_t tamHash) {
   return acharAnexo(corpo, dst, tam, hash, tamHash, AT_APK_SUFIXO);
 }

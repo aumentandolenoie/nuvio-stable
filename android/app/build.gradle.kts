@@ -26,16 +26,19 @@ android {
 
     defaultConfig {
         applicationId = "space.nuvio.nativelegacy"
-        minSdk = 24
+        // Experimental Fire OS 5 / Android 5.1 (API 22). Opt-in only; do not
+        // change the minimum requirement of the standard Android APK.
+        minSdk = if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") 22 else 24
         targetSdk = 35
         versionCode = vx * 10000 + vy * 100 + vz
         versionName = versao
-        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+        ndk { abiFilters += if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") listOf("armeabi-v7a") else listOf("arm64-v8a", "armeabi-v7a") }
         externalNativeBuild {
             cmake {
                 arguments += listOf(
                     "-DANDROID_STL=c++_static",  // hidapi do SDL (hid.cpp) e C++
                     "-DNUVIO_RAIZ=$raiz",
+                    "-DNUVIO_FIRE_OS5=${if (providers.gradleProperty("nuvio.fireOs5").orNull == "true") "ON" else "OFF"}",
                     "-DNUVIO_SDL_SRC=$sdlSrc",
                     "-DNUVIO_ENV_CMAKE=$estagio/nuvio-env.cmake",
                     "-DNUVIO_P2P_MOTOR=${(findProperty("nuvio.p2pMotor") as String?) ?: ""}",
